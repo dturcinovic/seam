@@ -1,0 +1,4 @@
+  1 comment:"// A fixture."
+  2 keyword:"export" keyword:"function" punctuation:"({" punctuation:"})" punctuation:"{"
+  3 keyword:"return" punctuation:"<" tag:"div" attribute:"className" operator:"=" string:"\"greeting\"" punctuation:">{" punctuation:"." punctuation:"()}</" tag:"div" punctuation:">;"
+  4 punctuation:"}"

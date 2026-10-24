@@ -1,0 +1,10 @@
+  1 comment:"# A fixture."
+  2 keyword:"import"
+  3
+  4 meta:"@dataclass"
+  5 keyword:"class" type:"Point" punctuation:":"
+  6 string:"\"\"\"A point.\"\"\""
+  7 punctuation:":" builtin:"int" operator:"=" number:"42"
+  8
+  9 keyword:"def" function:"hello" punctuation:"(" punctuation:"):"
+ 10 keyword:"return" string:"f\"hi {" string:"}\"" operator:"+" builtin:"str" punctuation:"(" builtin:"len" punctuation:"(" punctuation:"))"

@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -10,19 +11,31 @@ import (
 
 	"seam/internal/app/port/out/outfakes"
 	"seam/internal/domain/change"
+	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
+	"seam/internal/domain/syntax"
 )
 
 // These tests call load directly, without the worker, to look at the cache
 // it fills.
 
-// internalFileDiffs reads old as every blob and new as every worktree file.
+// internalFileDiffs reads old as every blob and new as every worktree file,
+// and makes every line a comment.
 func internalFileDiffs(old, new string) *FileDiffs {
-	blobs, worktree := &outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}
+	blobs, worktree, highlighter := &outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeHighlighter{}
 	blobs.ReadBlobReturns([]byte(old), nil)
 	worktree.ReadWorktreeReturns([]byte(new), change.Stamp{}, nil)
-	return NewFileDiffs(blobs, worktree, &outfakes.FakeWorktreeStatter{}, limits.DefaultFileSize, nil)
+	highlighter.HighlightCalls(func(_ context.Context, _ lang.Lang, text string) (syntax.Tokens, bool) {
+		var b syntax.Builder
+		for _, line := range diff.Split(text).Lines {
+			_ = b.Add(len(line), syntax.Comment) // Valid by construction.
+			b.EndLine(len(diff.Content(line)))
+		}
+		return b.Tokens(), true
+	})
+	return NewFileDiffs(blobs, worktree, &outfakes.FakeWorktreeStatter{}, highlighter, limits.DefaultFileSize, nil)
 }
 
 func request(t *testing.T, path string) filediff.Request {
@@ -55,9 +68,11 @@ func TestTheCacheKeepsItsBounds(t *testing.T) {
 			assert.Positive(t, f.cache.order.Len())
 			var sum int64
 			for e := f.cache.order.Front(); e != nil; e = e.Next() {
-				sum += e.Value.(*cached).snapshot.Diff.ApproxBytes()
+				s := e.Value.(*cached).snapshot
+				sum += s.Diff.ApproxBytes() + s.Columns.ApproxBytes() + s.Highlights.ApproxBytes()
 			}
 			assert.Equal(t, sum, f.cache.bytes, "the count matches ApproxBytes")
+			assert.Positive(t, f.cache.order.Front().Value.(*cached).snapshot.Highlights.ApproxBytes(), "tokens among them")
 		})
 	}
 }

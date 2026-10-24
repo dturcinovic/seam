@@ -78,6 +78,8 @@ func noticeText(n filediff.Notice) string {
 		return side + "binary"
 	case filediff.Simplified:
 		return "diff simplified"
+	case filediff.HighlightStopped:
+		return fmt.Sprintf("%sno syntax colours from line %d", side, n.Line)
 	}
 	return ""
 }

@@ -3,16 +3,15 @@ package tui
 import (
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/testsupport"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files from the current output")
@@ -58,15 +57,7 @@ func fixtures(t *testing.T) []fixture {
 func TestGolden(t *testing.T) {
 	for _, f := range fixtures(t) {
 		t.Run(f.name, func(t *testing.T) {
-			got := render(f.state, newTheme()) + "\n"
-			path := filepath.Join("testdata", f.name+".golden")
-			if *update {
-				require.NoError(t, os.MkdirAll("testdata", 0o755))
-				require.NoError(t, os.WriteFile(path, []byte(got), 0o644))
-			}
-			want, err := os.ReadFile(path)
-			require.NoError(t, err, "run with -update to create it")
-			assert.Equal(t, string(want), got)
+			testsupport.Golden(t, filepath.Join("testdata", f.name+".golden"), render(f.state, newTheme())+"\n", *update)
 		})
 	}
 }

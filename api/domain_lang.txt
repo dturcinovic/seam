@@ -1,0 +1,39 @@
+package lang // import "seam/internal/domain/lang"
+
+Package lang names the languages seam knows and tells which one a file or a code
+fence is written in. It reads no file: it judges a path and the start of the
+text it is given.
+
+TYPES
+
+type Lang string
+    Lang is a language by its canonical code fence name, which is also the name
+    chroma knows it by. It is a string, not a closed set, so languages can come
+    from configuration too. The zero value is no known language: such text has
+    no syntax colours.
+
+const (
+	Go         Lang = "go"
+	Rust       Lang = "rust"
+	JavaScript Lang = "javascript"
+	TypeScript Lang = "typescript"
+	JSX        Lang = "jsx"
+	TSX        Lang = "tsx"
+	HTML       Lang = "html"
+	PHP        Lang = "php"
+	Python     Lang = "python"
+)
+    The languages of the plan's table of languages and servers.
+
+func Detect(p, head string) Lang
+    Detect returns the language of the file at p, whose text starts with head:
+    by its extension, else by how the text starts or the program a #! line
+    names, as scripts often have no extension.
+
+func FromFence(name string) Lang
+    FromFence returns the language a Markdown code fence names, as language
+    servers write them, or the zero value for one seam does not know.
+
+func Known() []Lang
+    Known returns the languages seam knows by default.
+

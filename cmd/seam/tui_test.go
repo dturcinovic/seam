@@ -31,6 +31,7 @@ type outFakes struct {
 	blobs     *outfakes.FakeBlobReader
 	worktree  *outfakes.FakeWorktreeReader
 	stats     *outfakes.FakeWorktreeStatter
+	highlight *outfakes.FakeHighlighter
 }
 
 func newOutFakes(t *testing.T) outFakes {
@@ -38,6 +39,7 @@ func newOutFakes(t *testing.T) outFakes {
 	f := outFakes{
 		&outfakes.FakeRevisionResolver{}, &outfakes.FakeChangeLister{}, &outfakes.FakeUntrackedLister{},
 		&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{},
+		&outfakes.FakeHighlighter{},
 	}
 	head, err := change.ParseObjectID("0123456789abcdef0123456789abcdef01234567")
 	require.NoError(t, err)
@@ -61,6 +63,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.BlobReader { return f.blobs },
 			func() out.WorktreeReader { return f.worktree },
 			func() out.WorktreeStatter { return f.stats },
+			func() out.Highlighter { return f.highlight },
 			func() supervise.PanicFunc { return nil },
 		),
 		fx.Supply(limits.DefaultFileSize),

@@ -5,17 +5,19 @@ import (
 
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/syntax"
 	"seam/internal/domain/view"
 )
 
 // sideLine is what one pane shows of a row: the line's index in its side,
-// -1 for none, its text and how it is marked.
+// -1 for none, its text and how it is marked and coloured.
 type sideLine struct {
 	index  int
 	text   string
 	tone   tone
 	mark   string
 	spans  []diff.Span
+	runs   []syntax.Run
 	points []filediff.Checkpoint
 }
 
@@ -55,9 +57,11 @@ func sides(snap filediff.Snapshot, i int) (left, right sideLine) {
 	}
 	if row.Left >= 0 {
 		left.text, left.points = diff.Content(d.Old.Lines[row.Left]), snap.Columns.Old.At(row.Left)
+		left.runs = snap.Highlights.Old.Line(row.Left)
 	}
 	if row.Right >= 0 {
 		right.text, right.points = diff.Content(d.New.Lines[row.Right]), snap.Columns.New.At(row.Right)
+		right.runs = snap.Highlights.New.Line(row.Right)
 	}
 	return left, right
 }
@@ -77,7 +81,7 @@ func writePane(ln *line, p pane, sl sideLine, skip int) {
 	ln.spaces(1, gutter)
 	ln.text(sl.mark, gutter)
 	ln.spaces(1, gutter)
-	ln.window(sl.text, sl.points, skip, cellStyle{pane: true, tone: sl.tone, spans: sl.spans})
-	ln.spaces(ln.free, paneStyle(sl.tone, textRole))
+	ln.window(sl.text, sl.points, skip, cellStyle{pane: true, tone: sl.tone, spans: sl.spans, runs: sl.runs})
+	ln.spaces(ln.free, textStyle(sl.tone, syntax.Plain, false))
 	ln.free = rest
 }

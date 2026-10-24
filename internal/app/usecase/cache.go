@@ -16,12 +16,14 @@ const (
 
 // cached is a loaded file. stamp is the worktree file's when the right side
 // came from the worktree, so a later load can tell whether it changed; sum
-// is the checksum of the right side's text, which its version stands for.
+// is the checksum of the right side's text, which its version stands for;
+// late says the time for its colours ran out.
 type cached struct {
 	snapshot filediff.Snapshot
 	stamp    change.Stamp
 	sum      uint64
 	size     int64
+	late     bool
 }
 
 // cache keeps the most recently used file diffs within its bounds. Only the

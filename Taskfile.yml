@@ -161,10 +161,16 @@ tasks:
     cmds:
       - go mod tidy -diff
       - go tool govulncheck ./...
+      # chroma's COPYING adds to MIT the OFL of a font in its SVG formatter,
+      # which seam does not link, and go-licenses counts it for every package.
+      # So chroma is checked by hand, and only for the version named here.
+      - |
+        test "$(go list -m github.com/alecthomas/chroma/v2)" = "github.com/alecthomas/chroma/v2 v2.27.0" ||
+          { echo "chroma's version changed: read its COPYING, then update the version in mod:check"; exit 1; }
       # seam itself has no license yet; the check is about what it pulls in.
       # go-licenses logs warnings through klog, which no flag silences; they
       # start with W and a date, followed by an indented or path line.
-      - go tool go-licenses check --ignore seam ./... 2> >(grep -v -E '^W[0-9]{4} |^/' >&2)
+      - go tool go-licenses check --ignore seam --ignore github.com/alecthomas/chroma/v2 ./... 2> >(grep -v -E '^W[0-9]{4} |^/' >&2)
 
   build:
     desc: Build the static binary

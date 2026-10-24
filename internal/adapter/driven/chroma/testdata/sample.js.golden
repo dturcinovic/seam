@@ -1,0 +1,7 @@
+  1 comment:"// A fixture."
+  2 keyword:"import" punctuation:"{" punctuation:"}" string:"\"node:fs\"" punctuation:";"
+  3
+  4 keyword:"export" keyword:"function" punctuation:"(" punctuation:")" punctuation:"{"
+  5 keyword:"const" operator:"=" number:"42" punctuation:";"
+  6 keyword:"return" string:"`hi ${" string:"}`" operator:"+" punctuation:";"
+  7 punctuation:"}"

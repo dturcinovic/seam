@@ -1,0 +1,8 @@
+  1 meta:"<!DOCTYPE html>"
+  2 punctuation:"<" tag:"html" attribute:"lang" operator:"=" string:"\"en\"" punctuation:">"
+  3 comment:"<!-- a comment -->"
+  4 punctuation:"<" tag:"body" attribute:"class" operator:"=" string:"\"page\"" punctuation:">"
+  5 punctuation:"<" tag:"p" punctuation:">" escape:"&amp;" punctuation:"</" tag:"p" punctuation:">"
+  6 punctuation:"<" tag:"script" punctuation:">" keyword:"const" operator:"=" number:"42" punctuation:";</" tag:"script" punctuation:">"
+  7 punctuation:"</" tag:"body" punctuation:">"
+  8 punctuation:"</" tag:"html" punctuation:">"

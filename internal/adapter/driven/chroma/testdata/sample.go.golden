@@ -1,0 +1,16 @@
+  1 comment:"// Package sample is a fixture."
+  2 keyword:"package"
+  3
+  4 keyword:"import" string:"\"fmt\""
+  5
+  6 comment:"/* A block comment"
+  7 comment:"   over three lines"
+  8 comment:"   ends here. */"
+  9
+ 10 keyword:"type" keyword:"struct" punctuation:"{" type:"int64" punctuation:"}"
+ 11
+ 12 keyword:"func" function:"Hello" punctuation:"(" type:"string" punctuation:")" type:"error" punctuation:"{"
+ 13 keyword:"const" punctuation:"=" number:"42"
+ 14 punctuation:"." function:"Println" punctuation:"(" string:"\"hi\\n\"" punctuation:"," punctuation:"," builtin:"len" punctuation:"(" punctuation:")," constant:"nil" punctuation:")"
+ 15 keyword:"return" constant:"nil"
+ 16 punctuation:"}"

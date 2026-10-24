@@ -31,8 +31,8 @@ func newChangesets(lc fx.Lifecycle, r out.RevisionResolver, c out.ChangeLister, 
 	return s
 }
 
-func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, st out.WorktreeStatter, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
-	f := NewFileDiffs(b, w, st, max, panics)
+func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, st out.WorktreeStatter, h out.Highlighter, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+	f := NewFileDiffs(b, w, st, h, max, panics)
 	runWorker(lc, f)
 	return f
 }

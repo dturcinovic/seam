@@ -9,6 +9,7 @@ import (
 
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/syntax"
 	"seam/internal/textcell"
 )
 
@@ -141,13 +142,15 @@ func seek(s string, points []filediff.Checkpoint, skip int, m textcell.Method) t
 }
 
 // cellStyle picks the style of each cell: fixed, or in a pane's tone with
-// the inline spans stronger. The spans are ordered and walked along with the
-// cells, so it is used for one walk only.
+// the inline spans stronger and coloured by the syntax runs. Spans and runs
+// are ordered and walked along with the cells, so it is used for one walk
+// only.
 type cellStyle struct {
 	fixed style
 	pane  bool
 	tone  tone
 	spans []diff.Span
+	runs  []syntax.Run
 }
 
 func (cs *cellStyle) of(c textcell.Cell) style {
@@ -166,10 +169,20 @@ func (cs *cellStyle) of(c textcell.Cell) style {
 	switch {
 	case inSpan && c.Replaced:
 		return paneStyle(cs.tone, inlineStandInRole)
-	case inSpan:
-		return paneStyle(cs.tone, inlineRole)
 	case c.Replaced:
 		return paneStyle(cs.tone, standInRole)
 	}
-	return paneStyle(cs.tone, textRole)
+	return textStyle(cs.tone, cs.kind(c), inSpan)
+}
+
+// kind is the syntax kind of c. The runs follow each other from the line's
+// start, so the first one left holds the cell.
+func (cs *cellStyle) kind(c textcell.Cell) syntax.Kind {
+	for len(cs.runs) > 0 && int(cs.runs[0].End) <= c.Start {
+		cs.runs = cs.runs[1:]
+	}
+	if len(cs.runs) == 0 {
+		return syntax.Plain
+	}
+	return cs.runs[0].Kind
 }

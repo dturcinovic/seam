@@ -5,6 +5,7 @@ import (
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
+	"seam/internal/domain/syntax"
 )
 
 // ErrLoaderFailed is the error of every request once the loader has failed:
@@ -39,13 +40,24 @@ type Version uint64
 
 // Snapshot is the loaded diff of a file. Notices say what it leaves out; a
 // side that is too large or binary leaves the diff empty. Columns index the
-// long lines of the diff's sides.
+// long lines of the diff's sides, Highlights give their syntax.
 type Snapshot struct {
-	File    change.ChangedFile
-	Diff    diff.FileDiff
-	Columns Columns
-	Version Version
-	Notices []Notice
+	File       change.ChangedFile
+	Diff       diff.FileDiff
+	Columns    Columns
+	Highlights Highlights
+	Version    Version
+	Notices    []Notice
+}
+
+// Highlights are the tokens of both sides' lines.
+type Highlights struct {
+	Old, New syntax.Tokens
+}
+
+// ApproxBytes is roughly the memory both sides' tokens hold.
+func (h Highlights) ApproxBytes() int64 {
+	return h.Old.ApproxBytes() + h.New.ApproxBytes()
 }
 
 // Update is the outcome of a request: the snapshot, or Err if loading failed.

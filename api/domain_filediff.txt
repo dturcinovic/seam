@@ -1,9 +1,9 @@
 package filediff // import "seam/internal/domain/filediff"
 
-Package filediff describes loading the diff of one file in the background:
-the request with its generation, the snapshot the UI shows, the notices that
-explain what it leaves out and the column index of long lines. It reads nothing,
-keeps no cache and measures no text.
+Package filediff describes loading the diff of one file in the background: the
+request with its generation, the snapshot the UI shows, the notices that explain
+what it leaves out, the column index of long lines and the syntax of both sides.
+It reads nothing, keeps no cache and measures no text.
 
 VARIABLES
 
@@ -45,6 +45,14 @@ type Gen uint64
     ones and shows only the update of the newest, so a late result never covers
     the file chosen since.
 
+type Highlights struct {
+	Old, New syntax.Tokens
+}
+    Highlights are the tokens of both sides' lines.
+
+func (h Highlights) ApproxBytes() int64
+    ApproxBytes is roughly the memory both sides' tokens hold.
+
 type LineCheckpoints struct {
 	Line   int
 	Points []Checkpoint
@@ -55,9 +63,11 @@ type Notice struct {
 	Kind NoticeKind
 	Side Which
 	Size int64
+	Line int
 }
-    Notice tells why a snapshot shows less than the file. Size is set for
-    TooLarge: the size known when reading stopped.
+    Notice tells why a snapshot shows less than the file. Size is set
+    for TooLarge: the size known when reading stopped. Line is set for
+    HighlightStopped, counted from 1.
 
 func SideNotice(side Which, data []byte, err error) (*Notice, error)
     SideNotice judges what reading a side returned. A side too large or binary
@@ -76,6 +86,9 @@ const (
 	// Simplified means the time for the diff ran out: its blocks may be
 	// larger than needed. The UI learns it here, not from the diff.
 	Simplified
+	// HighlightStopped means a side has syntax colours only up to Line,
+	// the first line without: a line was too long or the time ran out.
+	HighlightStopped
 )
     The kinds of notice. The zero value is no valid kind.
 
@@ -94,15 +107,16 @@ func (r Request) ReadsWorktree() bool
     path: an untracked file has no mode yet.
 
 type Snapshot struct {
-	File    change.ChangedFile
-	Diff    diff.FileDiff
-	Columns Columns
-	Version Version
-	Notices []Notice
+	File       change.ChangedFile
+	Diff       diff.FileDiff
+	Columns    Columns
+	Highlights Highlights
+	Version    Version
+	Notices    []Notice
 }
     Snapshot is the loaded diff of a file. Notices say what it leaves out;
     a side that is too large or binary leaves the diff empty. Columns index the
-    long lines of the diff's sides.
+    long lines of the diff's sides, Highlights give their syntax.
 
 type Update struct {
 	Gen      Gen

@@ -1,0 +1,8 @@
+  1 comment:"// A fixture."
+  2 keyword:"type" operator:"=" punctuation:"{" type:"string" punctuation:"};"
+  3
+  4 keyword:"export" keyword:"const" operator:"=" punctuation:"({" punctuation:"}" operator:":" punctuation:")" operator:"=>" punctuation:"("
+  5 punctuation:"<" tag:"section" attribute:"id" operator:"=" string:"\"main\"" punctuation:">"
+  6 punctuation:"<" tag:"h1" attribute:"className" operator:"=" string:"\"title\"" punctuation:">{" punctuation:"." operator:">" number:"3" operator:"?" operator:":" string:"\"short\"" punctuation:"}</" tag:"h1" punctuation:">"
+  7 punctuation:"</" tag:"section" punctuation:">"
+  8 punctuation:");"

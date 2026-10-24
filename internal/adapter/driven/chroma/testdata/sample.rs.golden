@@ -1,0 +1,10 @@
+  1 comment:"// A fixture."
+  2 keyword:"use" punctuation:";"
+  3
+  4 meta:"#[derive(Debug)]"
+  5 keyword:"struct" type:"Point" punctuation:"{" type:"i32" punctuation:"}"
+  6
+  7 keyword:"fn" function:"main" punctuation:"()" punctuation:"{"
+  8 keyword:"let" operator:"=" string:"\"hi\"" punctuation:";"
+  9 function:"println!" punctuation:"(" string:"\"{}\"" punctuation:"," punctuation:"." punctuation:"()" operator:"+" number:"7" punctuation:");"
+ 10 punctuation:"}"

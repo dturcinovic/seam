@@ -35,16 +35,17 @@ func (r *repo) readWorktree(path string) ([]byte, change.Stamp, error) {
 }
 
 type fileFakes struct {
-	blobs    *outfakes.FakeBlobReader
-	worktree *outfakes.FakeWorktreeReader
-	stats    *outfakes.FakeWorktreeStatter
-	repo     *repo
+	blobs       *outfakes.FakeBlobReader
+	worktree    *outfakes.FakeWorktreeReader
+	stats       *outfakes.FakeWorktreeStatter
+	highlighter *outfakes.FakeHighlighter
+	repo        *repo
 }
 
 func newFileDiffs(t *testing.T) (*usecase.FileDiffs, fileFakes) {
 	t.Helper()
 	r := &repo{blobs: map[change.ObjectID]string{}, worktree: map[string]string{}, stamps: map[string]change.Stamp{}}
-	f := fileFakes{&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{}, r}
+	f := fileFakes{&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{}, coveringHighlighter(), r}
 	f.blobs.ReadBlobCalls(func(_ context.Context, id change.ObjectID, _ limits.FileSize) ([]byte, error) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -58,7 +59,7 @@ func newFileDiffs(t *testing.T) (*usecase.FileDiffs, fileFakes) {
 		defer r.mu.Unlock()
 		return r.stamps[path], nil
 	})
-	return usecase.NewFileDiffs(f.blobs, f.worktree, f.stats, limits.DefaultFileSize, nil), f
+	return usecase.NewFileDiffs(f.blobs, f.worktree, f.stats, f.highlighter, limits.DefaultFileSize, nil), f
 }
 
 // start runs the worker for the test.

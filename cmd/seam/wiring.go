@@ -4,6 +4,7 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 
+	"seam/internal/adapter/driven/chroma"
 	"seam/internal/adapter/driven/git"
 	"seam/internal/app/usecase"
 	"seam/internal/config"
@@ -17,6 +18,7 @@ func options(cfg config.Config, logger *observability.Logger, root string) []fx.
 		fx.Supply(cfg, logger, git.Config{Root: root}, cfg.FileSizeLimit()),
 		observability.Module,
 		git.Module,
+		chroma.Module,
 		usecase.Module,
 		// fx.WithLogger insists on the interface type; NewFxLogger returns
 		// the concrete one.

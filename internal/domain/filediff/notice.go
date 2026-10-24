@@ -19,6 +19,9 @@ const (
 	// Simplified means the time for the diff ran out: its blocks may be
 	// larger than needed. The UI learns it here, not from the diff.
 	Simplified
+	// HighlightStopped means a side has syntax colours only up to Line,
+	// the first line without: a line was too long or the time ran out.
+	HighlightStopped
 )
 
 // Which names one side of the file.
@@ -34,11 +37,13 @@ const (
 )
 
 // Notice tells why a snapshot shows less than the file. Size is set for
-// TooLarge: the size known when reading stopped.
+// TooLarge: the size known when reading stopped. Line is set for
+// HighlightStopped, counted from 1.
 type Notice struct {
 	Kind NoticeKind
 	Side Which
 	Size int64
+	Line int
 }
 
 // SideNotice judges what reading a side returned. A side too large or

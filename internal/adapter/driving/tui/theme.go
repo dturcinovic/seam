@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	"seam/internal/domain/syntax"
 )
 
 // style names what a stretch of the screen shows; the theme gives it its
@@ -55,25 +57,38 @@ const (
 	tones
 )
 
-// role is a part of a pane line in its tone.
+// role is a part of a pane line in its tone. Text comes in one role per
+// syntax kind, see textStyle.
 type role uint8
 
 const (
 	gutterRole role = iota
-	textRole
-	// inlineRole is a changed stretch within a changed line.
-	inlineRole
 	// standInRole is a replaced grapheme, inlineStandInRole one within a
-	// changed stretch.
+	// changed stretch; both are dimmed rather than coloured by kind.
 	standInRole
 	inlineStandInRole
-	roles
+	textRole
+	// inlineRole is a changed stretch within a changed line.
+	inlineRole = textRole + role(syntax.Kinds)
+	roles      = inlineRole + role(syntax.Kinds)
 )
 
 const styles = int(firstPaneStyle) + int(tones)*int(roles)
 
+// A style must fit its type; more kinds or tones fail the build here.
+const _ = uint8(styles - 1)
+
 func paneStyle(t tone, r role) style {
 	return firstPaneStyle + style(int(t)*int(roles)+int(r))
+}
+
+// textStyle is text of kind k in tone t, in a changed stretch if inline.
+func textStyle(t tone, k syntax.Kind, inline bool) style {
+	r := textRole
+	if inline {
+		r = inlineRole
+	}
+	return paneStyle(t, r+role(k))
 }
 
 // theme holds the SGR sequences that switch each style on and off. Its zero
@@ -95,6 +110,27 @@ const (
 	headerBg         = "#303030"
 	errorFg          = "#ff6b6b"
 )
+
+// kindColours are the foregrounds of the syntax kinds, readable on every
+// tone's background. An empty colour is the terminal's own.
+func kindColours() [syntax.Kinds]string {
+	return [syntax.Kinds]string{
+		syntax.Keyword:   "#c678dd",
+		syntax.Type:      "#e5c07b",
+		syntax.Function:  "#61afef",
+		syntax.Builtin:   "#56b6c2",
+		syntax.Constant:  "#d19a66",
+		syntax.String:    "#98c379",
+		syntax.Escape:    "#56b6c2",
+		syntax.Number:    "#d19a66",
+		syntax.Comment:   "#7f848e",
+		syntax.Meta:      "#e06c75",
+		syntax.Operator:  "#56b6c2",
+		syntax.Tag:       "#e06c75",
+		syntax.Attribute: "#d19a66",
+		syntax.Variable:  "#e06c75",
+	}
+}
 
 // newTheme derives the sequences from Lip Gloss styles once: Lip Gloss
 // renders a whole string per call, while a line switches style per stretch
@@ -135,10 +171,12 @@ func lipglossStyles() map[style]lipgloss.Style {
 	for t, bg := range backgrounds {
 		normal, strong := base.Background(lipgloss.Color(bg[0])), base.Background(lipgloss.Color(bg[1]))
 		all[paneStyle(tone(t), gutterRole)] = normal.Foreground(lipgloss.Color(dimFg))
-		all[paneStyle(tone(t), textRole)] = normal
-		all[paneStyle(tone(t), inlineRole)] = strong
 		all[paneStyle(tone(t), standInRole)] = normal.Faint(true)
 		all[paneStyle(tone(t), inlineStandInRole)] = strong.Faint(true)
+		for k, fg := range kindColours() {
+			all[textStyle(tone(t), syntax.Kind(k), false)] = normal.Foreground(lipgloss.Color(fg))
+			all[textStyle(tone(t), syntax.Kind(k), true)] = strong.Foreground(lipgloss.Color(fg))
+		}
 	}
 	return all
 }

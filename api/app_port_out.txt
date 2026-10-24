@@ -18,6 +18,14 @@ type ChangeLister interface {
     ChangeLister lists the files that differ between the sides of a resolved
     comparison, as git sees them; files git does not track are not among them.
 
+type Highlighter interface {
+	Highlight(ctx context.Context, l lang.Lang, text string) (t syntax.Tokens, ok bool)
+}
+    Highlighter finds the tokens of text in language l, text that holds no
+    line over syntax.MaxLine. It covers the lines from the first up to where
+    it stops: when ctx ends, which it checks between tokens, or when the lexer
+    fails. ok is false if it has no lexer for l.
+
 type RevisionResolver interface {
 	// ResolveCommit fails for a revision that names no commit.
 	ResolveCommit(ctx context.Context, rev string) (change.ObjectID, error)

@@ -1,0 +1,109 @@
+package syntax // import "seam/internal/domain/syntax"
+
+Package syntax describes highlighted text as kinds of token per stretch of a
+line. It knows no lexer and no colour: a lexer reports the kinds, the TUI picks
+the colours.
+
+CONSTANTS
+
+const (
+	MaxLine     = 64 << 10
+	MaxRunsLine = 4 << 10
+)
+    The bounds on long lines, in bytes without the line ending. A lexer reads
+    a side only up to its first line longer than MaxLine, see Lexable. A line
+    longer than MaxRunsLine is still read, so the lines after it start in the
+    right state, but keeps no runs, see Builder.
+
+
+FUNCTIONS
+
+func Lexable(text string) string
+    Lexable returns text up to its first line over MaxLine: a lexer's time and
+    memory grow with what it is given, and it must not reach that line at all,
+    even with a token that would span it.
+
+
+TYPES
+
+type Builder struct {
+	// Has unexported fields.
+}
+    Builder builds Tokens line by line. Adjacent runs of one kind merge, a
+    line's trailing plain run is dropped, as past the last run is plain anyway,
+    and so are all runs of a line that reaches past MaxRunsLine.
+
+func (b *Builder) Add(end int, k Kind) error
+    Add ends the current run of the current line at end with kind k. A run that
+    ends where the last one did is empty and ignored.
+
+func (b *Builder) EndLine(length int)
+    EndLine ends the current line, of length bytes without its ending; the next
+    Add starts the next one.
+
+func (b *Builder) Lines() int
+    Lines is how many lines have been ended.
+
+func (b *Builder) Tokens() Tokens
+    Tokens returns the lines ended so far, copied to their size, as they may be
+    kept long. The builder must not be used after.
+
+type Kind uint8
+    Kind is what a stretch of source is to the language. The zero value, Plain,
+    is text without a kind of its own.
+
+const (
+	Plain Kind = iota
+	Keyword
+	// Type is a type name, built in or declared.
+	Type
+	Function
+	// Builtin is a predeclared name other than a type, such as len.
+	Builtin
+	// Constant is a predeclared or declared constant, such as nil or true.
+	Constant
+	String
+	// Escape is an escape sequence within a string.
+	Escape
+	Number
+	Comment
+	// Meta is a directive to the compiler or template rather than code,
+	// such as a preprocessor line or <?php.
+	Meta
+	Operator
+	Punctuation
+	// Tag is the name of a markup tag, Attribute that of one of its
+	// attributes.
+	Tag
+	Attribute
+	Variable
+	// Kinds is the number of kinds, no kind itself.
+	Kinds
+)
+    The kinds of token.
+
+type Run struct {
+	End  int32
+	Kind Kind
+}
+    Run is a stretch of a line in one kind. It reaches from the previous
+    run's End, or the line's start, to End, in bytes from the line's start;
+    int32 halves what a file's runs hold, and lines with runs are short.
+
+type Tokens struct {
+	// Has unexported fields.
+}
+    Tokens are the runs of a side's first Lines() lines; a line past them has no
+    kinds, nor has a line without runs or the rest of a line past its last run.
+    The zero value covers no line.
+
+func (t Tokens) ApproxBytes() int64
+    ApproxBytes is roughly the memory the tokens hold.
+
+func (t Tokens) Line(i int) []Run
+    Line returns the runs of line i, nil past the lines covered. The caller must
+    not change them.
+
+func (t Tokens) Lines() int
+    Lines is how many lines from the first the tokens cover.
+

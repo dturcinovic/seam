@@ -1,0 +1,7 @@
+  1 comment:"// A fixture."
+  2 keyword:"interface" punctuation:"{" type:"number" punctuation:"}"
+  3
+  4 keyword:"export" keyword:"function" punctuation:"(" type:"Point" punctuation:")" operator:":" type:"string" punctuation:"{"
+  5 keyword:"const" type:"number" operator:"=" number:"42" punctuation:";"
+  6 keyword:"return" string:"\"hi\"" operator:"+" punctuation:"." operator:"+" punctuation:";"
+  7 punctuation:"}"

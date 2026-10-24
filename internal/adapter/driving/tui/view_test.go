@@ -15,6 +15,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/syntax"
 	"seam/internal/textcell"
 )
 
@@ -249,10 +250,12 @@ func TestTheThemeIsLipGloss(t *testing.T) {
 	for st, ls := range lipglossStyles() {
 		assert.Equal(t, ls.Render("x"), th.open[st]+"x"+th.close[st])
 	}
-	for _, st := range []style{paneStyle(changedTone, textRole), paneStyle(changedTone, inlineRole), paneStyle(deletedTone, textRole)} {
+	for _, st := range []style{textStyle(changedTone, syntax.Plain, false), textStyle(changedTone, syntax.Plain, true), textStyle(deletedTone, syntax.Plain, false)} {
 		assert.NotEmpty(t, th.open[st])
 	}
-	assert.NotEqual(t, th.open[paneStyle(changedTone, textRole)], th.open[paneStyle(changedTone, inlineRole)])
+	assert.NotEqual(t, th.open[textStyle(changedTone, syntax.Plain, false)], th.open[textStyle(changedTone, syntax.Plain, true)])
+	assert.NotEqual(t, th.open[textStyle(equalTone, syntax.Plain, false)], th.open[textStyle(equalTone, syntax.Keyword, false)],
+		"kinds are coloured on equal lines too")
 }
 
 func TestATinyScreenGetsNoMoreLinesThanItHas(t *testing.T) {
@@ -274,5 +277,5 @@ func TestASpanInsideAGraphemeMarksIt(t *testing.T) {
 	require.Greater(t, left[0].Start, len("ok "), "the span starts after the thumb")
 
 	th := newTheme()
-	assert.Contains(t, render(s, th), th.open[paneStyle(changedTone, inlineRole)]+"👍")
+	assert.Contains(t, render(s, th), th.open[textStyle(changedTone, syntax.Plain, true)]+"👍")
 }

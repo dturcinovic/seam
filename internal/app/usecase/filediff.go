@@ -15,18 +15,23 @@ import (
 )
 
 // diffBudget bounds the search of one diff; past it the diff comes out
-// coarser rather than late.
-const diffBudget = time.Second
+// coarser rather than late. highlightBudget bounds finding the tokens of one
+// side; past it the rest of the side has no colours.
+const (
+	diffBudget      = time.Second
+	highlightBudget = 500 * time.Millisecond
+)
 
 // FileDiffs implements in.FileDiffLoader.
 type FileDiffs struct {
 	*worker[filediff.Request, filediff.Update]
 
-	blobs    out.BlobReader
-	worktree out.WorktreeReader
-	stats    out.WorktreeStatter
-	max      limits.FileSize
-	budget   time.Duration
+	blobs       out.BlobReader
+	worktree    out.WorktreeReader
+	stats       out.WorktreeStatter
+	highlighter out.Highlighter
+	max         limits.FileSize
+	budget      time.Duration
 
 	// Only the worker touches these.
 	cache    *cache
@@ -43,9 +48,9 @@ type version struct {
 
 // NewFileDiffs returns the use case over its ports. Its worker runs between
 // Start and Stop.
-func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, s out.WorktreeStatter, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, s out.WorktreeStatter, h out.Highlighter, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
 	f := &FileDiffs{
-		blobs: b, worktree: w, stats: s, max: max, budget: diffBudget,
+		blobs: b, worktree: w, stats: s, highlighter: h, max: max, budget: diffBudget,
 		cache:    newCache(cacheEntries, cacheBytes),
 		seed:     maphash.MakeSeed(),
 		versions: make(map[string]version),
@@ -74,7 +79,10 @@ func (f *FileDiffs) load(ctx context.Context, r filediff.Request) filediff.Updat
 	if err != nil {
 		return filediff.Update{Gen: r.Gen, Err: err}
 	}
-	f.cache.put(e)
+	// Colours cut short by time are not kept: the next visit may have it.
+	if !e.late {
+		f.cache.put(e)
+	}
 	return filediff.Update{Gen: r.Gen, Snapshot: e.snapshot}
 }
 
@@ -131,12 +139,12 @@ func (f *FileDiffs) compute(ctx context.Context, r filediff.Request) (*cached, e
 			return nil, err
 		}
 	}
-	e.snapshot, e.size = s, s.Diff.ApproxBytes()+s.Columns.ApproxBytes()
+	e.snapshot, e.size = s, s.Diff.ApproxBytes()+s.Columns.ApproxBytes()+s.Highlights.ApproxBytes()
 	return e, nil
 }
 
 // showText puts the diff of both sides' text into s with the column index of
-// its long lines, and gives the right side its version.
+// its long lines and their tokens, and gives the right side its version.
 func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cached, old, new string) error {
 	d, err := f.diff(ctx, old, new)
 	if err != nil {
@@ -148,6 +156,14 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	if s.Columns, err = indexColumns(ctx, d); err != nil {
 		return err
 	}
+	var oldLate, newLate bool
+	if s.Highlights.Old, oldLate, err = f.highlightSide(ctx, s, filediff.OldSide, s.File.OldPath, old, len(d.Old.Lines)); err != nil {
+		return err
+	}
+	if s.Highlights.New, newLate, err = f.highlightSide(ctx, s, filediff.NewSide, s.File.NewPath, new, len(d.New.Lines)); err != nil {
+		return err
+	}
+	e.late = oldLate || newLate
 	s.Diff = d
 	// Only text that is shown gets a version.
 	if s.File.NewPath != "" {
