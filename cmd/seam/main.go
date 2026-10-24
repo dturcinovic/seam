@@ -68,6 +68,7 @@ compares HEAD with the index.`,
 	}
 	cmd.Flags().BoolVarP(&flags.Verbose, "verbose", "v", false, "log at debug level")
 	cmd.Flags().BoolVar(&staged, "staged", false, "compare HEAD with the index")
+	cmd.Flags().StringVar(&flags.MaxFileSize, "max-file-size", "", "largest side of a file to load, in bytes or with K, M or G (default 8M)")
 	return cmd
 }
 

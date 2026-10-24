@@ -19,6 +19,7 @@ import (
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/limits"
 	"seam/internal/supervise"
+	"seam/internal/testsupport"
 )
 
 // blockOn makes the worktree reader wait for release on path, ignoring ctx
@@ -44,11 +45,11 @@ func TestALateResultIsDropped(t *testing.T) {
 	c := worktreeComparison(t)
 
 	uc.Load(filediff.Request{Gen: 1, Comparison: c, File: a})
-	until(t, started)
+	testsupport.Until(t, started)
 	uc.Load(filediff.Request{Gen: 2, Comparison: c, File: b})
 	close(release)
 
-	all := collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 })
+	all := testsupport.Collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 })
 	require.Len(t, all, 1)
 	assert.Equal(t, filediff.Gen(2), all[0].Gen)
 	assert.Equal(t, b, all[0].Snapshot.File)
@@ -70,10 +71,10 @@ func TestFreshCancelsTheRunningLoadOfTheSameFile(t *testing.T) {
 	c := worktreeComparison(t)
 
 	uc.Load(filediff.Request{Gen: 1, Comparison: c, File: file})
-	until(t, started)
+	testsupport.Until(t, started)
 	uc.Load(filediff.Request{Gen: 2, Comparison: c, File: file, Fresh: true})
 
-	all := collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 })
+	all := testsupport.Collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 })
 	require.Len(t, all, 1)
 	assert.Equal(t, filediff.Gen(2), all[0].Gen)
 }
@@ -98,7 +99,7 @@ func TestABurstRunsOneLoadAtATime(t *testing.T) {
 		uc.Load(filediff.Request{Gen: filediff.Gen(i + 1), Comparison: c, File: last})
 	}
 
-	all := collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == 100 })
+	all := testsupport.Collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == 100 })
 
 	assert.False(t, overlap.Load(), "never two loads at once")
 	assert.Equal(t, last, all[len(all)-1].Snapshot.File)
@@ -117,7 +118,7 @@ func TestLoadNeverBlocks(t *testing.T) {
 	c := worktreeComparison(t)
 
 	uc.Load(filediff.Request{Gen: 1, Comparison: c, File: file})
-	until(t, started)
+	testsupport.Until(t, started)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -126,7 +127,7 @@ func TestLoadNeverBlocks(t *testing.T) {
 		}
 		uc.Drain()
 	}()
-	until(t, done)
+	testsupport.Until(t, done)
 }
 
 func TestManyResultsSetTheSignalOnce(t *testing.T) {
@@ -176,9 +177,9 @@ func TestStop(t *testing.T) {
 			return nil, change.Stamp{}, ctx.Err()
 		})
 		uc.Load(filediff.Request{Gen: 1, Comparison: worktreeComparison(t), File: file})
-		until(t, started)
+		testsupport.Until(t, started)
 
-		ctx, cancel := context.WithTimeout(t.Context(), guard)
+		ctx, cancel := context.WithTimeout(t.Context(), testsupport.Guard)
 		defer cancel()
 		require.NoError(t, uc.Stop(ctx))
 		assert.Empty(t, uc.Drain(), "a cancelled load publishes nothing")
@@ -189,7 +190,7 @@ func TestStop(t *testing.T) {
 		file := f.modified(t, "a.go", "x\n", "y\n")
 		started, release := blockOn(f, "a.go")
 		uc.Load(filediff.Request{Gen: 1, Comparison: worktreeComparison(t), File: file})
-		until(t, started)
+		testsupport.Until(t, started)
 
 		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 		defer cancel()

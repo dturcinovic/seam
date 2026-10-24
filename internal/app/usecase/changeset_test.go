@@ -12,6 +12,7 @@ import (
 	"seam/internal/app/port/out/outfakes"
 	"seam/internal/app/usecase"
 	"seam/internal/domain/change"
+	"seam/internal/testsupport"
 )
 
 type fakes struct {
@@ -155,7 +156,7 @@ func mustID(t *testing.T, s string) change.ObjectID {
 func reloadOne(t *testing.T, uc *usecase.Changesets, gen change.Gen) change.Update {
 	t.Helper()
 	uc.Reload(gen)
-	all := collect(t, uc, func(u []change.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == gen })
+	all := testsupport.Collect(t, uc, func(u []change.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == gen })
 	return all[len(all)-1]
 }
 
@@ -210,10 +211,10 @@ func TestANewerReloadCancelsTheRunningOne(t *testing.T) {
 	})
 
 	uc.Reload(1)
-	until(t, started)
+	testsupport.Until(t, started)
 	uc.Reload(2)
 
-	all := collect(t, uc, func(u []change.Update) bool { return len(u) > 0 })
+	all := testsupport.Collect(t, uc, func(u []change.Update) bool { return len(u) > 0 })
 	require.Len(t, all, 1, "the cancelled reload publishes nothing")
 	assert.Equal(t, change.Gen(2), all[0].Gen)
 	require.NoError(t, all[0].Err)
@@ -239,5 +240,5 @@ func TestReloadNeverBlocks(t *testing.T) {
 		}
 		uc.Drain()
 	}()
-	until(t, done)
+	testsupport.Until(t, done)
 }

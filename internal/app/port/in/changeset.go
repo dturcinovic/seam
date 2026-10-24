@@ -15,6 +15,8 @@ type ChangesetLoader interface {
 	LoadChangeset(ctx context.Context, c change.Comparison) (change.Changeset, error)
 }
 
+//counterfeiter:generate . ChangesetReloader
+
 // ChangesetReloader reloads the changeset while the TUI runs, against the
 // commits the first load resolved. Reload never blocks: the work runs in the
 // background, and its outcome waits in Drain until the UI collects it.

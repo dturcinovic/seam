@@ -17,6 +17,7 @@ import (
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/limits"
+	"seam/internal/testsupport"
 )
 
 // repo is the content behind the fakes: blobs by id, worktree files by path.
@@ -69,7 +70,7 @@ func start(t *testing.T, uc interface {
 	t.Helper()
 	require.NoError(t, uc.Start())
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), guard)
+		ctx, cancel := context.WithTimeout(context.Background(), testsupport.Guard)
 		defer cancel()
 		assert.NoError(t, uc.Stop(ctx))
 	})
@@ -123,7 +124,7 @@ func mustSource(t *testing.T, rev string) change.Source {
 func loadOne(t *testing.T, uc *usecase.FileDiffs, c change.Comparison, gen filediff.Gen, file change.ChangedFile, fresh bool) filediff.Update {
 	t.Helper()
 	uc.Load(filediff.Request{Gen: gen, Comparison: c, File: file, Fresh: fresh})
-	all := collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == gen })
+	all := testsupport.Collect(t, uc, func(u []filediff.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == gen })
 	return all[len(all)-1]
 }
 

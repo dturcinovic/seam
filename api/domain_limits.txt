@@ -6,8 +6,8 @@ that take them do.
 
 VARIABLES
 
-var ErrInvalidFileSize = errors.New("file size limit must be positive")
-    ErrInvalidFileSize is returned for a limit that is not positive.
+var ErrInvalidFileSize = errors.New("file size limit must be a positive size")
+    ErrInvalidFileSize is returned for a limit that is not a positive size.
 
 
 TYPES
@@ -22,6 +22,10 @@ const DefaultFileSize FileSize = 8 << 20
 
 func NewFileSize(n int64) (FileSize, error)
     NewFileSize checks n and returns it as a limit.
+
+func ParseFileSize(s string) (FileSize, error)
+    ParseFileSize reads a limit as written by a user: bytes, or a number with a
+    binary suffix K, M or G, such as 16M.
 
 func (s FileSize) Bytes() int64
     Bytes is the limit as a byte count.

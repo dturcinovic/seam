@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"seam/internal/config"
+	"seam/internal/domain/limits"
 )
 
 func TestLoad(t *testing.T) {
@@ -45,4 +46,43 @@ func TestLoadWithoutHome(t *testing.T) {
 
 	_, err := config.Load(config.Flags{})
 	assert.ErrorContains(t, err, "XDG_STATE_HOME")
+}
+
+func TestFileSizeLimit(t *testing.T) {
+	assert.Equal(t, limits.DefaultFileSize, config.Config{}.FileSizeLimit(), "not set")
+	assert.Equal(t, limits.FileSize(9), config.Config{MaxFileSize: 9}.FileSizeLimit())
+}
+
+func TestMaxFileSize(t *testing.T) {
+	tests := []struct {
+		flag    string
+		want    limits.FileSize
+		wantErr bool
+	}{
+		{"", limits.DefaultFileSize, false},
+		{"1000", 1000, false},
+		{"16K", 16 << 10, false},
+		{"16M", 16 << 20, false},
+		{"2G", 2 << 30, false},
+		{"0", 0, true},
+		{"-1M", 0, true},
+		{"16MB", 0, true},
+		{"M", 0, true},
+		{"x", 0, true},
+		{"9999999999G", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.flag, func(t *testing.T) {
+			t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+			cfg, err := config.Load(config.Flags{MaxFileSize: tt.flag})
+
+			if tt.wantErr {
+				require.ErrorIs(t, err, limits.ErrInvalidFileSize)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cfg.MaxFileSize)
+		})
+	}
 }

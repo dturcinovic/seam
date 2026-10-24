@@ -2,6 +2,8 @@ package in
 
 import "seam/internal/domain/filediff"
 
+//counterfeiter:generate . FileDiffLoader
+
 // FileDiffLoader loads the diff of a file in the background. Load never
 // blocks; the outcome waits in Drain until the UI collects it, so a slow
 // file never holds up the terminal.
