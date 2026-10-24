@@ -10,6 +10,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/supervise"
 )
@@ -30,6 +31,7 @@ type FileDiffs struct {
 	worktree    out.WorktreeReader
 	stats       out.WorktreeStatter
 	highlighter out.Highlighter
+	languages   lang.Table
 	max         limits.FileSize
 	budget      time.Duration
 
@@ -48,9 +50,9 @@ type version struct {
 
 // NewFileDiffs returns the use case over its ports. Its worker runs between
 // Start and Stop.
-func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, s out.WorktreeStatter, h out.Highlighter, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, s out.WorktreeStatter, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
 	f := &FileDiffs{
-		blobs: b, worktree: w, stats: s, highlighter: h, max: max, budget: diffBudget,
+		blobs: b, worktree: w, stats: s, highlighter: h, languages: languages, max: max, budget: diffBudget,
 		cache:    newCache(cacheEntries, cacheBytes),
 		seed:     maphash.MakeSeed(),
 		versions: make(map[string]version),

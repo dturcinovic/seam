@@ -12,6 +12,7 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
+	"seam/internal/adapter/driven/configfile"
 	"seam/internal/adapter/driven/git"
 	"seam/internal/adapter/driving/tui"
 	"seam/internal/app/port/in"
@@ -29,8 +30,13 @@ const stopBudget = 3 * time.Second
 // logger and closes it only after the graph has stopped.
 func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout io.Writer) (err error) {
 	// Before the graph: it runs git, which ctx can cancel, and its errors
-	// are the user's to fix rather than faults of the wiring.
+	// and those of the configuration file are the user's to fix rather
+	// than faults of the wiring.
 	root, err := git.FindRoot(ctx, cfg.Dir)
+	if err != nil {
+		return err
+	}
+	languages, err := configfile.Load(cfg.ConfigFile)
 	if err != nil {
 		return err
 	}
@@ -45,7 +51,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout
 		ports      tui.Ports
 		panics     supervise.PanicFunc
 	)
-	app := fx.New(append(options(cfg, logger, root), fx.Populate(&changesets, &ports.Files, &ports.Reload, &panics))...)
+	app := fx.New(append(options(cfg, logger, root, languages), fx.Populate(&changesets, &ports.Files, &ports.Reload, &panics))...)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}

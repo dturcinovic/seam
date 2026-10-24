@@ -27,7 +27,7 @@ func TestEachLanguageHasItsLexer(t *testing.T) {
 		lang.JSX: "react", lang.TSX: "TypeScript", lang.HTML: "HTML", lang.PHP: "PHTML", lang.Python: "Python",
 	}
 	h := newInternal(t, zap.NewNop())
-	require.Len(t, want, len(lang.Known()))
+	require.Len(t, want, len(lang.Defaults().Languages()))
 	for l, name := range want {
 		lx, ok := h.lexerFor(l)
 		require.True(t, ok, l)

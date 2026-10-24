@@ -16,6 +16,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/testsupport"
 )
@@ -44,6 +45,11 @@ type fileFakes struct {
 
 func newFileDiffs(t *testing.T) (*usecase.FileDiffs, fileFakes) {
 	t.Helper()
+	return newFileDiffsIn(t, lang.Defaults())
+}
+
+func newFileDiffsIn(t *testing.T, table lang.Table) (*usecase.FileDiffs, fileFakes) {
+	t.Helper()
 	r := &repo{blobs: map[change.ObjectID]string{}, worktree: map[string]string{}, stamps: map[string]change.Stamp{}}
 	f := fileFakes{&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{}, coveringHighlighter(), r}
 	f.blobs.ReadBlobCalls(func(_ context.Context, id change.ObjectID, _ limits.FileSize) ([]byte, error) {
@@ -59,7 +65,7 @@ func newFileDiffs(t *testing.T) (*usecase.FileDiffs, fileFakes) {
 		defer r.mu.Unlock()
 		return r.stamps[path], nil
 	})
-	return usecase.NewFileDiffs(f.blobs, f.worktree, f.stats, f.highlighter, limits.DefaultFileSize, nil), f
+	return usecase.NewFileDiffs(f.blobs, f.worktree, f.stats, f.highlighter, table, limits.DefaultFileSize, nil), f
 }
 
 // start runs the worker for the test.

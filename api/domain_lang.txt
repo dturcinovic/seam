@@ -1,10 +1,29 @@
 package lang // import "seam/internal/domain/lang"
 
-Package lang names the languages seam knows and tells which one a file or a code
-fence is written in. It reads no file: it judges a path and the start of the
-text it is given.
+Package lang names the languages of a session and the servers that hover over
+them: which language a file or a code fence is written in, which server and
+languageId it has, and which workspace a file belongs to. It reads no file
+and no configuration: it judges a path and the start of the text it is given,
+and asks its caller whether a root marker exists.
+
+VARIABLES
+
+var ErrInvalid = errors.New("invalid language table")
+    ErrInvalid is a table of languages and servers that breaks one of the rules
+    NewTable checks.
+
 
 TYPES
+
+type Instance struct {
+	Server string
+	// Root is the workspace, relative to the repository root in slash
+	// form; "." is the repository root.
+	Root string
+}
+    Instance is one running server: a server for one workspace. Files that map
+    to the same instance share a process, as JavaScript and TSX of one project
+    do.
 
 type Lang string
     Lang is a language by its canonical code fence name, which is also the name
@@ -25,15 +44,81 @@ const (
 )
     The languages of the plan's table of languages and servers.
 
-func Detect(p, head string) Lang
+type Language struct {
+	Lang Lang
+	// Extensions are lower case with their dot, as in ".go".
+	Extensions []string
+	// Interpreters are programs a #! line names, by prefix, as python
+	// matches python3.
+	Interpreters []string
+	// Heads are how a file's text may start, as "<?php".
+	Heads []string
+	// Fences are the other names a Markdown code fence gives it.
+	Fences []string
+	// Server names the server that hovers over it; empty is none.
+	Server string
+	// LanguageID is the LSP languageId; empty means Lang.
+	LanguageID string
+}
+    Language is how a language is recognised and which server hovers over it.
+    It is a plain value; NewTable checks a set of them.
+
+type Server struct {
+	Name    string
+	Command string
+	Args    []string
+	// Disabled keeps the server from starting; its languages have no hover.
+	Disabled bool
+	// RootMarkers are file names that mark a project root for it, as
+	// "go.mod".
+	RootMarkers []string
+	// InitializationOptions and Settings go to the server unread, the
+	// first with initialize, the second as workspace/configuration answers.
+	// A table hands them out shared: they are read, never changed.
+	InitializationOptions map[string]any
+	Settings              map[string]any
+}
+    Server is how to start a language server. Command is one program, run as is,
+    with Args as separate arguments; no shell sees either.
+
+type Table struct {
+	// Has unexported fields.
+}
+    Table is the languages and servers of a session. Its zero value knows no
+    language; Defaults is the plan's table.
+
+func Defaults() Table
+    Defaults is the plan's table of languages and servers. None of the servers
+    comes with seam; one that is not installed only means no hover.
+
+func NewTable(languages []Language, servers []Server) (Table, error)
+    NewTable checks languages and servers against each other and returns them as
+    a table. The languages are tried in the order given.
+
+func (t Table) Detect(p, head string) Lang
     Detect returns the language of the file at p, whose text starts with head:
     by its extension, else by how the text starts or the program a #! line
     names, as scripts often have no extension.
 
-func FromFence(name string) Lang
+func (t Table) FromFence(name string) Lang
     FromFence returns the language a Markdown code fence names, as language
-    servers write them, or the zero value for one seam does not know.
+    servers write them, or the zero value for one the table does not know.
 
-func Known() []Lang
-    Known returns the languages seam knows by default.
+func (t Table) Instance(l Lang, file string, has func(dir, name string) bool) (Instance, bool)
+    Instance returns the instance that hovers over file, a path relative to the
+    repository root, in language l. The root is the nearest directory above file
+    that has one of the server's root markers, else the repository root. has
+    reports whether dir holds a file named name; the table reads no filesystem
+    itself. ok is false where Server's is, and for a path that is absolute or
+    leaves the repository.
+
+func (t Table) Languages() []Language
+    Languages returns the languages in the order they are tried.
+
+func (t Table) Server(l Lang) (s Server, languageID string, ok bool)
+    Server returns the server that hovers over l and the languageId l has for
+    it. ok is false for a language without a server or with a disabled one.
+
+func (t Table) Servers() []Server
+    Servers returns the servers by name.
 

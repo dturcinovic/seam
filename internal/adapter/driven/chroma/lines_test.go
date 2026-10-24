@@ -139,7 +139,7 @@ func TestRunsStayWithinTheirLines(t *testing.T) {
 	h := newHighlighter(t)
 	pieces := []string{"a", " ", "\n", "\r\n", "\t", "\"", "'", "`", "/*", "*/", "//", "#", "<", ">", "<?php", "?>", "{", "}", "é", "👨‍👩", "\xff", "\xc3", "1.5", "\\"}
 	rapid.Check(t, func(t *rapid.T) {
-		l := rapid.SampledFrom(lang.Known()).Draw(t, "lang")
+		l := rapid.SampledFrom(lang.Defaults().Languages()).Draw(t, "lang").Lang
 		text := strings.Join(rapid.SliceOf(rapid.SampledFrom(pieces)).Draw(t, "pieces"), "")
 
 		tok, ok := h.Highlight(context.Background(), l, text)

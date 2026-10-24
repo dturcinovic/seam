@@ -22,6 +22,9 @@ type Config struct {
 	Dir string
 	// LogFile is the zap log, rotated in place.
 	LogFile string
+	// ConfigFile is the TOML file of languages and servers; it need not
+	// exist.
+	ConfigFile string
 	// Verbose raises the log level to debug. It does not mirror the log on
 	// stderr: the TUI owns the terminal.
 	Verbose bool
@@ -39,9 +42,13 @@ func (c Config) FileSizeLimit() limits.FileSize {
 }
 
 // Load resolves the configuration. The log is state and lives under the XDG
-// state directory.
+// state directory, the configuration file under the XDG config directory.
 func Load(f Flags) (Config, error) {
 	state, err := xdgDir("XDG_STATE_HOME", ".local/state")
+	if err != nil {
+		return Config{}, err
+	}
+	conf, err := xdgDir("XDG_CONFIG_HOME", ".config")
 	if err != nil {
 		return Config{}, err
 	}
@@ -56,6 +63,7 @@ func Load(f Flags) (Config, error) {
 	return Config{
 		Dir:         dir,
 		LogFile:     filepath.Join(state, "seam", "seam.log"),
+		ConfigFile:  filepath.Join(conf, "seam", "config.toml"),
 		Verbose:     f.Verbose,
 		MaxFileSize: size,
 	}, nil

@@ -17,6 +17,8 @@ import (
 func inRepo(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	// Not the configuration file of whoever runs the tests.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	repo := testsupport.NewGitRepo(t)
 	t.Chdir(repo.Dir)
 	repo.Write("committed.txt", "1\n")
@@ -61,6 +63,36 @@ func TestSessionLogsToTheStateDirectory(t *testing.T) {
 
 	require.Equal(t, 0, code, stderr)
 	assert.FileExists(t, filepath.Join(os.Getenv("XDG_STATE_HOME"), "seam", "seam.log"))
+}
+
+// configure writes text as the configuration file of the session.
+func configure(t *testing.T, text string) string {
+	t.Helper()
+	p := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "seam", "config.toml")
+	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o700))
+	require.NoError(t, os.WriteFile(p, []byte(text), 0o600))
+	return p
+}
+
+func TestABrokenConfigurationStopsTheStart(t *testing.T) {
+	inRepo(t)
+	p := configure(t, "[servers.gopls]\ncomand = \"gopls\"\n")
+
+	code, stdout, stderr := runSeam(t)
+
+	assert.Equal(t, 1, code)
+	assert.Empty(t, stdout)
+	assert.Equal(t, "seam: "+p+":2:1: unknown key servers.gopls.comand\n", stderr)
+}
+
+func TestAMissingServerDoesNotStopTheStart(t *testing.T) {
+	inRepo(t)
+	configure(t, "servers.gopls.command = \"/no/such/gopls\"\n")
+
+	code, stdout, stderr := runSeam(t, "--staged")
+
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "A\tstaged.txt\n", stdout)
 }
 
 func TestCommandLineErrors(t *testing.T) {

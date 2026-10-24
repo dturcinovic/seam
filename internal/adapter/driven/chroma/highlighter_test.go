@@ -45,7 +45,7 @@ func fixture(t *testing.T, name string) (lang.Lang, string) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("testdata", name))
 	require.NoError(t, err)
-	l := lang.Detect(name, string(data))
+	l := lang.Defaults().Detect(name, string(data))
 	require.NotEmpty(t, l, name)
 	return l, string(data)
 }

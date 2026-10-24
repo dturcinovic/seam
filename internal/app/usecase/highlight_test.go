@@ -37,6 +37,21 @@ func firstBytes(lines int) syntax.Tokens {
 	return b.Tokens()
 }
 
+func TestTheLanguagesComeFromTheTable(t *testing.T) {
+	table, err := lang.NewTable([]lang.Language{{Lang: lang.Go, Extensions: []string{".tmpl"}}}, nil)
+	require.NoError(t, err)
+	uc, f := newFileDiffsIn(t, table)
+	start(t, uc)
+	file := f.modified(t, "a.tmpl", "package a\n", "package b\n")
+
+	u := loadOne(t, uc, worktreeComparison(t), 1, file, false)
+
+	require.NoError(t, u.Err)
+	require.Equal(t, 2, f.highlighter.HighlightCallCount())
+	_, l, _ := f.highlighter.HighlightArgsForCall(1)
+	assert.Equal(t, lang.Go, l)
+}
+
 func TestBothSidesGetTokensInTheirLanguage(t *testing.T) {
 	uc, f := newFileDiffs(t)
 	start(t, uc)

@@ -8,6 +8,7 @@ import (
 
 	"seam/internal/app/port/in"
 	"seam/internal/app/port/out"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/supervise"
 )
@@ -31,8 +32,8 @@ func newChangesets(lc fx.Lifecycle, r out.RevisionResolver, c out.ChangeLister, 
 	return s
 }
 
-func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, st out.WorktreeStatter, h out.Highlighter, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
-	f := NewFileDiffs(b, w, st, h, max, panics)
+func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, st out.WorktreeStatter, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+	f := NewFileDiffs(b, w, st, h, languages, max, panics)
 	runWorker(lc, f)
 	return f
 }

@@ -8,14 +8,15 @@ import (
 	"seam/internal/adapter/driven/git"
 	"seam/internal/app/usecase"
 	"seam/internal/config"
+	"seam/internal/domain/lang"
 	"seam/internal/observability"
 )
 
 // options is the graph of one session. It is the only place that knows use
 // cases and adapters at once.
-func options(cfg config.Config, logger *observability.Logger, root string) []fx.Option {
+func options(cfg config.Config, logger *observability.Logger, root string, languages lang.Table) []fx.Option {
 	return []fx.Option{
-		fx.Supply(cfg, logger, git.Config{Root: root}, cfg.FileSizeLimit()),
+		fx.Supply(cfg, logger, git.Config{Root: root}, cfg.FileSizeLimit(), languages),
 		observability.Module,
 		git.Module,
 		chroma.Module,

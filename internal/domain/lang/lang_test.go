@@ -45,7 +45,7 @@ func TestDetect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.path+" "+tt.head, func(t *testing.T) {
-			assert.Equal(t, tt.want, lang.Detect(tt.path, tt.head))
+			assert.Equal(t, tt.want, lang.Defaults().Detect(tt.path, tt.head))
 		})
 	}
 }
@@ -63,18 +63,27 @@ func TestFromFence(t *testing.T) {
 		"": "", "text": "", "yaml": "",
 	}
 	for name, want := range tests {
-		assert.Equal(t, want, lang.FromFence(name), name)
+		assert.Equal(t, want, lang.Defaults().FromFence(name), name)
 	}
 }
 
 // TestEveryLanguageIsItsOwnFence: the value of a language is the name a
 // fence gives it, so a highlighter can take either.
 func TestEveryLanguageIsItsOwnFence(t *testing.T) {
-	for _, l := range lang.Known() {
-		assert.Equal(t, l, lang.FromFence(string(l)))
+	table := lang.Defaults()
+	for _, l := range table.Languages() {
+		assert.Equal(t, l.Lang, table.FromFence(string(l.Lang)))
 	}
 }
 
-func TestKnownAreThePlansLanguages(t *testing.T) {
-	assert.Equal(t, []lang.Lang{lang.Go, lang.Rust, lang.JavaScript, lang.TypeScript, lang.JSX, lang.TSX, lang.HTML, lang.PHP, lang.Python}, lang.Known())
+func TestDefaultsAreThePlansLanguages(t *testing.T) {
+	assert.Equal(t, []lang.Lang{lang.Go, lang.Rust, lang.JavaScript, lang.TypeScript, lang.JSX, lang.TSX, lang.HTML, lang.PHP, lang.Python}, langs(lang.Defaults()))
+}
+
+func langs(t lang.Table) []lang.Lang {
+	var all []lang.Lang
+	for _, l := range t.Languages() {
+		all = append(all, l.Lang)
+	}
+	return all
 }

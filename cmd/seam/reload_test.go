@@ -14,6 +14,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/observability"
 	"seam/internal/testsupport"
@@ -49,7 +50,7 @@ func TestFreshReadsAChangeTheStampHides(t *testing.T) {
 		loader in.ChangesetLoader
 		files  in.FileDiffLoader
 	)
-	app := fx.New(append(options(cfg, logger, repo.Dir), fx.Populate(&loader, &files))...)
+	app := fx.New(append(options(cfg, logger, repo.Dir, lang.Defaults()), fx.Populate(&loader, &files))...)
 	require.NoError(t, app.Start(t.Context()))
 	defer func() { assert.NoError(t, stopGraph(app)) }()
 	c, err := change.NewComparison(change.Commit("HEAD"), change.Worktree())

@@ -16,6 +16,7 @@ import (
 	"seam/internal/app/port/out/outfakes"
 	"seam/internal/app/usecase"
 	"seam/internal/domain/change"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/supervise"
 	"seam/internal/testsupport"
@@ -66,7 +67,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.Highlighter { return f.highlight },
 			func() supervise.PanicFunc { return nil },
 		),
-		fx.Supply(limits.DefaultFileSize),
+		fx.Supply(limits.DefaultFileSize, lang.Defaults()),
 		usecase.Module,
 		fx.NopLogger,
 		fx.Populate(&ports.Files, &ports.Reload, &loader),

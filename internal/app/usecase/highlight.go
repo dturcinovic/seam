@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"seam/internal/domain/filediff"
-	"seam/internal/domain/lang"
 	"seam/internal/domain/syntax"
 )
 
@@ -13,7 +12,7 @@ import (
 // Each side has its own budget, so the new side, the one worked on, never
 // goes without for the old one's.
 func (f *FileDiffs) highlightSide(ctx context.Context, s *filediff.Snapshot, side filediff.Which, path, text string, lines int) (t syntax.Tokens, late bool, err error) {
-	l := lang.Detect(path, text)
+	l := f.languages.Detect(path, text)
 	if l == "" || lines == 0 {
 		return syntax.Tokens{}, false, nil
 	}

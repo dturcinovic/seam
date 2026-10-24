@@ -40,6 +40,25 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestConfigFile(t *testing.T) {
+	home := t.TempDir()
+	tests := map[string]struct{ xdgConfig, want string }{
+		"XDG_CONFIG_HOME set":                 {"/etc/xdg-user", "/etc/xdg-user/seam/config.toml"},
+		"XDG_CONFIG_HOME unset":               {"", filepath.Join(home, ".config/seam/config.toml")},
+		"relative XDG_CONFIG_HOME is ignored": {"conf", filepath.Join(home, ".config/seam/config.toml")},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("HOME", home)
+			t.Setenv("XDG_CONFIG_HOME", tt.xdgConfig)
+
+			cfg, err := config.Load(config.Flags{})
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cfg.ConfigFile)
+		})
+	}
+}
+
 func TestLoadWithoutHome(t *testing.T) {
 	t.Setenv("HOME", "")
 	t.Setenv("XDG_STATE_HOME", "")

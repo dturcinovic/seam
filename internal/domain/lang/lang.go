@@ -25,57 +25,40 @@ const (
 	Python     Lang = "python"
 )
 
-// spec is how to recognise a language: by file extension, by the program a
-// #! line names (a prefix, as in python3), by how its text starts, and by
-// the other names a code fence gives it.
-type spec struct {
-	lang         Lang
-	extensions   []string
-	interpreters []string
-	heads        []string
-	fences       []string
-}
-
-// specs are the languages seam knows by default, one row each, so a new
-// language is one more row.
-func specs() []spec {
-	return []spec{
-		{lang: Go, extensions: []string{".go"}, fences: []string{"golang"}},
-		{lang: Rust, extensions: []string{".rs"}, fences: []string{"rs"}},
-		{lang: JavaScript, extensions: []string{".js", ".mjs", ".cjs"}, interpreters: []string{"node"}, fences: []string{"js", "mjs", "cjs", "node"}},
-		{lang: TypeScript, extensions: []string{".ts", ".mts", ".cts"}, fences: []string{"ts", "mts", "cts"}},
-		{lang: JSX, extensions: []string{".jsx"}, fences: []string{"javascriptreact"}},
-		{lang: TSX, extensions: []string{".tsx"}, fences: []string{"typescriptreact"}},
-		{lang: HTML, extensions: []string{".html", ".htm"}, fences: []string{"htm", "xhtml"}},
-		{lang: PHP, extensions: []string{".php"}, interpreters: []string{"php"}, heads: []string{"<?php"}},
-		{lang: Python, extensions: []string{".py", ".pyi"}, interpreters: []string{"python"}, fences: []string{"py", "python3", "py3", "pyi"}},
-	}
-}
-
-// Known returns the languages seam knows by default.
-func Known() []Lang {
-	var all []Lang
-	for _, s := range specs() {
-		all = append(all, s.lang)
-	}
-	return all
+// Language is how a language is recognised and which server hovers over
+// it. It is a plain value; NewTable checks a set of them.
+type Language struct {
+	Lang Lang
+	// Extensions are lower case with their dot, as in ".go".
+	Extensions []string
+	// Interpreters are programs a #! line names, by prefix, as python
+	// matches python3.
+	Interpreters []string
+	// Heads are how a file's text may start, as "<?php".
+	Heads []string
+	// Fences are the other names a Markdown code fence gives it.
+	Fences []string
+	// Server names the server that hovers over it; empty is none.
+	Server string
+	// LanguageID is the LSP languageId; empty means Lang.
+	LanguageID string
 }
 
 // Detect returns the language of the file at p, whose text starts with
 // head: by its extension, else by how the text starts or the program a #!
 // line names, as scripts often have no extension.
-func Detect(p, head string) Lang {
+func (t Table) Detect(p, head string) Lang {
 	ext := strings.ToLower(path.Ext(p))
-	program := interpreter(head)
-	for _, s := range specs() {
-		if slices.Contains(s.extensions, ext) {
-			return s.lang
+	for _, l := range t.languages {
+		if slices.Contains(l.Extensions, ext) {
+			return l.Lang
 		}
 	}
-	for _, s := range specs() {
-		if slices.ContainsFunc(s.heads, func(h string) bool { return strings.HasPrefix(head, h) }) ||
-			program != "" && slices.ContainsFunc(s.interpreters, func(i string) bool { return strings.HasPrefix(program, i) }) {
-			return s.lang
+	program := interpreter(head)
+	for _, l := range t.languages {
+		if slices.ContainsFunc(l.Heads, func(h string) bool { return strings.HasPrefix(head, h) }) ||
+			program != "" && slices.ContainsFunc(l.Interpreters, func(i string) bool { return strings.HasPrefix(program, i) }) {
+			return l.Lang
 		}
 	}
 	return ""
@@ -103,12 +86,12 @@ func interpreter(head string) string {
 }
 
 // FromFence returns the language a Markdown code fence names, as language
-// servers write them, or the zero value for one seam does not know.
-func FromFence(name string) Lang {
+// servers write them, or the zero value for one the table does not know.
+func (t Table) FromFence(name string) Lang {
 	name = strings.ToLower(strings.TrimSpace(name))
-	for _, s := range specs() {
-		if name == string(s.lang) || slices.Contains(s.fences, name) {
-			return s.lang
+	for _, l := range t.languages {
+		if name == string(l.Lang) || slices.Contains(l.Fences, name) {
+			return l.Lang
 		}
 	}
 	return ""

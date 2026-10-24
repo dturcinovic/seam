@@ -71,7 +71,8 @@ func worstShapes(l lang.Lang) map[string]string {
 func BenchmarkBudgetOverrun(b *testing.B) {
 	const budget = 500 * time.Millisecond
 	h := newHighlighter(b)
-	for _, l := range lang.Known() {
+	for _, language := range lang.Defaults().Languages() {
+		l := language.Lang
 		for shape, text := range worstShapes(l) {
 			b.Run(string(l)+"/"+shape, func(b *testing.B) {
 				var longest time.Duration

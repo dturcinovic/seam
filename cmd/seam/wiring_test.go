@@ -8,6 +8,7 @@ import (
 
 	"seam/internal/app/port/in"
 	"seam/internal/config"
+	"seam/internal/domain/lang"
 )
 
 // TestTheGraphProvidesEveryIncomingPort checks the wiring without running
@@ -19,7 +20,7 @@ func TestTheGraphProvidesEveryIncomingPort(t *testing.T) {
 		reloader in.ChangesetReloader
 		files    in.FileDiffLoader
 	)
-	opts := append(options(config.Config{}, nil, t.TempDir()), fx.Populate(&loader, &reloader, &files))
+	opts := append(options(config.Config{}, nil, t.TempDir(), lang.Defaults()), fx.Populate(&loader, &reloader, &files))
 
 	require.NoError(t, fx.ValidateApp(opts...))
 }
