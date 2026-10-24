@@ -52,3 +52,20 @@ func TestParseFileSize(t *testing.T) {
 		})
 	}
 }
+
+func TestNewInstances(t *testing.T) {
+	for _, n := range []int{1, 4, 16} {
+		got, err := limits.NewInstances(n)
+		require.NoError(t, err)
+		assert.Equal(t, limits.Instances(n), got)
+	}
+	for _, n := range []int{0, -1, 17} {
+		_, err := limits.NewInstances(n)
+		assert.ErrorIs(t, err, limits.ErrInvalidInstances, "n=%d", n)
+	}
+}
+
+func TestInstancesOrDefault(t *testing.T) {
+	assert.Equal(t, limits.DefaultInstances, limits.Instances(0).OrDefault(), "not set")
+	assert.Equal(t, limits.Instances(2), limits.Instances(2).OrDefault())
+}

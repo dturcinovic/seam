@@ -14,13 +14,13 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
+	"seam/internal/domain/limits"
 	"seam/internal/supervise"
 )
 
 // The bounds of the pool; see the plan's section on limiting instances.
 const (
-	maxInstances = 4
-	idleTimeout  = 60 * time.Second
+	idleTimeout = 60 * time.Second
 	// stopReserve is what the stop hook leaves of the deadline to the hooks
 	// after it.
 	stopReserve = 500 * time.Millisecond
@@ -34,10 +34,12 @@ const (
 
 // Config is where the pool runs servers: the repository root, which
 // document paths are relative to, and the directory for the servers'
-// stderr files.
+// stderr files. MaxInstances bounds the servers running at once; zero is
+// the default.
 type Config struct {
-	Root   string
-	LogDir string
+	Root         string
+	LogDir       string
+	MaxInstances limits.Instances
 }
 
 // Pool runs the language servers of a session: one client per instance,
@@ -49,10 +51,11 @@ type Config struct {
 type Pool struct {
 	*events
 
-	table   lang.Table
-	starter starter
-	log     *zap.Logger
-	panics  supervise.PanicFunc
+	table        lang.Table
+	maxInstances int
+	starter      starter
+	log          *zap.Logger
+	panics       supervise.PanicFunc
 	// group owns the idle timers and the stops of idle and evicted
 	// instances.
 	group *supervise.Group
@@ -92,7 +95,7 @@ type instance struct {
 
 func newPool(cfg Config, table lang.Table, s starter, log *zap.Logger, panics supervise.PanicFunc) *Pool {
 	return &Pool{
-		events: newEvents(), table: table, starter: s, log: log, panics: panics,
+		events: newEvents(), table: table, maxInstances: int(cfg.MaxInstances.OrDefault()), starter: s, log: log, panics: panics,
 		group:     supervise.NewGroup("lsp pool", panics, nil),
 		instances: make(map[lang.Instance]*instance),
 		paths:     make(map[hover.DocKey]lang.Instance),
@@ -271,7 +274,7 @@ func (p *Pool) evictLocked(except lang.Instance) {
 			running = append(running, inst)
 		}
 	}
-	if len(running) < maxInstances {
+	if len(running) < p.maxInstances {
 		return
 	}
 	victim := slices.MinFunc(running, func(a, b lang.Instance) int {

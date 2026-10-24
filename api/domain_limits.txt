@@ -9,6 +9,9 @@ VARIABLES
 var ErrInvalidFileSize = errors.New("file size limit must be a positive size")
     ErrInvalidFileSize is returned for a limit that is not a positive size.
 
+var ErrInvalidInstances = errors.New("instance limit out of bounds")
+    ErrInvalidInstances is returned for a limit outside 1 to MaxInstances.
+
 
 TYPES
 
@@ -29,4 +32,21 @@ func ParseFileSize(s string) (FileSize, error)
 
 func (s FileSize) Bytes() int64
     Bytes is the limit as a byte count.
+
+type Instances int
+    Instances is how many language server instances may run at once. The zero
+    value is not a valid limit; use NewInstances or DefaultInstances.
+
+const (
+	DefaultInstances Instances = 4
+	MaxInstances     Instances = 16
+)
+    The bounds of Instances. Each instance is a server process with its own
+    index of a workspace, which can take gigabytes.
+
+func NewInstances(n int) (Instances, error)
+    NewInstances checks n and returns it as a limit.
+
+func (n Instances) OrDefault() Instances
+    OrDefault is n, or DefaultInstances if n is not set.
 

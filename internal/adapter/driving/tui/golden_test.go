@@ -12,6 +12,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/ui"
 	"seam/internal/testsupport"
 )
 
@@ -67,7 +68,7 @@ func fixtures(t *testing.T) []fixture {
 func TestGolden(t *testing.T) {
 	for _, f := range fixtures(t) {
 		t.Run(f.name, func(t *testing.T) {
-			testsupport.Golden(t, filepath.Join("testdata", f.name+".golden"), render(f.state, newTheme())+"\n", *update)
+			testsupport.Golden(t, filepath.Join("testdata", f.name+".golden"), render(f.state, newTheme(ui.Dark()))+"\n", *update)
 		})
 	}
 }

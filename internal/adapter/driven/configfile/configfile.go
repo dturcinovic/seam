@@ -13,13 +13,29 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"seam/internal/domain/lang"
+	"seam/internal/domain/limits"
+	"seam/internal/domain/ui"
 )
+
+// File is what the configuration file sets, over the defaults.
+type File struct {
+	Languages lang.Table
+	UI        ui.Settings
+	// The limits are zero where the file sets none; --max-file-size wins
+	// over MaxFileSize.
+	MaxFileSize  limits.FileSize
+	MaxInstances limits.Instances
+}
 
 // document is the file as written. A pointer or map left nil is a key the
 // file does not set, which keeps the default.
 type document struct {
 	Servers   map[string]serverEntry   `toml:"servers"`
 	Languages map[string]languageEntry `toml:"languages"`
+	UI        uiEntry                  `toml:"ui"`
+	Limits    limitsEntry              `toml:"limits"`
+	Colors    map[string]string        `toml:"colors"`
+	Keys      map[string][]string      `toml:"keys"`
 }
 
 type serverEntry struct {
@@ -37,31 +53,47 @@ type languageEntry struct {
 	Server     *string   `toml:"server"`
 }
 
-// Load reads the configuration file at path over the default table of
-// languages and servers. A missing file is the defaults; a link to one is
-// an error, as it is a configuration someone meant to have.
-func Load(path string) (lang.Table, error) {
+// Load reads the configuration file at path over the defaults. A missing
+// file is the defaults; a link to one is an error, as it is a
+// configuration someone meant to have.
+func Load(path string) (File, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		if _, lerr := os.Lstat(path); lerr == nil {
-			return lang.Table{}, fmt.Errorf("read configuration: %s links to a missing file", path)
+			return File{}, fmt.Errorf("read configuration: %s links to a missing file", path)
 		}
-		return lang.Defaults(), nil
+		return document{}.file()
 	}
 	if err != nil {
-		return lang.Table{}, fmt.Errorf("read configuration: %w", err)
+		return File{}, fmt.Errorf("read configuration: %w", err)
 	}
 	var d document
 	// Unknown keys are refused: a misspelt one would otherwise change
 	// nothing, without a word.
 	if err := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields().Decode(&d); err != nil {
-		return lang.Table{}, decodeError(path, err)
+		return File{}, decodeError(path, err)
 	}
-	t, err := d.table()
+	f, err := d.file()
 	if err != nil {
-		return lang.Table{}, fmt.Errorf("%s: %w", path, err)
+		return File{}, fmt.Errorf("%s: %w", path, err)
 	}
-	return t, nil
+	return f, nil
+}
+
+// file lays the document over the defaults.
+func (d document) file() (File, error) {
+	var f File
+	var err error
+	if f.Languages, err = d.table(); err != nil {
+		return File{}, err
+	}
+	if f.UI, err = d.settings(); err != nil {
+		return File{}, err
+	}
+	if f.MaxFileSize, f.MaxInstances, err = d.Limits.limits(); err != nil {
+		return File{}, err
+	}
+	return f, nil
 }
 
 // decodeError names the place in the file, for each unknown key too.

@@ -11,6 +11,7 @@ import (
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/hover"
+	"seam/internal/domain/ui"
 	"seam/internal/textcell"
 )
 
@@ -52,7 +53,7 @@ func TestICallsTheCaretOntoTheFirstText(t *testing.T) {
 
 	assert.Equal(t, caret{On: true, Side: filediff.NewSide, Row: 0, Byte: len("\t")}, m.s.Caret)
 	text, _ := footer(&m.s)
-	assert.Equal(t, caretKeys, text)
+	assert.Equal(t, "K hover  h/j/k/l move  w/b/e word  o other side  i/esc leave  n/p change  tab/shift+tab file  q quit", text)
 	m, _ = typed(m, "i")
 	assert.False(t, m.s.Caret.On, "i again takes it away")
 }
@@ -200,7 +201,7 @@ func TestTheViewFollowsTheCaretSideways(t *testing.T) {
 func TestTheCaretShowsInverted(t *testing.T) {
 	m, _ := hoverModel(t)
 	m, _ = typed(m, "i", "w", "w")
-	th := newTheme()
+	th := newTheme(ui.Dark())
 
 	lines := strings.Split(render(&m.s, th), "\n")
 

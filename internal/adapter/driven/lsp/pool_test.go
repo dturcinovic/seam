@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
@@ -195,7 +196,7 @@ func TestAtMostFourInstancesRun(t *testing.T) {
 		synctest.Wait()
 		live, maxLive, started := f.counts()
 		assert.Equal(t, 4, live)
-		assert.LessOrEqual(t, maxLive, maxInstances+1, "one stops while the next starts")
+		assert.LessOrEqual(t, maxLive, 4+1, "one stops while the next starts")
 		assert.Equal(t, 6, started)
 
 		// p1 was evicted first; a hover on it starts it again with its document.
@@ -206,6 +207,25 @@ func TestAtMostFourInstancesRun(t *testing.T) {
 		live, _, started = f.counts()
 		assert.Equal(t, 4, live)
 		assert.Equal(t, 7, started)
+		stopPool(t, pool)
+	})
+}
+
+func TestTheLimitOfInstancesIsConfigured(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := &pipes{serve: served}
+		pool := newPool(Config{Root: t.TempDir(), LogDir: t.TempDir(), MaxInstances: 2},
+			goTable(t, lang.Server{RootMarkers: []string{"go.mod"}}), f, zap.NewNop(), nil)
+		roots := []string{"p1", "p2", "p3"}
+		rooted(t, pool, roots...)
+
+		for _, r := range roots {
+			ready(t, pool, doc(r+"/a.go", 1, "package a\n"))
+		}
+		synctest.Wait()
+		live, _, started := f.counts()
+		assert.Equal(t, 2, live)
+		assert.Equal(t, 3, started)
 		stopPool(t, pool)
 	})
 }

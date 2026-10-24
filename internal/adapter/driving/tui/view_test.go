@@ -16,6 +16,7 @@ import (
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/syntax"
+	"seam/internal/domain/ui"
 	"seam/internal/textcell"
 )
 
@@ -42,7 +43,7 @@ func TestANewlineInAPathShowsAsNewline(t *testing.T) {
 }
 
 func TestAFailedLoadSaysSo(t *testing.T) {
-	s := newState(change.Changeset{Files: files("a.go")})
+	s := newState(change.Changeset{Files: files("a.go")}, ui.DefaultSettings())
 	s.resize(80, 5)
 	r, _ := s.open(0, false)
 	s.apply(filediff.Update{Gen: r.Gen, Err: errors.New("boom")})
@@ -71,16 +72,16 @@ func TestNoForeignControlReachesTheTerminal(t *testing.T) {
 	for _, m := range methods {
 		s.Cells = m.method
 		noControls(t, render(s, &theme{}))
-		noControls(t, withoutTheme(render(s, newTheme())))
+		noControls(t, withoutTheme(render(s, newTheme(ui.Dark()))))
 	}
-	th := newTheme()
+	th := newTheme(ui.Dark())
 	header, _, _ := strings.Cut(render(s, th), "\n")
 	assert.Contains(t, header, th.open[headerStandIn]+"␛", "stand-ins are dimmed in the header too")
 }
 
 // withoutTheme removes every sequence the theme writes.
 func withoutTheme(out string) string {
-	th := newTheme()
+	th := newTheme(ui.Dark())
 	var pairs []string
 	for i := range styles {
 		for _, seq := range []string{th.open[i], th.close[i]} {
@@ -113,12 +114,12 @@ func TestRender(t *testing.T) {
 }
 
 func TestRenderWhileLoading(t *testing.T) {
-	s := newState(change.Changeset{Files: files("a.go")})
+	s := newState(change.Changeset{Files: files("a.go")}, ui.DefaultSettings())
 	s.resize(40, 5)
 	s.open(0, false)
 
 	assert.Contains(t, render(&s, &theme{}), "loading…")
-	empty := newState(change.Changeset{})
+	empty := newState(change.Changeset{}, ui.DefaultSettings())
 	empty.resize(40, 5)
 	assert.Contains(t, render(&empty, &theme{}), "nothing to compare")
 }
@@ -146,7 +147,7 @@ func TestEveryLineIsAsWideAsTheScreen(t *testing.T) {
 				s := *f.state
 				s.Cells = m.method
 				s.resize(width, s.Layout.Height)
-				for i, line := range strings.Split(render(&s, newTheme()), "\n") {
+				for i, line := range strings.Split(render(&s, newTheme(ui.Dark())), "\n") {
 					require.Equal(t, width, m.width(line), "%s %s width %d line %d: %q", m.name, f.name, width, i, line)
 				}
 			}
@@ -179,7 +180,7 @@ func TestALongLineCostsWhatIsVisible(t *testing.T) {
 
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
-	out := render(s, newTheme())
+	out := render(s, newTheme(ui.Dark()))
 	runtime.ReadMemStats(&after)
 
 	assert.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(1<<20))
@@ -200,10 +201,10 @@ func TestTheColumnIndexStartsWhereTheWalkWould(t *testing.T) {
 			s.HScroll = textWidth(long, m.method) - 40
 		}
 		require.NotEmpty(t, indexed.Snapshot.Columns.New.At(0))
-		out := render(indexed, newTheme())
+		out := render(indexed, newTheme(ui.Dark()))
 		require.Contains(t, ansi.Strip(out), "ab", "the screen shows text")
 
-		assert.Equal(t, render(walked, newTheme()), out, m.name)
+		assert.Equal(t, render(walked, newTheme(ui.Dark())), out, m.name)
 	}
 }
 
@@ -248,8 +249,8 @@ func TestTheRendererCountsGraphemesOnceTheTerminalKnowsMode2027(t *testing.T) {
 // TestTheThemeIsLipGloss: each style switches on and off exactly as Lip
 // Gloss renders it, and the changed lines are coloured at all.
 func TestTheThemeIsLipGloss(t *testing.T) {
-	th := newTheme()
-	for st, ls := range lipglossStyles() {
+	th := newTheme(ui.Dark())
+	for st, ls := range lipglossStyles(colours(ui.Dark())) {
 		assert.Equal(t, ls.Render("x"), th.open[st]+"x"+th.close[st])
 	}
 	for _, st := range []style{textStyle(changedTone, syntax.Plain, false), textStyle(changedTone, syntax.Plain, true), textStyle(deletedTone, syntax.Plain, false)} {
@@ -278,6 +279,6 @@ func TestASpanInsideAGraphemeMarksIt(t *testing.T) {
 	require.NotEmpty(t, left)
 	require.Greater(t, left[0].Start, len("ok "), "the span starts after the thumb")
 
-	th := newTheme()
+	th := newTheme(ui.Dark())
 	assert.Contains(t, render(s, th), th.open[textStyle(changedTone, syntax.Plain, true)]+"👍")
 }

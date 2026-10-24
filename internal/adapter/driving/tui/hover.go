@@ -11,10 +11,6 @@ import (
 	"seam/internal/textcell"
 )
 
-// hoverDelay is how long the mouse rests on a target before it is asked
-// about: moving across the code asks nothing.
-const hoverDelay = 300 * time.Millisecond
-
 // hoverState is the hover under the mouse: the target it rests on, the
 // request out for it and the popup with its answer.
 type hoverState struct {
@@ -158,7 +154,8 @@ func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 	return false
 }
 
-// onMotion follows the mouse, and waits for it to rest on a new target.
+// onMotion follows the mouse, and waits for it to rest on a new target:
+// moving across the code asks nothing.
 func (m *model) onMotion(x, y int) tea.Cmd {
 	cancel, due := m.s.hoverMove(x, y)
 	m.cancel(cancel)
@@ -166,7 +163,7 @@ func (m *model) onMotion(x, y int) tea.Cmd {
 		return nil
 	}
 	seq := m.s.Hover.Seq
-	return tea.Tick(hoverDelay, func(time.Time) tea.Msg { return hoverDue{Seq: seq} })
+	return tea.Tick(m.hoverDelay, func(time.Time) tea.Msg { return hoverDue{Seq: seq} })
 }
 
 // hoverAtCaret asks about the grapheme under the caret, at once; the

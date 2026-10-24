@@ -21,6 +21,7 @@ import (
 
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
+	"seam/internal/domain/limits"
 	"seam/internal/testsupport"
 )
 
@@ -35,7 +36,7 @@ func processPool(t *testing.T, scripts map[string]string) *Pool {
 		require.NoError(t, os.WriteFile(filepath.Join(root, dir, "fakelsp.script"), []byte(script), 0o600))
 	}
 	table := goTable(t, lang.Server{Command: fakelsp(), RootMarkers: []string{"go.mod"}})
-	return newPool(Config{Root: root, LogDir: t.TempDir()}, table, newProcesses(t.TempDir()), zap.NewNop(), nil)
+	return newPool(Config{Root: root, LogDir: t.TempDir(), MaxInstances: limits.DefaultInstances}, table, newProcesses(t.TempDir()), zap.NewNop(), nil)
 }
 
 func readyAll(t *testing.T, pool *Pool, dirs ...string) {

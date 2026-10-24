@@ -85,6 +85,27 @@ func TestABrokenConfigurationStopsTheStart(t *testing.T) {
 	assert.Equal(t, "seam: "+p+":2:1: unknown key servers.gopls.comand\n", stderr)
 }
 
+func TestBadSettingsStopTheStart(t *testing.T) {
+	inRepo(t)
+	p := configure(t, "[keys]\nreload = [\"n\"]\n")
+
+	code, stdout, stderr := runSeam(t)
+
+	assert.Equal(t, 1, code)
+	assert.Empty(t, stdout)
+	assert.Equal(t, "seam: "+p+": keys: invalid keys: \"n\" is a key of both reload and next_change\n", stderr)
+}
+
+func TestTheViewersSettingsDoNotStopTheStart(t *testing.T) {
+	inRepo(t)
+	configure(t, "[ui]\ntheme = \"light\"\ncontext_lines = 1\n[limits]\nmax_file_size = \"1K\"\nmax_instances = 2\n[keys]\nquit = [\"x\"]\n")
+
+	code, stdout, stderr := runSeam(t, "--staged")
+
+	require.Equal(t, 0, code, stderr)
+	assert.Equal(t, "A\tstaged.txt\n", stdout)
+}
+
 func TestAMissingServerDoesNotStopTheStart(t *testing.T) {
 	inRepo(t)
 	configure(t, "servers.gopls.command = \"/no/such/gopls\"\n")

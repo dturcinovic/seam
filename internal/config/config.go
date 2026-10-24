@@ -35,6 +35,15 @@ type Config struct {
 	MaxFileSize limits.FileSize
 }
 
+// Settle takes the file size limit of the configuration file, zero if it
+// sets none, unless the flag set one: a flag is the nearer intent.
+func (c Config) Settle(maxFileSize limits.FileSize) Config {
+	if c.MaxFileSize == 0 {
+		c.MaxFileSize = maxFileSize
+	}
+	return c
+}
+
 // FileSizeLimit is MaxFileSize, or the default if it is not set.
 func (c Config) FileSizeLimit() limits.FileSize {
 	if c.MaxFileSize <= 0 {
@@ -63,9 +72,11 @@ func Load(f Flags) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("working directory: %w", err)
 	}
-	size, err := parseSize(f.MaxFileSize)
-	if err != nil {
-		return Config{}, fmt.Errorf("--max-file-size: %w", err)
+	var size limits.FileSize
+	if f.MaxFileSize != "" {
+		if size, err = limits.ParseFileSize(f.MaxFileSize); err != nil {
+			return Config{}, fmt.Errorf("--max-file-size: %w", err)
+		}
 	}
 	return Config{
 		Dir:         dir,
@@ -75,14 +86,6 @@ func Load(f Flags) (Config, error) {
 		Verbose:     f.Verbose,
 		MaxFileSize: size,
 	}, nil
-}
-
-// parseSize reads --max-file-size; empty is the default limit.
-func parseSize(s string) (limits.FileSize, error) {
-	if s == "" {
-		return limits.DefaultFileSize, nil
-	}
-	return limits.ParseFileSize(s)
 }
 
 func xdgDir(env, fallback string) (string, error) {

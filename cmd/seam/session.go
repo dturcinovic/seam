@@ -18,6 +18,7 @@ import (
 	"seam/internal/app/port/in"
 	"seam/internal/config"
 	"seam/internal/domain/change"
+	"seam/internal/domain/ui"
 	"seam/internal/observability"
 	"seam/internal/supervise"
 )
@@ -36,10 +37,11 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout
 	if err != nil {
 		return err
 	}
-	languages, err := configfile.Load(cfg.ConfigFile)
+	file, err := configfile.Load(cfg.ConfigFile)
 	if err != nil {
 		return err
 	}
+	cfg = cfg.Settle(file.MaxFileSize)
 	logger, err := observability.NewLogger(cfg)
 	if err != nil {
 		return err
@@ -51,7 +53,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout
 		ports      tui.Ports
 		panics     supervise.PanicFunc
 	)
-	app := fx.New(append(options(cfg, logger, root, languages),
+	app := fx.New(append(options(cfg, logger, root, file),
 		fx.Populate(&changesets, &ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &panics))...)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
@@ -61,7 +63,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout
 	}
 	logger.Zap().Info("session started", zap.Stringer("left", c.Left), zap.Stringer("right", c.Right))
 
-	err = show(ctx, changesets, ports, panics, c, stdout)
+	err = show(ctx, changesets, ports, panics, c, file.UI, stdout)
 	return errors.Join(err, stopGraph(app))
 }
 
@@ -80,7 +82,7 @@ func stopGraph(app *fx.App) error {
 
 // show runs the TUI on the changeset of c, or lists its files when stdout is
 // no terminal: a screen written into a pipe would be of no use to anyone.
-func show(ctx context.Context, changesets in.ChangesetLoader, ports tui.Ports, panics supervise.PanicFunc, c change.Comparison, stdout io.Writer) error {
+func show(ctx context.Context, changesets in.ChangesetLoader, ports tui.Ports, panics supervise.PanicFunc, c change.Comparison, set ui.Settings, stdout io.Writer) error {
 	cs, err := changesets.LoadChangeset(ctx, c)
 	if err != nil {
 		return err
@@ -88,7 +90,7 @@ func show(ctx context.Context, changesets in.ChangesetLoader, ports tui.Ports, p
 	if !isTerminal(stdout) {
 		return printChangeset(stdout, cs)
 	}
-	return tui.Run(ctx, cs, ports, panics, tui.IO{})
+	return tui.Run(ctx, cs, set, ports, panics, tui.IO{})
 }
 
 // isTerminal asks the device itself: a character device such as /dev/null

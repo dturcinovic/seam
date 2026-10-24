@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"seam/internal/domain/hover"
+	"seam/internal/domain/ui"
 	"seam/internal/textcell"
 )
 
@@ -71,113 +72,110 @@ func (m *model) onLSP() {
 	}
 }
 
-// onKeyPress takes a key; Esc closes an open popup, then the caret,
-// rather than quit.
+// onKeyPress takes a key, asking the layers from the top: an open popup,
+// the focused file list, the caret, then the view.
 func (m model) onKeyPress(key string) (model, tea.Cmd) {
-	if m.s.Hover.Popup.Open && key == "esc" {
+	k := m.s.Keys
+	if _, ok := k.Action(ui.PopupLayer, key); ok && m.s.Hover.Popup.Open {
 		m.dropHover()
 		return m, nil
 	}
-	if m.s.List.Focus && m.onListKey(key) {
+	if a, ok := k.Action(ui.ListLayer, key); ok && m.s.List.Focus {
+		m.onListAction(a)
 		return m, nil
 	}
-	if m.s.Caret.On && m.onCaretKey(key) {
+	if a, ok := k.Action(ui.CaretLayer, key); ok && m.s.Caret.On {
+		m.onCaretAction(a)
 		return m, nil
 	}
-	return m.onKey(key)
+	if a, ok := k.Action(ui.ViewLayer, key); ok {
+		return m.onAction(a)
+	}
+	return m, nil
 }
 
-// onCaretKey maps a key to its action while the caret is on; ok is false
-// for the keys it leaves to onKey.
-func (m *model) onCaretKey(key string) (ok bool) {
+// onCaretAction does an action of the caret.
+func (m *model) onCaretAction(a ui.Action) {
 	s := &m.s
-	switch key {
-	case "i", "esc":
+	switch a { //nolint:exhaustive // the layer takes the caret's actions only
+	case ui.LeaveCaret:
 		s.Caret = caret{}
-	case "j", "down":
+	case ui.CaretDown:
 		s.caretUpDown(1)
-	case "k", "up":
+	case ui.CaretUp:
 		s.caretUpDown(-1)
-	case "h", "left":
+	case ui.CaretLeft:
 		s.caretSideways(-1)
-	case "l", "right":
+	case ui.CaretRight:
 		s.caretSideways(1)
-	case "w":
+	case ui.WordForward:
 		s.wordForward()
-	case "b":
+	case ui.WordBack:
 		s.wordBack()
-	case "e":
+	case ui.WordEnd:
 		s.wordEnd()
-	case "o":
+	case ui.OtherSide:
 		s.otherSide()
-	case "K":
+	case ui.Hover:
 		m.hoverAtCaret()
-	default:
-		return false
 	}
-	return true
 }
 
-// onKey maps a key, as Bubble Tea names it, to its action. Esc quits as long
-// as there is no popup for it to close.
-func (m model) onKey(key string) (model, tea.Cmd) {
+// onAction does an action of the view.
+func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 	s := &m.s
-	if mo, ok := motionOf(key); ok {
+	if mo, ok := motionOf(a); ok {
 		s.scrollBy(mo.steps(len(s.Lines), s.bodyHeight()))
 		return m, nil
 	}
-	switch key {
-	case "q", "esc", "ctrl+c":
+	switch a { //nolint:exhaustive // the layer takes the view's actions only
+	case ui.Quit:
 		return m, tea.Quit
-	case "r":
+	case ui.Reload:
 		m.p.Reload.Reload(s.reload())
-	case "n":
+	case ui.NextChange:
 		s.nextChange()
-	case "p":
+	case ui.PrevChange:
 		s.prevChange()
-	case "tab", "]":
+	case ui.NextFile:
 		m.load(s.step(1))
-	case "shift+tab", "[":
+	case ui.PrevFile:
 		m.load(s.step(-1))
-	case "f":
+	case ui.ToggleView:
 		s.toggleMode()
-	case "h", "left":
+	case ui.ScrollLeft:
 		s.shiftH(-1)
-	case "l", "right":
+	case ui.ScrollRight:
 		s.shiftH(1)
-	case "b":
+	case ui.ToggleFiles:
 		s.toggleList()
-	case "i":
+	case ui.StartCaret:
 		s.startCaret()
 	}
 	return m, nil
 }
 
-// onListKey maps a key to its action in the focused file list; ok is false
-// for the keys it leaves to onKey.
-func (m *model) onListKey(key string) (ok bool) {
+// onListAction does an action of the focused file list.
+func (m *model) onListAction(a ui.Action) {
 	s := &m.s
-	if mo, ok := motionOf(key); ok {
+	if mo, ok := motionOf(a); ok {
 		if mo.pages != 0 {
 			s.pageList(mo.steps(len(s.Files), s.listLines()))
 		} else {
 			s.moveCursor(mo.steps(len(s.Files), s.listLines()))
 		}
-		return true
+		return
 	}
-	switch key {
-	case "enter":
+	switch a { //nolint:exhaustive // the layer takes the list's actions only
+	case ui.Open:
 		m.load(s.openCursor())
-	case "esc":
+	case ui.Back:
 		s.List.blur()
-	case "[":
+	case ui.PrevFolder:
 		s.jumpFolder(-1)
-	case "]":
+	case ui.NextFolder:
 		s.jumpFolder(1)
-	default:
-		return false
 	}
-	return true
 }
 
 // motion is where a navigation key moves, the diff or the focused file
@@ -187,24 +185,24 @@ type motion struct {
 	half               bool
 }
 
-// motionOf is the motion of key; ok is false for any other key.
-func motionOf(key string) (mo motion, ok bool) {
-	switch key {
-	case "j", "down":
+// motionOf is the motion of a; ok is false for any other action.
+func motionOf(a ui.Action) (mo motion, ok bool) {
+	switch a { //nolint:exhaustive // the motions only
+	case ui.Down:
 		return motion{lines: 1}, true
-	case "k", "up":
+	case ui.Up:
 		return motion{lines: -1}, true
-	case "ctrl+d":
+	case ui.HalfPageDown:
 		return motion{pages: 1, half: true}, true
-	case "ctrl+u":
+	case ui.HalfPageUp:
 		return motion{pages: -1, half: true}, true
-	case "pgdown", "space":
+	case ui.PageDown:
 		return motion{pages: 1}, true
-	case "pgup":
+	case ui.PageUp:
 		return motion{pages: -1}, true
-	case "g", "home":
+	case ui.Top:
 		return motion{edge: -1}, true
-	case "G", "end":
+	case ui.Bottom:
 		return motion{edge: 1}, true
 	}
 	return motion{}, false

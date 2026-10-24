@@ -87,10 +87,24 @@ func TestTheMouseAsksOnceItRests(t *testing.T) {
 
 		m, _ = send(m, cmd())
 
-		assert.Equal(t, hoverDelay, time.Since(begin))
+		assert.Equal(t, 300*time.Millisecond, time.Since(begin))
 		require.Equal(t, 1, f.hover.HoverCallCount())
 		assert.Equal(t, hover.Position{Req: 1, Path: "a.go", Version: 1, Line: 0, Byte: 2}, f.hover.HoverArgsForCall(0))
 		assert.Equal(t, hover.ReqID(1), m.s.Hover.Inflight)
+	})
+}
+
+func TestTheMouseRestsForTheConfiguredDelay(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m, f := hoverModel(t)
+		m.hoverDelay = time.Second
+		_, cmd := move(m, 5)
+		begin := time.Now()
+
+		cmd()
+
+		assert.Equal(t, time.Second, time.Since(begin))
+		assert.Zero(t, f.hover.HoverCallCount(), "asked only once the message arrives")
 	})
 }
 

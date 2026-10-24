@@ -231,6 +231,6 @@ func (s *state) scrollTo(line int) {
 // the anchor row.
 func (s *state) relayout() {
 	s.place(s.Layout.Width, s.Layout.Height)
-	s.show(view.Lines(s.Snapshot.Diff, s.Mode, contextRows))
+	s.show(view.Lines(s.Snapshot.Diff, s.Mode, s.Context))
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }

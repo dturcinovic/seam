@@ -13,6 +13,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/ui"
 	"seam/internal/domain/view"
 )
 
@@ -40,7 +41,7 @@ func files(paths ...string) []change.ChangedFile {
 // shown is a state of the given size showing snap as the first of fs.
 func shown(t *testing.T, fs []change.ChangedFile, width, height int, snap filediff.Snapshot) *state {
 	t.Helper()
-	s := newState(change.Changeset{Files: fs})
+	s := newState(change.Changeset{Files: fs}, ui.DefaultSettings())
 	s.resize(width, height)
 	r, ok := s.open(0, false)
 	require.True(t, ok)

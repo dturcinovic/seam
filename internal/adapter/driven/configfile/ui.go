@@ -1,0 +1,80 @@
+package configfile
+
+import (
+	"fmt"
+	"maps"
+	"slices"
+	"time"
+
+	"seam/internal/domain/ui"
+)
+
+type uiEntry struct {
+	Theme        *string `toml:"theme"`
+	ContextLines *int    `toml:"context_lines"`
+	// HoverDelay is a duration as Go writes it, such as "300ms".
+	HoverDelay *string `toml:"hover_delay"`
+}
+
+// settings lays the ui, colors and keys sections over the defaults, the
+// colours over the theme's palette.
+func (d document) settings() (ui.Settings, error) {
+	palette, err := d.palette()
+	if err != nil {
+		return ui.Settings{}, err
+	}
+	keys, err := d.keymap()
+	if err != nil {
+		return ui.Settings{}, err
+	}
+	lines, delay := ui.DefaultContextLines, ui.DefaultHoverDelay
+	set(&lines, d.UI.ContextLines)
+	if d.UI.HoverDelay != nil {
+		if delay, err = time.ParseDuration(*d.UI.HoverDelay); err != nil {
+			return ui.Settings{}, fmt.Errorf("ui.hover_delay: %w", err)
+		}
+	}
+	s, err := ui.NewSettings(palette, keys, lines, delay)
+	if err != nil {
+		return ui.Settings{}, fmt.Errorf("ui: %w", err)
+	}
+	return s, nil
+}
+
+// palette is the theme's palette with the colours set, in the order of
+// their names, so an error names the same entry on every run.
+func (d document) palette() (ui.Palette, error) {
+	p := ui.DefaultSettings().Palette
+	if d.UI.Theme != nil {
+		var err error
+		if p, err = ui.ThemePalette(*d.UI.Theme); err != nil {
+			return ui.Palette{}, fmt.Errorf("ui.theme: %w", err)
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(d.Colors)) {
+		c, ok := ui.ParseColour(name)
+		if !ok {
+			return ui.Palette{}, fmt.Errorf("colors.%s: %w: no such colour", name, ui.ErrInvalidColour)
+		}
+		if err := p.Set(c, d.Colors[name]); err != nil {
+			return ui.Palette{}, fmt.Errorf("colors.%s: %w", name, err)
+		}
+	}
+	return p, nil
+}
+
+func (d document) keymap() (ui.Keymap, error) {
+	bindings := make(map[ui.Action][]string, len(d.Keys))
+	for _, name := range slices.Sorted(maps.Keys(d.Keys)) {
+		a, ok := ui.ParseAction(name)
+		if !ok {
+			return ui.Keymap{}, fmt.Errorf("keys.%s: %w: no such action", name, ui.ErrInvalidKeys)
+		}
+		bindings[a] = d.Keys[name]
+	}
+	k, err := ui.NewKeymap(bindings)
+	if err != nil {
+		return ui.Keymap{}, fmt.Errorf("keys: %w", err)
+	}
+	return k, nil
+}

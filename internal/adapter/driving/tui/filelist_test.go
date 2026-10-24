@@ -13,6 +13,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/ui"
 	"seam/internal/textcell"
 )
 
@@ -50,7 +51,7 @@ func TestTheListOpensByItselfWhenThereIsRoom(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newState(change.Changeset{Files: manyFiles(tt.files)})
+			s := newState(change.Changeset{Files: manyFiles(tt.files)}, ui.DefaultSettings())
 			if tt.width <= 0 {
 				// The list's width plus two panes of minPaneWidth.
 				list := s.List.width() + separatorWidth
@@ -210,7 +211,7 @@ func TestAReloadReplacesTheList(t *testing.T) {
 }
 
 func TestTheListGroupsByFolder(t *testing.T) {
-	s := newState(change.Changeset{Files: files("a/d.go", "a/c/x.go", "b.go", "a/b.go")})
+	s := newState(change.Changeset{Files: files("a/d.go", "a/c/x.go", "b.go", "a/b.go")}, ui.DefaultSettings())
 
 	var got []string
 	for _, it := range s.List.Items {
@@ -229,7 +230,7 @@ func TestTheListGroupsByFolder(t *testing.T) {
 }
 
 func TestBracketsJumpBetweenFolders(t *testing.T) {
-	s := newState(change.Changeset{Files: files("a/1.go", "a/2.go", "b/1.go", "c/1.go", "c/2.go")})
+	s := newState(change.Changeset{Files: files("a/1.go", "a/2.go", "b/1.go", "c/1.go", "c/2.go")}, ui.DefaultSettings())
 	s.resize(140, 20)
 	s.toggleList()
 	s.moveCursor(1)
@@ -319,7 +320,7 @@ func TestTheListIsMeasuredAgainWhenTheCellsAreCountedOtherwise(t *testing.T) {
 	// A family emoji is one glyph to a terminal in grapheme mode and three
 	// wide ones otherwise.
 	family := strings.Repeat("👨\u200d👩\u200d👧", 3) + ".txt"
-	s := newState(change.Changeset{Files: files(family, "b.go")})
+	s := newState(change.Changeset{Files: files(family, "b.go")}, ui.DefaultSettings())
 	s.resize(200, 12)
 	before := s.List.Longest
 
@@ -415,7 +416,7 @@ func TestAPageSkipsNoLine(t *testing.T) {
 			fs = append(fs, files(fmt.Sprintf("%s/%d.go", dir, i))...)
 		}
 	}
-	st := newState(change.Changeset{Files: fs})
+	st := newState(change.Changeset{Files: fs}, ui.DefaultSettings())
 	st.resize(140, 6+chrome)
 	st.toggleList()
 	m := model{s: st}

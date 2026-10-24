@@ -3,12 +3,10 @@ package tui
 import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/ui"
 	"seam/internal/domain/view"
 	"seam/internal/textcell"
 )
-
-// contextRows is how many unchanged rows the hunk view keeps around a change.
-const contextRows = 3
 
 // state is what the TUI shows, as plain data: no ports, no channels. Only
 // the actions change it.
@@ -37,6 +35,14 @@ type state struct {
 	// Caret is the keyboard's cursor in a pane, for hovers.
 	Caret caret
 
+	// Context is how many unchanged rows the hunk view keeps around a
+	// change, and Keys what each key does; both are the user's settings.
+	// KeyText is the footer's reminder of Keys, made once by setKeys, as
+	// the footer is drawn with every frame.
+	Context int
+	Keys    ui.Keymap
+	KeyText keyTexts
+
 	Mode    view.Mode
 	Pos     view.Pos
 	HScroll int
@@ -54,11 +60,17 @@ type state struct {
 }
 
 // newState holds the files of cs in the hunk view, none of them open yet.
-func newState(cs change.Changeset) state {
-	s := state{Comparison: cs.Comparison, Current: -1, Mode: view.Hunks}
+func newState(cs change.Changeset, set ui.Settings) state {
+	s := state{Comparison: cs.Comparison, Current: -1, Mode: view.Hunks, Context: set.ContextLines}
+	s.setKeys(set.Keys)
 	s.setFiles(cs.Files)
 	s.place(0, 0)
 	return s
+}
+
+// setKeys takes k as the keys and their reminder.
+func (s *state) setKeys(k ui.Keymap) {
+	s.Keys, s.KeyText = k, newKeyTexts(k)
 }
 
 // file is the current file; ok is false when there is none.

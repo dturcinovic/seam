@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	"seam/internal/adapter/driven/configfile"
 	"seam/internal/app/port/in"
 	"seam/internal/config"
 	"seam/internal/domain/change"
@@ -50,7 +51,7 @@ func TestFreshReadsAChangeTheStampHides(t *testing.T) {
 		loader in.ChangesetLoader
 		files  in.FileDiffLoader
 	)
-	app := fx.New(append(options(cfg, logger, repo.Dir, lang.Defaults()), fx.Populate(&loader, &files))...)
+	app := fx.New(append(options(cfg, logger, repo.Dir, configfile.File{Languages: lang.Defaults()}), fx.Populate(&loader, &files))...)
 	require.NoError(t, app.Start(t.Context()))
 	defer func() { assert.NoError(t, stopGraph(app)) }()
 	c, err := change.NewComparison(change.Commit("HEAD"), change.Worktree())

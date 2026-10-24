@@ -10,6 +10,7 @@ import (
 
 	"seam/internal/adapter/driven/configfile"
 	"seam/internal/domain/lang"
+	"seam/internal/domain/ui"
 )
 
 func write(t *testing.T, text string) string {
@@ -21,15 +22,15 @@ func write(t *testing.T, text string) string {
 
 func load(t *testing.T, text string) lang.Table {
 	t.Helper()
-	table, err := configfile.Load(write(t, text))
+	f, err := configfile.Load(write(t, text))
 	require.NoError(t, err)
-	return table
+	return f.Languages
 }
 
 func TestWithoutAFileTheDefaultsHold(t *testing.T) {
-	table, err := configfile.Load(filepath.Join(t.TempDir(), "seam", "config.toml"))
+	f, err := configfile.Load(filepath.Join(t.TempDir(), "seam", "config.toml"))
 	require.NoError(t, err)
-	assert.Equal(t, lang.Defaults(), table)
+	assert.Equal(t, configfile.File{Languages: lang.Defaults(), UI: ui.DefaultSettings()}, f)
 }
 
 func TestAnEmptyFileIsTheDefaults(t *testing.T) {

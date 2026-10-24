@@ -50,3 +50,33 @@ func ParseFileSize(s string) (FileSize, error) {
 	}
 	return NewFileSize(n << shift)
 }
+
+// Instances is how many language server instances may run at once. The
+// zero value is not a valid limit; use NewInstances or DefaultInstances.
+type Instances int
+
+// The bounds of Instances. Each instance is a server process with its own
+// index of a workspace, which can take gigabytes.
+const (
+	DefaultInstances Instances = 4
+	MaxInstances     Instances = 16
+)
+
+// ErrInvalidInstances is returned for a limit outside 1 to MaxInstances.
+var ErrInvalidInstances = errors.New("instance limit out of bounds")
+
+// OrDefault is n, or DefaultInstances if n is not set.
+func (n Instances) OrDefault() Instances {
+	if n <= 0 {
+		return DefaultInstances
+	}
+	return n
+}
+
+// NewInstances checks n and returns it as a limit.
+func NewInstances(n int) (Instances, error) {
+	if n < 1 || n > int(MaxInstances) {
+		return 0, fmt.Errorf("%w: %d, want 1 to %d", ErrInvalidInstances, n, MaxInstances)
+	}
+	return Instances(n), nil
+}

@@ -10,6 +10,7 @@ import (
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 	"seam/internal/domain/syntax"
+	"seam/internal/domain/ui"
 	"seam/internal/textcell"
 )
 
@@ -137,7 +138,7 @@ func TestAnAnswerOfMarkdownReachesTheTerminalOnlyAsText(t *testing.T) {
 	for _, m := range methods {
 		s.Cells = m.method
 		noControls(t, render(s, &theme{}))
-		noControls(t, withoutTheme(render(s, newTheme())))
+		noControls(t, withoutTheme(render(s, newTheme(ui.Dark()))))
 	}
 	assert.Contains(t, strings.Join(plainLines(s), "\n"), "␛]8;;https://evil␇here")
 	for _, st := range []style{popupStyle, popupEmphasisStyle, popupStrongStyle, popupLinkStyle, popupDimStyle, popupCodeSpanStyle, popupCodeStyle(syntax.Keyword)} {

@@ -13,6 +13,7 @@ import (
 
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
+	"seam/internal/domain/limits"
 )
 
 // fakelspEnv names the test server's path, built once for the package
@@ -55,7 +56,7 @@ func helper(root string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	pool := newPool(Config{Root: root, LogDir: root}, table, newProcesses(root), zap.NewNop(), nil)
+	pool := newPool(Config{Root: root, LogDir: root, MaxInstances: limits.DefaultInstances}, table, newProcesses(root), zap.NewNop(), nil)
 	pool.Sync(hover.Document{Path: "a.go", Lang: lang.Go, Version: 1, Text: "package a\n"})
 	for {
 		<-pool.Signal()

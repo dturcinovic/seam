@@ -14,6 +14,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
+	"seam/internal/domain/limits"
 )
 
 // peer is the server side of an in-process connection. A synctest bubble
@@ -159,7 +160,7 @@ func worktree(p *Pool) string { return p.trees[change.ObjectID{}].dir }
 
 func testPool(t *testing.T, table lang.Table, s starter) *Pool {
 	t.Helper()
-	return newPool(Config{Root: t.TempDir(), LogDir: t.TempDir()}, table, s, zap.NewNop(), nil)
+	return newPool(Config{Root: t.TempDir(), LogDir: t.TempDir(), MaxInstances: limits.DefaultInstances}, table, s, zap.NewNop(), nil)
 }
 
 func doc(path string, v hover.DocVersion, text string) hover.Document {

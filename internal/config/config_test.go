@@ -91,13 +91,19 @@ func TestFileSizeLimit(t *testing.T) {
 	assert.Equal(t, limits.FileSize(9), config.Config{MaxFileSize: 9}.FileSizeLimit())
 }
 
+func TestAFlagBeatsTheFile(t *testing.T) {
+	assert.Equal(t, config.Config{MaxFileSize: 9}, config.Config{}.Settle(9), "the file's")
+	assert.Equal(t, config.Config{MaxFileSize: 5}, config.Config{MaxFileSize: 5}.Settle(9), "the flag's")
+	assert.Equal(t, config.Config{}, config.Config{}.Settle(0), "neither")
+}
+
 func TestMaxFileSize(t *testing.T) {
 	tests := []struct {
 		flag    string
 		want    limits.FileSize
 		wantErr bool
 	}{
-		{"", limits.DefaultFileSize, false},
+		{"", 0, false},
 		{"1000", 1000, false},
 		{"16K", 16 << 10, false},
 		{"16M", 16 << 20, false},

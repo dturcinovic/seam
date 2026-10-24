@@ -10,6 +10,7 @@ import (
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/syntax"
+	"seam/internal/domain/ui"
 )
 
 type run struct {
@@ -41,7 +42,7 @@ func highlighted(t *testing.T) *state {
 
 func TestKindsColourTheirCells(t *testing.T) {
 	s := highlighted(t)
-	th := newTheme()
+	th := newTheme(ui.Dark())
 
 	out := render(s, th)
 
@@ -61,7 +62,7 @@ func TestAnInlineSpanKeepsTheKind(t *testing.T) {
 	d := diff.Compute(t.Context(), diff.Split("var a\n"), diff.Split("let a\n"))
 	side := tokens(t, []run{{3, syntax.Keyword}})
 	s := shown(t, files("a.js"), 60, 3, filediff.Snapshot{Diff: d, Highlights: filediff.Highlights{Old: side, New: side}})
-	th := newTheme()
+	th := newTheme(ui.Dark())
 
 	out := render(s, th)
 
@@ -72,7 +73,7 @@ func TestAnInlineSpanKeepsTheKind(t *testing.T) {
 func TestScrolledTextKeepsItsKinds(t *testing.T) {
 	s := highlighted(t)
 	s.shiftH(1) // eight columns: only "1" and "2" are left
-	th := newTheme()
+	th := newTheme(ui.Dark())
 
 	out := render(s, th)
 
@@ -86,7 +87,7 @@ func TestAStandInIsDimmedWhateverItsKind(t *testing.T) {
 	d := diff.Compute(t.Context(), diff.Split("\"\x07\"\n"), diff.Split("\"\x07\"\n"))
 	side := tokens(t, []run{{3, syntax.String}})
 	s := shown(t, files("a.go"), 40, 3, filediff.Snapshot{Diff: d, Highlights: filediff.Highlights{Old: side, New: side}})
-	th := newTheme()
+	th := newTheme(ui.Dark())
 
 	out := render(s, th)
 

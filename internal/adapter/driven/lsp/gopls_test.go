@@ -14,6 +14,7 @@ import (
 
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
+	"seam/internal/domain/limits"
 	"seam/internal/testsupport"
 )
 
@@ -26,7 +27,7 @@ func realPool(t *testing.T, table lang.Table, files map[string]string) *Pool {
 		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o700))
 		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte(text), 0o600))
 	}
-	return newPool(Config{Root: root, LogDir: t.TempDir()}, table, newProcesses(t.TempDir()), zap.NewNop(), nil)
+	return newPool(Config{Root: root, LogDir: t.TempDir(), MaxInstances: limits.DefaultInstances}, table, newProcesses(t.TempDir()), zap.NewNop(), nil)
 }
 
 // hoverUntil asks at pos until an answer has text: a server answers

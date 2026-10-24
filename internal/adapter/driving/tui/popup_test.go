@@ -10,6 +10,7 @@ import (
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/hover"
+	"seam/internal/domain/ui"
 	"seam/internal/textcell"
 )
 
@@ -134,6 +135,6 @@ func TestAPopupTextReachesTheTerminalOnlyAsText(t *testing.T) {
 	for _, m := range methods {
 		s.Cells = m.method
 		noControls(t, render(s, &theme{}))
-		noControls(t, withoutTheme(render(s, newTheme())))
+		noControls(t, withoutTheme(render(s, newTheme(ui.Dark()))))
 	}
 }

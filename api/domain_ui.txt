@@ -1,0 +1,219 @@
+package ui // import "seam/internal/domain/ui"
+
+Package ui holds what a user may set about the viewer: the palette,
+the keys of its actions, the context of the hunk view and the delay of a hover.
+It checks each setting and knows the names the configuration file gives them.
+It draws nothing and reads no key: the TUI does both, and the key names it
+checks are those the TUI receives.
+
+CONSTANTS
+
+const (
+	DefaultContextLines = 3
+	MaxContextLines     = 1000
+	DefaultHoverDelay   = 300 * time.Millisecond
+	MaxHoverDelay       = 5 * time.Second
+)
+    The bounds and defaults of the settings; the bounds catch a typo rather than
+    limit a taste.
+
+const Colours = ChangedFg + 1 + Colour(syntax.Kinds)
+    Colours is the number of roles, no role itself.
+
+
+VARIABLES
+
+var ErrInvalidColour = errors.New("invalid colour")
+    ErrInvalidColour is a colour value that is no colour.
+
+var ErrInvalidKeys = errors.New("invalid keys")
+    ErrInvalidKeys is a key map that breaks one of the rules NewKeymap checks.
+
+var ErrInvalidSetting = errors.New("invalid setting")
+    ErrInvalidSetting is a context or hover delay out of its bounds.
+
+var ErrUnknownTheme = errors.New("unknown theme")
+    ErrUnknownTheme is a theme name that names no built-in palette.
+
+
+TYPES
+
+type Action uint8
+    Action is what a key does.
+
+const (
+	// The motions move the view, or the file list while it has the focus.
+	Down Action = iota
+	Up
+	HalfPageDown
+	HalfPageUp
+	PageDown
+	PageUp
+	Top
+	Bottom
+
+	Quit
+	Reload
+	ToggleView
+	NextChange
+	PrevChange
+	NextFile
+	PrevFile
+	ScrollLeft
+	ScrollRight
+	ToggleFiles
+	StartCaret
+
+	Open
+	Back
+	PrevFolder
+	NextFolder
+
+	LeaveCaret
+	CaretDown
+	CaretUp
+	CaretLeft
+	CaretRight
+	WordForward
+	WordBack
+	WordEnd
+	OtherSide
+	Hover
+
+	ClosePopup
+	// Actions is the number of actions, no action itself.
+	Actions
+)
+    The actions, grouped by the layer that takes them, see Layer.
+
+func ParseAction(name string) (a Action, ok bool)
+    ParseAction is the action named name; ok is false for none.
+
+func (a Action) String() string
+    String is the name of a in the configuration file.
+
+type Colour uint8
+    Colour is a role a colour plays on the screen. The roles of syntax kinds
+    follow the others, see KindColour; plain text and punctuation have one too,
+    empty by default, so they keep the terminal's colour.
+
+const (
+	DeletedBg Colour = iota
+	// The strong backgrounds mark the changed stretches within a line.
+	DeletedStrongBg
+	InsertedBg
+	InsertedStrongBg
+	ChangedBg
+	ChangedStrongBg
+	// AbsentBg is the side of a row that has no line.
+	AbsentBg
+	// DimFg is the colour of gutters, the footer and other secondary text.
+	DimFg
+	HeaderBg
+	ThumbBg
+	PopupBg
+	CodeSpanBg
+	ErrorFg
+	// The file list's selection, folders, gutter and zero counts.
+	SelectedBg
+	SelectedFg
+	DirFg
+	GutterFg
+	ZeroFg
+	// The marks of the scrollbar and the counts of the file list.
+	DeletedFg
+	InsertedFg
+	ChangedFg
+)
+    The roles of the palette.
+
+func KindColour(k syntax.Kind) Colour
+    KindColour is the role of text of kind k.
+
+func ParseColour(name string) (c Colour, ok bool)
+    ParseColour is the role named name; ok is false for no role.
+
+func (c Colour) String() string
+    String is the name of c in the configuration file.
+
+type Keymap struct {
+	// Has unexported fields.
+}
+    Keymap is the keys of each action. The zero value has none; NewKeymap with
+    no bindings is the default. It is shared, never changed, so a copy costs a
+    pointer.
+
+func DefaultKeymap() Keymap
+    DefaultKeymap is the keys seam has without a configuration. The tests check
+    that the defaults have no conflict, as NewKeymap would.
+
+func NewKeymap(bindings map[Action][]string) (Keymap, error)
+    NewKeymap lays bindings over the default keys: each replaces the keys of its
+    action, an empty one leaves the action without. Every key must be one the
+    TUI can receive, a layer must not take a key for two actions, and quitting
+    must keep a key.
+
+func (k Keymap) Action(l Layer, key string) (a Action, ok bool)
+    Action is what key does in layer l; ok is false for nothing.
+
+func (k Keymap) Keys(a Action) []string
+    Keys are the keys of a, first the one to show.
+
+type Layer uint8
+    Layer is a set of actions that take keys at once. The layers are asked
+    from the top: an open popup, then the focused file list, then the caret,
+    then the view, so a key of an upper layer hides the same key below it.
+
+const (
+	ViewLayer Layer = iota
+	ListLayer
+	CaretLayer
+	PopupLayer
+	Layers
+)
+    The layers.
+
+func (l Layer) Takes(a Action) bool
+    Takes reports whether layer l takes action a: the actions of a layer are a
+    stretch of the constants above, and the file list takes the motions too.
+
+type Palette struct {
+	// Has unexported fields.
+}
+    Palette is a colour for each role: "#rrggbb", an ANSI colour "0" to "255",
+    or empty for the terminal's own.
+
+func Dark() Palette
+    Dark is the palette for a dark background, the default.
+
+func Light() Palette
+    Light is the palette for a light background.
+
+func ThemePalette(name string) (Palette, error)
+    ThemePalette is the built-in palette called name: "dark" or "light".
+
+func (p Palette) Colour(c Colour) string
+    Colour is the colour of role c.
+
+func (p *Palette) Set(c Colour, value string) error
+    Set gives role c the colour value, if it is one.
+
+type Settings struct {
+	Palette Palette
+	Keys    Keymap
+	// ContextLines is how many unchanged lines the hunk view keeps around
+	// a change.
+	ContextLines int
+	// HoverDelay is how long the mouse rests on a word before it is asked
+	// about.
+	HoverDelay time.Duration
+}
+    Settings are how the viewer looks and takes keys. The zero value is not
+    valid; use NewSettings or DefaultSettings.
+
+func DefaultSettings() Settings
+    DefaultSettings are the settings without a configuration.
+
+func NewSettings(p Palette, k Keymap, contextLines int, hoverDelay time.Duration) (Settings, error)
+    NewSettings checks the context and the delay and returns the settings.
+

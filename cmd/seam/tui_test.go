@@ -20,6 +20,7 @@ import (
 	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/domain/syntax"
+	"seam/internal/domain/ui"
 	"seam/internal/supervise"
 	"seam/internal/testsupport"
 )
@@ -110,7 +111,7 @@ func runTUI(t *testing.T, ports tui.Ports, cs change.Changeset, out io.Writer) (
 	t.Cleanup(func() { _ = w.Close() }) // Closing a pipe end does not fail.
 	done := make(chan error, 1)
 	go func() {
-		done <- tui.Run(context.Background(), cs, ports, nil, tui.IO{In: keys, Out: out, Width: 80, Height: 24})
+		done <- tui.Run(context.Background(), cs, ui.DefaultSettings(), ports, nil, tui.IO{In: keys, Out: out, Width: 80, Height: 24})
 	}()
 	typeKeys = func(s string) {
 		_, err := io.WriteString(w, s)
@@ -194,7 +195,7 @@ func TestASignalEndsTheTUIWithoutError(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- tui.Run(ctx, changeset(), ports, nil, tui.IO{In: keys, Out: io.Discard, Width: 80, Height: 24})
+		done <- tui.Run(ctx, changeset(), ui.DefaultSettings(), ports, nil, tui.IO{In: keys, Out: io.Discard, Width: 80, Height: 24})
 	}()
 
 	cancel()

@@ -9,6 +9,7 @@ import (
 
 	"seam/internal/app/port/in"
 	"seam/internal/domain/change"
+	"seam/internal/domain/ui"
 	"seam/internal/supervise"
 )
 
@@ -29,11 +30,11 @@ type IO struct {
 	Width, Height int
 }
 
-// Run shows cs until the user quits or ctx ends, which is no error. It owns
-// the program and the bridge that wakes it, and returns with both ended and
-// the terminal restored; the use cases' workers are the caller's to stop.
-// Panics in the bridge go to panics.
-func Run(ctx context.Context, cs change.Changeset, p Ports, panics supervise.PanicFunc, term IO) error {
+// Run shows cs with the user's settings until the user quits or ctx ends,
+// which is no error. It owns the program and the bridge that wakes it, and
+// returns with both ended and the terminal restored; the use cases' workers
+// are the caller's to stop. Panics in the bridge go to panics.
+func Run(ctx context.Context, cs change.Changeset, set ui.Settings, p Ports, panics supervise.PanicFunc, term IO) error {
 	// Signals end the program through ctx alone: Bubble Tea's own handler
 	// would race main's and turn the same signal into an error or not.
 	opts := []tea.ProgramOption{tea.WithContext(ctx), tea.WithoutSignalHandler()}
@@ -46,7 +47,7 @@ func Run(ctx context.Context, cs change.Changeset, p Ports, panics supervise.Pan
 	if term.Width > 0 {
 		opts = append(opts, tea.WithWindowSize(term.Width, term.Height))
 	}
-	prog := tea.NewProgram(newModel(cs, p), opts...)
+	prog := tea.NewProgram(newModel(cs, p, set), opts...)
 	b := newBridge(panics)
 	if err := b.start(prog.Send, p); err != nil {
 		// The program never ran, so nothing holds up the watcher started.

@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 
 	"seam/internal/domain/syntax"
+	"seam/internal/domain/ui"
 )
 
 // style names what a stretch of the screen shows; the theme gives it its
@@ -183,84 +185,47 @@ type theme struct {
 	open, close [styles]string
 }
 
-// The palette, for a dark background.
-const (
-	deletedBg        = "#3f2326"
-	deletedStrongBg  = "#7a2e35"
-	insertedBg       = "#213a28"
-	insertedStrongBg = "#2f6b3e"
-	changedBg        = "#1f2f47"
-	changedStrongBg  = "#2f4f80"
-	absentBg         = "#262626"
-	dimFg            = "#7a7a7a"
-	headerBg         = "#303030"
-	thumbBg          = "#4a4a4a"
-	popupBg          = "#21252b"
-	codeSpanBg       = "#2c313a"
-	errorFg          = "#ff6b6b"
-	// The file list's selection, folders, gutter and zero counts.
-	selectedBg = "#2e436e"
-	selectedFg = "#ffffff"
-	dirFg      = "#56a8f5"
-	gutterFg   = "#393b40"
-	zeroFg     = "#4a4d52"
-	// The marks of the scrollbar, bright enough to find on the thumb.
-	deletedFg  = "#e06c75"
-	insertedFg = "#98c379"
-	changedFg  = "#61afef"
-)
-
-// kindColours are the foregrounds of the syntax kinds, readable on every
-// tone's background. An empty colour is the terminal's own.
-func kindColours() [syntax.Kinds]string {
-	return [syntax.Kinds]string{
-		syntax.Keyword:   "#c678dd",
-		syntax.Type:      "#e5c07b",
-		syntax.Function:  "#61afef",
-		syntax.Builtin:   "#56b6c2",
-		syntax.Constant:  "#d19a66",
-		syntax.String:    "#98c379",
-		syntax.Escape:    "#56b6c2",
-		syntax.Number:    "#d19a66",
-		syntax.Comment:   "#7f848e",
-		syntax.Meta:      "#e06c75",
-		syntax.Operator:  "#56b6c2",
-		syntax.Tag:       "#e06c75",
-		syntax.Attribute: "#d19a66",
-		syntax.Variable:  "#e06c75",
-	}
-}
-
-// newTheme derives the sequences from Lip Gloss styles once: Lip Gloss
-// renders a whole string per call, while a line switches style per stretch
-// of cells and writes them itself.
-func newTheme() *theme {
+// newTheme derives the sequences of palette p from Lip Gloss styles once:
+// Lip Gloss renders a whole string per call, while a line switches style
+// per stretch of cells and writes them itself.
+func newTheme(p ui.Palette) *theme {
 	var t theme
-	for st, ls := range lipglossStyles() {
+	for st, ls := range lipglossStyles(colours(p)) {
 		// The placeholder is no part of any SGR sequence.
 		t.open[st], t.close[st], _ = strings.Cut(ls.Render("x"), "x")
 	}
 	return &t
 }
 
+// palette is a palette's colours as Lip Gloss takes them.
+type palette func(ui.Colour) color.Color
+
+// colours is p as Lip Gloss takes it; it reads an empty colour as none,
+// which keeps the terminal's own.
+func colours(p ui.Palette) palette {
+	return func(c ui.Colour) color.Color { return lipgloss.Color(p.Colour(c)) }
+}
+
+func (c palette) kind(k syntax.Kind) color.Color { return c(ui.KindColour(k)) }
+
 // addPopupStyles adds the styles of the popup's text on its background.
-func addPopupStyles(all map[style]lipgloss.Style, popup lipgloss.Style) {
+func addPopupStyles(all map[style]lipgloss.Style, popup lipgloss.Style, c palette) {
 	all[popupEmphasisStyle] = popup.Italic(true)
 	all[popupStrongStyle] = popup.Bold(true)
-	all[popupLinkStyle] = popup.Foreground(lipgloss.Color(changedFg)).Underline(true)
-	all[popupDimStyle] = popup.Foreground(lipgloss.Color(dimFg))
-	all[popupCodeSpanStyle] = popup.Background(lipgloss.Color(codeSpanBg))
-	for k, fg := range kindColours() {
-		all[popupCodeStyle(syntax.Kind(k))] = popup.Foreground(lipgloss.Color(fg))
+	all[popupLinkStyle] = popup.Foreground(c(ui.ChangedFg)).Underline(true)
+	all[popupDimStyle] = popup.Foreground(c(ui.DimFg))
+	all[popupCodeSpanStyle] = popup.Background(c(ui.CodeSpanBg))
+	for k := range syntax.Kinds {
+		all[popupCodeStyle(k)] = popup.Foreground(c.kind(k))
 	}
 }
 
-func lipglossStyles() map[style]lipgloss.Style {
+func lipglossStyles(c palette) map[style]lipgloss.Style {
 	base := lipgloss.NewStyle()
-	dim := base.Foreground(lipgloss.Color(dimFg))
-	header := base.Bold(true).Background(lipgloss.Color(headerBg))
-	errorText := base.Foreground(lipgloss.Color(errorFg))
-	popup := base.Background(lipgloss.Color(popupBg))
+	dim := base.Foreground(c(ui.DimFg))
+	header := base.Bold(true).Background(c(ui.HeaderBg))
+	errorText := base.Foreground(c(ui.ErrorFg))
+	popup := base.Background(c(ui.PopupBg))
 	all := map[style]lipgloss.Style{
 		headerStyle:     header,
 		footerStyle:     dim,
@@ -272,50 +237,58 @@ func lipglossStyles() map[style]lipgloss.Style {
 		footerStandIn:   dim.Faint(true),
 		errorStandIn:    errorText.Faint(true),
 		popupStyle:      popup,
-		popupFrameStyle: popup.Foreground(lipgloss.Color(dimFg)),
+		popupFrameStyle: popup.Foreground(c(ui.DimFg)),
 		popupStandIn:    popup.Faint(true),
 		caretStyle:      base.Reverse(true),
 	}
-	addPopupStyles(all, popup)
-	shades := [listShades]lipgloss.Style{
-		plainShade:    base,
-		selectedShade: base.Background(lipgloss.Color(selectedBg)),
-		currentShade:  base.Bold(true),
+	addPopupStyles(all, popup, c)
+	addListStyles(all, base, c)
+	marks := [tones]color.Color{
+		equalTone: lipgloss.NoColor{}, deletedTone: c(ui.DeletedFg), insertedTone: c(ui.InsertedFg),
+		changedTone: c(ui.ChangedFg), absentTone: lipgloss.NoColor{},
 	}
-	parts := [listParts]string{
-		listAddedPart: insertedFg, listDeletedPart: deletedFg, listChangedPart: changedFg, listDimPart: dimFg,
-		listDirPart: dirFg, listGutterPart: gutterFg, listZeroPart: zeroFg,
-	}
-	for sh, shade := range shades {
-		for p, fg := range parts {
-			all[listStyle(listPart(p), listShade(sh))] = shade.Foreground(lipgloss.Color(fg))
-		}
-	}
-	// The name of the selected file is white, as the design has it.
-	all[listStyle(listNamePart, selectedShade)] = shades[selectedShade].Foreground(lipgloss.Color(selectedFg))
-	marks := [tones]string{deletedTone: deletedFg, insertedTone: insertedFg, changedTone: changedFg}
 	for t, fg := range marks {
-		track := base.Foreground(lipgloss.Color(fg))
+		track := base.Foreground(fg)
 		all[scrollStyle(tone(t), false)] = track
-		all[scrollStyle(tone(t), true)] = track.Background(lipgloss.Color(thumbBg))
+		all[scrollStyle(tone(t), true)] = track.Background(c(ui.ThumbBg))
 	}
-	// An empty colour is none: equal lines keep the terminal's background.
-	backgrounds := [tones][2]string{
-		equalTone:    {"", ""},
-		deletedTone:  {deletedBg, deletedStrongBg},
-		insertedTone: {insertedBg, insertedStrongBg},
-		changedTone:  {changedBg, changedStrongBg},
-		absentTone:   {absentBg, absentBg},
+	// Equal lines keep the terminal's background.
+	backgrounds := [tones][2]color.Color{
+		equalTone:    {lipgloss.NoColor{}, lipgloss.NoColor{}},
+		deletedTone:  {c(ui.DeletedBg), c(ui.DeletedStrongBg)},
+		insertedTone: {c(ui.InsertedBg), c(ui.InsertedStrongBg)},
+		changedTone:  {c(ui.ChangedBg), c(ui.ChangedStrongBg)},
+		absentTone:   {c(ui.AbsentBg), c(ui.AbsentBg)},
 	}
 	for t, bg := range backgrounds {
-		normal, strong := base.Background(lipgloss.Color(bg[0])), base.Background(lipgloss.Color(bg[1]))
-		all[paneStyle(tone(t), gutterRole)] = normal.Foreground(lipgloss.Color(dimFg))
+		normal, strong := base.Background(bg[0]), base.Background(bg[1])
+		all[paneStyle(tone(t), gutterRole)] = normal.Foreground(c(ui.DimFg))
 		all[paneStyle(tone(t), standInRole)] = normal.Faint(true)
 		all[paneStyle(tone(t), inlineStandInRole)] = strong.Faint(true)
-		for k, fg := range kindColours() {
-			all[textStyle(tone(t), syntax.Kind(k), false)] = normal.Foreground(lipgloss.Color(fg))
-			all[textStyle(tone(t), syntax.Kind(k), true)] = strong.Foreground(lipgloss.Color(fg))
+		for k := range syntax.Kinds {
+			all[textStyle(tone(t), k, false)] = normal.Foreground(c.kind(k))
+			all[textStyle(tone(t), k, true)] = strong.Foreground(c.kind(k))
 		}
 	}
 	return all
+}
+
+// addListStyles adds the styles of the file list in each shade.
+func addListStyles(all map[style]lipgloss.Style, base lipgloss.Style, c palette) {
+	shades := [listShades]lipgloss.Style{
+		plainShade:    base,
+		selectedShade: base.Background(c(ui.SelectedBg)),
+		currentShade:  base.Bold(true),
+	}
+	parts := [listParts]color.Color{
+		listNamePart: lipgloss.NoColor{}, listAddedPart: c(ui.InsertedFg), listDeletedPart: c(ui.DeletedFg),
+		listChangedPart: c(ui.ChangedFg), listDimPart: c(ui.DimFg),
+		listDirPart: c(ui.DirFg), listGutterPart: c(ui.GutterFg), listZeroPart: c(ui.ZeroFg),
+	}
+	for sh, shade := range shades {
+		for p, fg := range parts {
+			all[listStyle(listPart(p), listShade(sh))] = shade.Foreground(fg)
+		}
+	}
+	all[listStyle(listNamePart, selectedShade)] = shades[selectedShade].Foreground(c(ui.SelectedFg))
 }
