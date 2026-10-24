@@ -11,6 +11,7 @@ require (
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.28.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+	pgregory.net/rapid v1.3.0
 )
 
 require (

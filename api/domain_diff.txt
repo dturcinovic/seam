@@ -1,0 +1,61 @@
+package diff // import "seam/internal/domain/diff"
+
+Package diff compares two versions of a file line by line and aligns them side
+by side: equal lines pair up, a block of changed lines pairs up as far as both
+sides reach, and the rest of the block stands alone. It knows nothing of git,
+colours or the terminal.
+
+TYPES
+
+type FileDiff struct {
+	Old, New   Side
+	Rows       []Row
+	Changes    []RowRange
+	Simplified bool
+}
+    FileDiff is two versions of a file aligned as rows. Changes lists the blocks
+    of rows that differ, in order. Simplified reports that the time ran out:
+    the diff is valid but its blocks may be larger than needed.
+
+func Compute(ctx context.Context, old, new Side) FileDiff
+    Compute aligns old and new. When ctx ends, it stops searching and returns
+    the rest of the files as changed blocks rather than fail.
+
+type Row struct {
+	Kind        RowKind
+	Left, Right int
+}
+    Row is one line of the side-by-side view. Left and Right index into the old
+    and new lines; -1 means the side has no line in this row.
+
+type RowKind int
+    RowKind says how the lines of a row relate.
+
+const (
+
+	// Equal pairs two equal lines.
+	Equal RowKind
+	// Delete has an old line only.
+	Delete
+	// Insert has a new line only.
+	Insert
+	// Change pairs an old and a new line of the same changed block.
+	Change
+)
+    The kinds of row. The zero value is no valid kind.
+
+type RowRange struct {
+	Start, End int
+}
+    RowRange is the rows from Start up to but not including End.
+
+type Side struct {
+	Lines []string
+}
+    Side is one version of a file as lines. Each line keeps its terminator,
+    "\n" or "\r\n"; the last line may have none. That way a missing newline at
+    the end and a change of line endings are differences like any other.
+
+func Split(text string) Side
+    Split cuts text into lines after each "\n".
+
