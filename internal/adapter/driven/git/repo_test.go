@@ -126,6 +126,31 @@ func TestRenameKeepsBothPaths(t *testing.T) {
 	assert.Equal(t, "new-name.txt", files[i].NewPath)
 }
 
+func TestCountsComeWithTheChanges(t *testing.T) {
+	fix := newFixture(t)
+	repo := fix.open(t)
+	known := func(added, deleted int) change.LineCounts {
+		return change.LineCounts{Added: added, Deleted: deleted, Known: true}
+	}
+
+	got := map[string]change.LineCounts{}
+	for _, f := range load(t, repo, change.Commit("HEAD"), change.Index()) {
+		got[f.Path()] = f.Counts
+	}
+
+	assert.Equal(t, map[string]change.LineCounts{
+		"a.txt":        known(1, 1),
+		"added.txt":    known(1, 0),
+		"gone.txt":     known(0, 1),
+		"new-name.txt": known(0, 0),
+		nlName:         known(1, 1),
+	}, got, "a rename without edits gains and loses nothing")
+	files := load(t, repo, change.Commit(fix.first), change.Commit("HEAD"))
+	i := slices.IndexFunc(files, func(f change.ChangedFile) bool { return f.Path() == "bin.dat" })
+	require.NotEqual(t, -1, i)
+	assert.False(t, files[i].Counts.Known, "git counts no lines of a binary file")
+}
+
 func TestListUntracked(t *testing.T) {
 	repo := newFixture(t).open(t)
 

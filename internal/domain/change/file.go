@@ -60,6 +60,15 @@ type ChangedFile struct {
 	OldPath, NewPath string
 	OldMode, NewMode Mode
 	OldID, NewID     ObjectID
+	Counts           LineCounts
+}
+
+// LineCounts is how many lines a file gains and loses, as git counts them.
+// Known is false where git counts nothing: for a binary file, or one it does
+// not track.
+type LineCounts struct {
+	Added, Deleted int
+	Known          bool
 }
 
 // Path is the path to show for the file: the new one unless it was deleted.

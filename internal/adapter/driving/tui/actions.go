@@ -6,6 +6,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/view"
+	"seam/internal/textcell"
 )
 
 // hStep is how far h and l, or a notch of the wheel sideways, move the
@@ -28,6 +29,7 @@ func (s *state) open(i int, fresh bool) (r filediff.Request, ok bool) {
 	if i != s.Current {
 		s.unload()
 		s.Current = i
+		s.List.follow(i, s.listLines())
 	}
 	s.LoadGen++
 	return filediff.Request{Gen: s.LoadGen, Comparison: s.Comparison, File: s.Files[i], Fresh: fresh}, true
@@ -83,10 +85,18 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 	}
 	shown, had := s.file()
 	old := s.Current
-	s.Files = u.Changeset.Files
+	s.setFiles(u.Changeset.Files)
+	// open places the screen anew only for another file, and the list's
+	// width and whether it shows depend on the files.
+	s.place(s.Layout.Width, s.Layout.Height)
+	s.List.Cursor = min(s.List.Cursor, max(len(s.Files)-1, 0))
 	s.Current = slices.IndexFunc(s.Files, func(f change.ChangedFile) bool { return had && f.Path() == shown.Path() })
 	if s.Current >= 0 {
-		return s.open(s.Current, true)
+		// The same file stays current, so open does not bring it into
+		// view, though files before it may have come or gone.
+		r, ok := s.open(s.Current, true)
+		s.List.keep(s.Current, s.listLines())
+		return r, ok
 	}
 	if len(s.Files) == 0 {
 		s.unload()
@@ -104,12 +114,26 @@ func (s *state) resize(width, height int) {
 	if s.Layout.Body != body {
 		s.mark()
 	}
+	s.List.keep(s.Current, s.listLines())
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }
 
 // place lays out the screen for the current file.
 func (s *state) place(width, height int) {
-	s.Layout = computeLayout(width, height, s.Snapshot.Diff)
+	s.Layout = computeLayout(width, height, s.List.columns(width), s.Snapshot.Diff)
+	// Only a list on the screen can have the focus, and a page that
+	// shrank keeps its last line full.
+	if s.Layout.List == 0 {
+		s.List.blur()
+	}
+	s.scrollList(0)
+}
+
+// setFiles is the one way to replace the files: in the order the list
+// shows them, so that Tab and the list agree, and with the list built anew.
+func (s *state) setFiles(files []change.ChangedFile) {
+	s.Files = sortByFolder(files)
+	s.List.index(s.Files, s.Cells)
 }
 
 // show is the one way to change Lines, so the scrollbar's marks follow.
@@ -138,13 +162,20 @@ func (s *state) scrollBy(n int) {
 	s.scrollTo(s.Pos.Scroll + n)
 }
 
-// page moves by a screen, or by half of one.
-func (s *state) page(dir int, half bool) {
-	n := s.bodyHeight()
+// useCells takes the way the terminal counts columns, which the list's
+// width depends on.
+func (s *state) useCells(m textcell.Method) {
+	s.Cells = m
+	s.List.index(s.Files, m)
+	s.place(s.Layout.Width, s.Layout.Height)
+}
+
+// pageLines is how far a page of height lines moves, or half a page.
+func pageLines(height int, half bool) int {
 	if half {
-		n = max(n/2, 1)
+		return max(height/2, 1)
 	}
-	s.scrollBy(dir * n)
+	return height
 }
 
 // nextChange brings the first change below the top line to the top.

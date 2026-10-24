@@ -186,3 +186,13 @@ func (cs *cellStyle) kind(c textcell.Cell) syntax.Kind {
 	}
 	return cs.runs[0].Kind
 }
+
+// textWidth is the columns s takes on one line, as line draws it.
+func textWidth(s string, m textcell.Method) int {
+	cells := textcell.New(s, m)
+	w := 0
+	for c, ok := cells.Next(); ok; c, ok = cells.Next() {
+		w = c.Col + c.Width
+	}
+	return w
+}

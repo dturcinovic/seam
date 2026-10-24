@@ -29,6 +29,8 @@ type state struct {
 	// Err is the last failed load or reload, shown until the next success.
 	Err error
 
+	List fileList
+
 	Mode    view.Mode
 	Pos     view.Pos
 	HScroll int
@@ -47,7 +49,8 @@ type state struct {
 
 // newState holds the files of cs in the hunk view, none of them open yet.
 func newState(cs change.Changeset) state {
-	s := state{Comparison: cs.Comparison, Files: cs.Files, Current: -1, Mode: view.Hunks}
+	s := state{Comparison: cs.Comparison, Current: -1, Mode: view.Hunks}
+	s.setFiles(cs.Files)
 	s.place(0, 0)
 	return s
 }

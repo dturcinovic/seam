@@ -27,7 +27,12 @@ func startModel(t *testing.T, paths ...string) (model, *infakes.FakeFileDiffLoad
 }
 
 func key(m model, k tea.KeyPressMsg) (model, tea.Cmd) {
-	next, cmd := m.Update(k)
+	return send(m, k)
+}
+
+// send is m after it took msg, and the command it gave.
+func send(m model, msg tea.Msg) (model, tea.Cmd) {
+	next, cmd := m.Update(msg)
 	return next.(model), cmd
 }
 

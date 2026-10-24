@@ -124,9 +124,9 @@ func TestScrollStaysWithinTheFile(t *testing.T) {
 	s.scrollBy(5)
 	assert.Equal(t, last, s.Pos.Scroll)
 	s.scrollTo(0)
-	s.page(1, true)
+	s.scrollBy(pageLines(s.bodyHeight(), true))
 	assert.Equal(t, 5, s.Pos.Scroll)
-	s.page(-1, false)
+	s.scrollBy(-pageLines(s.bodyHeight(), false))
 	assert.Zero(t, s.Pos.Scroll)
 }
 

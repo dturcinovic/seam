@@ -24,11 +24,15 @@ const (
 	headerStandIn
 	footerStandIn
 	errorStandIn
-	// The scrollbar styles come in one pair per mark, see scrollStyle.
+	// The scrollbar styles come in one pair per tone, see scrollStyle; the
+	// file list's follow, see listStyle.
 	firstScrollStyle
 )
 
-const firstPaneStyle = firstScrollStyle + style(2*tones)
+const (
+	firstListStyle = firstScrollStyle + style(2*tones)
+	firstPaneStyle = firstListStyle + style(int(listParts)*int(listShades))
+)
 
 // standIn is how a replaced grapheme shows in text of style st. The pane
 // styles have their own, see standInRole.
@@ -42,7 +46,11 @@ func (st style) standIn() style {
 		return footerStandIn
 	case errorStyle:
 		return errorStandIn
-	case separatorStyle, foldStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, firstScrollStyle, firstPaneStyle:
+	case separatorStyle, foldStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, firstScrollStyle, firstListStyle, firstPaneStyle:
+	}
+	// A path in the file list dims its stand-ins in the row's own colours.
+	if sh, ok := st.listShade(); ok {
+		return listStyle(listDimPart, sh)
 	}
 	return st
 }
@@ -55,6 +63,47 @@ func scrollStyle(t tone, onThumb bool) style {
 		st++
 	}
 	return st
+}
+
+// listPart is a part of a line of the file list, coloured by what it says.
+type listPart uint8
+
+const (
+	listNamePart listPart = iota
+	listAddedPart
+	listDeletedPart
+	listChangedPart
+	listDimPart
+	listDirPart
+	listGutterPart
+	listZeroPart
+	listParts
+)
+
+// listShade is how a file of the list stands out: selectedShade marks the
+// cursor of a focused list or else the file shown, currentShade the file
+// shown while the cursor is elsewhere.
+type listShade uint8
+
+const (
+	plainShade listShade = iota
+	selectedShade
+	currentShade
+	listShades
+)
+
+// listStyle is part p of a line in shade sh.
+func listStyle(p listPart, sh listShade) style {
+	return firstListStyle + style(int(p)*int(listShades)+int(sh))
+}
+
+// listShade is the shade of a list style, the inverse of listStyle; ok is
+// false for any other style.
+func (st style) listShade() (sh listShade, ok bool) {
+	if st < firstListStyle || st >= firstPaneStyle {
+		return 0, false
+	}
+	return listShade((st - firstListStyle) % style(listShades)), true
 }
 
 // tone is the colour of one side of a row: what happened to its line.
@@ -123,6 +172,12 @@ const (
 	headerBg         = "#303030"
 	thumbBg          = "#4a4a4a"
 	errorFg          = "#ff6b6b"
+	// The file list's selection, folders, gutter and zero counts.
+	selectedBg = "#2e436e"
+	selectedFg = "#ffffff"
+	dirFg      = "#56a8f5"
+	gutterFg   = "#393b40"
+	zeroFg     = "#4a4d52"
 	// The marks of the scrollbar, bright enough to find on the thumb.
 	deletedFg  = "#e06c75"
 	insertedFg = "#98c379"
@@ -178,6 +233,22 @@ func lipglossStyles() map[style]lipgloss.Style {
 		footerStandIn:  dim.Faint(true),
 		errorStandIn:   errorText.Faint(true),
 	}
+	shades := [listShades]lipgloss.Style{
+		plainShade:    base,
+		selectedShade: base.Background(lipgloss.Color(selectedBg)),
+		currentShade:  base.Bold(true),
+	}
+	parts := [listParts]string{
+		listAddedPart: insertedFg, listDeletedPart: deletedFg, listChangedPart: changedFg, listDimPart: dimFg,
+		listDirPart: dirFg, listGutterPart: gutterFg, listZeroPart: zeroFg,
+	}
+	for sh, shade := range shades {
+		for p, fg := range parts {
+			all[listStyle(listPart(p), listShade(sh))] = shade.Foreground(lipgloss.Color(fg))
+		}
+	}
+	// The name of the selected file is white, as the design has it.
+	all[listStyle(listNamePart, selectedShade)] = shades[selectedShade].Foreground(lipgloss.Color(selectedFg))
 	marks := [tones]string{deletedTone: deletedFg, insertedTone: insertedFg, changedTone: changedFg}
 	for t, fg := range marks {
 		track := base.Foreground(lipgloss.Color(fg))

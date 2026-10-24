@@ -70,7 +70,7 @@ func thumb(n, scroll, body int) (start, end int) {
 // writeScrollbar writes one cell of the scrollbar in the columns the panes
 // leave: the mark of tone t, if any, on the thumb or not.
 func writeScrollbar(b *strings.Builder, s *state, th *theme, t tone, onThumb bool) {
-	ln := newLine(b, th, s.Cells, s.Layout.Width-s.Layout.panes())
+	ln := newLine(b, th, s.Cells, s.Layout.scrollbar())
 	st := scrollStyle(t, onThumb)
 	if t != equalTone {
 		ln.text(markGlyph, st)

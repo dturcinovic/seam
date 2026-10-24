@@ -58,6 +58,7 @@ type ChangedFile struct {
 	OldPath, NewPath string
 	OldMode, NewMode Mode
 	OldID, NewID     ObjectID
+	Counts           LineCounts
 }
     ChangedFile is one file that differs between the sides. Paths are relative
     to the repository root and may hold any byte but NUL. A side that does not
@@ -86,6 +87,14 @@ func NewComparison(left, right Source) (Comparison, error)
 type Gen uint64
     Gen is a generation of reloading the changeset. The UI hands out strictly
     increasing ones and keeps only the update of the newest.
+
+type LineCounts struct {
+	Added, Deleted int
+	Known          bool
+}
+    LineCounts is how many lines a file gains and loses, as git counts them.
+    Known is false where git counts nothing: for a binary file, or one it does
+    not track.
 
 type Mode uint32
     Mode is a git file mode such as 0o100644. Zero means the side is missing.

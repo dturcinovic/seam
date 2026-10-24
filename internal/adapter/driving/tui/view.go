@@ -36,6 +36,9 @@ func render(s *state, th *theme) string {
 	start, end := thumb(len(s.Lines), s.Pos.Scroll, l.Body)
 	for i := range l.shown() {
 		b.WriteByte('\n')
+		if l.List > 0 {
+			writeEntry(&b, s, th, i)
+		}
 		switch j := s.Pos.Scroll + i; {
 		case j < len(s.Lines):
 			writeRow(&b, s, th, s.Lines[j])

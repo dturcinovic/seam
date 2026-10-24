@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
 	"seam/internal/testsupport"
@@ -33,13 +34,18 @@ func fixtures(t *testing.T) []fixture {
 		"func main() {\n\tfmt.Println(\"a finding and an investigation note.\")\n}\n" +
 		"// " + strings.Repeat("long ", 30) + "end\n" + "func added() {}\n"
 	code := diff.Compute(t.Context(), diff.Split(old), diff.Split(new))
-	hunks := shown(t, files("cmd/main.go", "b.go"), 100, 16, filediff.Snapshot{Diff: code})
-	full := shown(t, files("cmd/main.go", "b.go"), 100, 28, filediff.Snapshot{Diff: code})
+	hunks := shown(t, files("cmd/main.go", "cmd/z.go"), 100, 16, filediff.Snapshot{Diff: code})
+	full := shown(t, files("cmd/main.go", "cmd/z.go"), 100, 28, filediff.Snapshot{Diff: code})
 	full.toggleMode()
 	// Longer than the screen: the thumb shows, and the marks share cells.
-	scrolled := shown(t, files("cmd/main.go", "b.go"), 100, 8, filediff.Snapshot{Diff: code})
+	scrolled := shown(t, files("cmd/main.go", "cmd/z.go"), 100, 8, filediff.Snapshot{Diff: code})
 	scrolled.toggleMode()
 	scrolled.scrollTo(12)
+	// Wide enough for the file list to open by itself, once with the focus.
+	list := shown(t, listFiles(), 140, 9, filediff.Snapshot{Diff: code})
+	focused := shown(t, listFiles(), 140, 9, filediff.Snapshot{Diff: code})
+	focused.toggleList()
+	focused.moveCursor(2)
 
 	text := diff.Compute(t.Context(),
 		diff.Split("cafe\nfamily 👨\u200d👩\u200d👧 x\n日本語のテキスト\na\tb\n日\tb\n👨\u200d👩\u200d👧\tb\n"),
@@ -53,7 +59,7 @@ func fixtures(t *testing.T) []fixture {
 			unicode = append(unicode, fixture{fmt.Sprintf("unicode-%s-scroll%d", m.name, scroll), s})
 		}
 	}
-	return append([]fixture{{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}}, unicode...)
+	return append([]fixture{{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}, {"list", list}, {"list-focused", focused}}, unicode...)
 }
 
 // TestGolden renders each fixture with the real theme. cat shows a golden
@@ -81,4 +87,17 @@ func TestTheGoldenFilesShowTheirCases(t *testing.T) {
 	assert.Contains(t, byName["unicode-codepoints-scroll0"][5], "日  b")
 	assert.Contains(t, byName["unicode-graphemes-scroll0"][6], "👨\u200d👩\u200d👧  b")
 	assert.Contains(t, byName["unicode-graphemes-scroll1"][3], "  本語")
+}
+
+// listFiles has a path too long for the list, counts of every width, an
+// untracked file and a binary one, which have none.
+func listFiles() []change.ChangedFile {
+	known := func(a, d int) change.LineCounts { return change.LineCounts{Added: a, Deleted: d, Known: true} }
+	return []change.ChangedFile{
+		{Status: change.Modified, OldPath: "cmd/main.go", NewPath: "cmd/main.go", Counts: known(2, 3)},
+		{Status: change.Added, NewPath: "internal/adapter/driving/tui/filelist.go", Counts: known(120, 0)},
+		{Status: change.Deleted, OldPath: "old.go", Counts: known(0, 7)},
+		{Status: change.Modified, OldPath: "logo.png", NewPath: "logo.png"},
+		{Status: change.Untracked, NewPath: "notes.txt"},
+	}
 }

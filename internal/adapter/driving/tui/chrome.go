@@ -8,8 +8,18 @@ import (
 	"seam/internal/domain/view"
 )
 
-// keys is the footer's reminder of the keys.
-const keys = "q quit  r reload  f full/hunks  n/p change  tab/shift+tab file  j/k scroll  h/l sideways"
+// keys is the footer's reminder of the keys, and listKeys of those the file
+// list takes while it has the focus.
+const (
+	keys     = "q quit  r reload  f full/hunks  n/p change  tab/shift+tab file  j/k scroll  h/l sideways  b files"
+	listKeys = "enter open  esc back  j/k move  [/] folder  g/G first/last  b close  q quit"
+)
+
+// shownText is how a path or part of one shows: textcell replaces all it
+// may hold, but line breaks show as ␤ in names, as the plan has it.
+func shownText(p string) string {
+	return strings.ReplaceAll(p, "\n", "␤")
+}
 
 // header names the file, where it stands in the list, the view and how many
 // differences it has, as IntelliJ's diff does.
@@ -18,10 +28,7 @@ func header(s *state) string {
 	if !ok {
 		return "no changes"
 	}
-	// textcell replaces all a path may hold, but line breaks show as ␤ in
-	// names, as the plan has it.
-	path := strings.ReplaceAll(f.Path(), "\n", "␤")
-	h := fmt.Sprintf("%d/%d  %s %s  %s", s.Current+1, len(s.Files), f.Status, path, modeName(s.Mode))
+	h := fmt.Sprintf("%d/%d  %s %s  %s", s.Current+1, len(s.Files), f.Status, shownText(f.Path()), modeName(s.Mode))
 	switch {
 	case !s.Loaded && s.Err != nil:
 		return h + "  failed"
@@ -52,6 +59,9 @@ func placeholder(s *state) string {
 func footer(s *state) (string, style) {
 	if s.Err != nil {
 		return "error: " + s.Err.Error(), errorStyle
+	}
+	if s.List.Focus {
+		return listKeys, footerStyle
 	}
 	return keys, footerStyle
 }

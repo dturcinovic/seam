@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -93,7 +94,7 @@ func (r *Repo) ListChanges(ctx context.Context, c change.Comparison) ([]change.C
 	if c.Left.ID().IsZero() {
 		return nil, fmt.Errorf("left side %s is not resolved", c.Left)
 	}
-	args := []string{"diff", "--raw", "-z", "--no-abbrev", "-M", "--no-ext-diff", "--no-color"}
+	args := []string{"diff", "--raw", "--numstat", "-z", "--no-abbrev", "-M", "--no-ext-diff", "--no-color"}
 	switch c.Right.Kind() {
 	case change.KindWorktree:
 	case change.KindIndex:
@@ -113,7 +114,7 @@ func (r *Repo) ListChanges(ctx context.Context, c change.Comparison) ([]change.C
 	if err != nil {
 		return nil, err
 	}
-	return parseRaw(out)
+	return parseDiff(out)
 }
 
 // ListUntracked implements out.UntrackedLister.
@@ -182,13 +183,16 @@ func splitNUL(b []byte) []string {
 	return strings.Split(s, "\x00")
 }
 
-// parseRaw reads `git diff --raw -z`: per file a header
-// ":oldmode newmode oldid newid status", then one path, or two for a rename
-// or copy, each NUL-terminated.
-func parseRaw(b []byte) ([]change.ChangedFile, error) {
+// parseDiff reads `git diff --raw --numstat -z`: first per file a raw
+// header ":oldmode newmode oldid newid status", then one path, or two for a
+// rename or copy; after all of them, in the same order, per file its counts
+// "added\tdeleted\tpath", or "added\tdeleted\t" and both paths for a
+// rename or copy. Every field is NUL-terminated.
+func parseDiff(b []byte) ([]change.ChangedFile, error) {
 	fields := splitNUL(b)
 	var files []change.ChangedFile
-	for i := 0; i < len(fields); {
+	i := 0
+	for i < len(fields) && strings.HasPrefix(fields[i], ":") {
 		f, n, err := parseEntry(fields[i:])
 		if err != nil {
 			return nil, fmt.Errorf("diff --raw entry %q: %w", fields[i], err)
@@ -196,7 +200,52 @@ func parseRaw(b []byte) ([]change.ChangedFile, error) {
 		files = append(files, f)
 		i += n
 	}
+	for j := range files {
+		if i >= len(fields) {
+			return nil, fmt.Errorf("diff --numstat: no counts for %q", files[j].Path())
+		}
+		var n int
+		var err error
+		files[j].Counts, n, err = parseCounts(fields[i:], files[j])
+		if err != nil {
+			return nil, fmt.Errorf("diff --numstat entry %q: %w", fields[i], err)
+		}
+		i += n
+	}
+	if i < len(fields) {
+		return nil, fmt.Errorf("diff --numstat: unexpected %q", fields[i])
+	}
 	return files, nil
+}
+
+// parseCounts reads the counts of f and says how many fields they took.
+// git writes "-" for both counts of a binary file.
+func parseCounts(fields []string, f change.ChangedFile) (change.LineCounts, int, error) {
+	parts := strings.SplitN(fields[0], "\t", 3)
+	if len(parts) != 3 {
+		return change.LineCounts{}, 0, errors.New("unexpected counts")
+	}
+	n, paths := 1, []string{parts[2]}
+	want := []string{f.Path()}
+	if parts[2] == "" {
+		if len(fields) < 3 {
+			return change.LineCounts{}, 0, errors.New("path missing")
+		}
+		n, paths, want = 3, fields[1:3], []string{f.OldPath, f.NewPath}
+	}
+	if !slices.Equal(paths, want) {
+		return change.LineCounts{}, 0, fmt.Errorf("counts for %q, not for %q", paths, want)
+	}
+	if parts[0] == "-" && parts[1] == "-" {
+		return change.LineCounts{}, n, nil
+	}
+	// One bit short of int, so the conversion below cannot wrap.
+	added, errA := strconv.ParseUint(parts[0], 10, strconv.IntSize-1)
+	deleted, errD := strconv.ParseUint(parts[1], 10, strconv.IntSize-1)
+	if err := errors.Join(errA, errD); err != nil {
+		return change.LineCounts{}, 0, fmt.Errorf("bad counts: %w", err)
+	}
+	return change.LineCounts{Added: int(added), Deleted: int(deleted), Known: true}, n, nil
 }
 
 func parseEntry(fields []string) (change.ChangedFile, int, error) {
