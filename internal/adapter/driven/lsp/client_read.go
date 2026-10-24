@@ -1,0 +1,108 @@
+package lsp
+
+import (
+	"bufio"
+	"encoding/json/v2"
+	"fmt"
+	"io"
+	"strconv"
+
+	"go.uber.org/zap"
+
+	"seam/internal/domain/hover"
+)
+
+// readLoop reads until the connection ends. It returns on EOF or when the
+// pipe is closed, which ending the server does.
+func (c *client) readLoop(out io.Reader) {
+	r := bufio.NewReader(out)
+	for {
+		body, err := readFrame(r)
+		if err != nil {
+			c.fail(err)
+			return
+		}
+		var m message
+		if err := json.Unmarshal(body, &m); err != nil {
+			c.fail(fmt.Errorf("%w: %w", errFrame, err))
+			return
+		}
+		c.dispatch(m)
+	}
+}
+
+func (c *client) dispatch(m message) {
+	switch {
+	case m.isRequest():
+		result, rpcErr := c.ws.answer(m.Method, m.Params)
+		body, err := response(m.ID, result, rpcErr)
+		if err != nil {
+			c.fail(err)
+			return
+		}
+		c.push(frame{body: body})
+	case m.isNotification():
+		if m.Method == "window/logMessage" || m.Method == "window/showMessage" {
+			c.log.Debug("server message", zap.String("method", m.Method), zap.ByteString("params", m.Params))
+		}
+	default:
+		c.answered(m)
+	}
+}
+
+// answered handles the response to a request of the client's. One that
+// matches none was cancelled or timed out; its answer is of no use.
+func (c *client) answered(m message) {
+	id, err := strconv.ParseInt(string(m.ID), 10, 64)
+	if err != nil {
+		return
+	}
+	c.mu.Lock()
+	p, ok := c.takeLocked(id)
+	c.mu.Unlock()
+	if !ok {
+		return
+	}
+	switch p.kind {
+	case pendingInit:
+		c.initialized(m)
+	case pendingHover:
+		c.sink.result(hoverResult(p, m))
+	case pendingShutdown:
+		close(c.shutdownDone)
+	}
+}
+
+func (c *client) initialized(m message) {
+	if m.Error != nil {
+		c.fail(fmt.Errorf("initialize: %s", m.Error.Message))
+		return
+	}
+	body, err := notification("initialized", map[string]any{})
+	if err != nil {
+		c.fail(err)
+		return
+	}
+	c.mu.Lock()
+	c.encoding = positionEncoding(m.Result)
+	c.mu.Unlock()
+	if c.push(frame{body: body, initialized: true}) {
+		c.transition(hover.Starting, hover.Ready)
+	}
+}
+
+func hoverResult(p *pending, m message) hover.Update {
+	u := hover.Update{Kind: hover.HoverDone, Req: p.req, Version: p.version, Outcome: hover.Error}
+	if m.Error != nil {
+		return u
+	}
+	text, err := hoverText(m.Result)
+	switch {
+	case err != nil:
+	case text == "":
+		u.Outcome = hover.Empty
+	default:
+		u.Outcome, u.Text = hover.Text, text
+	}
+	return u
+}

@@ -61,6 +61,16 @@ linters:
       - path: ^cmd/seam/main\.go$
         text: "use of `os\\.Exit`"
         linters: [forbidigo]
+      # fakelsp is a language server for the tests: it speaks on stdout and
+      # ends with the status its script asks for.
+      - path: ^internal/adapter/driven/lsp/cmd/fakelsp/
+        text: "use of `(os\\.Std(out|err)|os\\.Exit)`"
+        linters: [forbidigo]
+      # The lsp tests build fakelsp before they run, and the test binary
+      # doubles as a seam to kill: both report and end like a command.
+      - path: ^internal/adapter/driven/lsp/main_test\.go$
+        text: "use of `(os\\.Std(out|err)|os\\.Exit|fmt\\.Println)`"
+        linters: [forbidigo]
       - path: _test\.go
         text: "use of `(panic|time\\.Now)`"
         linters: [forbidigo]

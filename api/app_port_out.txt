@@ -18,6 +18,18 @@ type ChangeLister interface {
     ChangeLister lists the files that differ between the sides of a resolved
     comparison, as git sees them; files git does not track are not among them.
 
+type DocumentSync interface {
+	// Sync opens d or brings it to d's version, starting its server if need
+	// be. It names the instance that serves d; ok is false if no server
+	// hovers over d's language.
+	Sync(d hover.Document) (i lang.Instance, ok bool)
+	// Close closes the document at path.
+	Close(path string)
+}
+    DocumentSync tells the language servers which documents are open and with
+    what text. Neither call blocks or is refused; the text reaches the server
+    once it can take it, the newest version only.
+
 type Highlighter interface {
 	Highlight(ctx context.Context, l lang.Lang, text string) (t syntax.Tokens, ok bool)
 }
@@ -26,11 +38,26 @@ type Highlighter interface {
     it stops: when ctx ends, which it checks between tokens, or when the lexer
     fails. ok is false if it has no lexer for l.
 
+type HoverRequester interface {
+	Request(p hover.Position) hover.Submit
+	// Cancel drops the request: no answer comes for it.
+	Cancel(id hover.ReqID)
+}
+    HoverRequester asks for hovers. Neither call blocks; the answer comes
+    through ServerEvents.
+
 type RevisionResolver interface {
 	// ResolveCommit fails for a revision that names no commit.
 	ResolveCommit(ctx context.Context, rev string) (change.ObjectID, error)
 }
     RevisionResolver turns a revision as the user names it into a commit.
+
+type ServerEvents interface {
+	Signal() <-chan struct{}
+	Drain() []hover.Update
+}
+    ServerEvents hands out the answers and status changes of the servers.
+    Signal is set after each new one; Drain returns them, oldest first.
 
 type UntrackedLister interface {
 	ListUntracked(ctx context.Context) ([]string, error)
