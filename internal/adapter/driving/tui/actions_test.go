@@ -188,6 +188,17 @@ func TestReloaded(t *testing.T) {
 		assert.Equal(t, 1, s.Current)
 		assert.Equal(t, pos, s.Pos)
 	})
+	t.Run("the files load from the commits the reload resolved", func(t *testing.T) {
+		s := loaded(t)
+		gen := s.reload()
+		moved, err := change.NewComparison(change.Commit("main"), change.Worktree())
+		require.NoError(t, err)
+
+		r, ok := s.reloaded(change.Update{Gen: gen, Changeset: change.Changeset{Comparison: moved, Files: files("a.go")}})
+
+		require.True(t, ok)
+		assert.Equal(t, moved, r.Comparison)
+	})
 	t.Run("a file gone gives way to the next", func(t *testing.T) {
 		s := loaded(t)
 		s.step(1)

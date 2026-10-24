@@ -23,6 +23,8 @@ var Module = fx.Module("git",
 		fx.As(new(out.BlobReader)),
 		fx.As(new(out.WorktreeReader)),
 		fx.As(new(out.WorktreeStatter)),
+		fx.As(new(out.WatchPathsReader)),
+		fx.As(new(out.IgnoreChecker)),
 	)),
 	fx.Provide(fx.Annotate(newCheckouts, fx.As(new(out.CommitCheckouts)))),
 )

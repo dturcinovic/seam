@@ -8,6 +8,7 @@ import (
 
 	"seam/internal/adapter/driven/chroma"
 	"seam/internal/adapter/driven/configfile"
+	"seam/internal/adapter/driven/fswatch"
 	"seam/internal/adapter/driven/git"
 	"seam/internal/adapter/driven/lsp"
 	"seam/internal/app/port/out"
@@ -26,6 +27,7 @@ func options(cfg config.Config, logger *observability.Logger, root string, file 
 		git.Module,
 		chroma.Module,
 		lsp.Module,
+		fswatch.Module,
 		usecase.Module,
 		// fx stops in the reverse order of construction. Nothing ties the
 		// language servers to git, so this builds git and its checkouts

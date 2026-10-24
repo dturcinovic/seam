@@ -74,7 +74,20 @@ func (s *state) apply(u filediff.Update) (shown bool) {
 // reload returns the generation of a new reload of the changeset.
 func (s *state) reload() change.Gen {
 	s.ReloadGen++
+	s.Reloading = true
 	return s.ReloadGen
+}
+
+// watchReload is reload for a change the watcher saw; ok is false while a
+// reload runs, which a new one would cancel: on a repository that takes
+// longer to list than a burst lasts, a busy writer would leave every reload
+// unfinished. The change waits for the running reload's answer instead.
+func (s *state) watchReload() (gen change.Gen, ok bool) {
+	if s.Reloading {
+		s.WatchAgain = true
+		return 0, false
+	}
+	return s.reload(), true
 }
 
 // reloaded takes the new file list if u answers the last reload, and returns
@@ -84,12 +97,16 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 	if u.Gen != s.ReloadGen {
 		return filediff.Request{}, false
 	}
+	s.Reloading = false
 	if u.Err != nil {
 		s.Err = u.Err
 		return filediff.Request{}, false
 	}
 	shown, had := s.file()
 	old := s.Current
+	// A commit or a checkout may have moved the commits, and the files'
+	// loads must ask for the new ones.
+	s.Comparison = u.Changeset.Comparison
 	s.setFiles(u.Changeset.Files)
 	// open places the screen anew only for another file, and the list's
 	// width and whether it shows depend on the files.

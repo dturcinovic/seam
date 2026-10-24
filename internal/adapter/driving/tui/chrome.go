@@ -117,6 +117,12 @@ func header(s *state) string {
 		h += " unified"
 	}
 	switch {
+	case s.Watching:
+		h += "  watch"
+	case s.WatchFailed:
+		h += "  watch failed"
+	}
+	switch {
 	case !s.Loaded && s.Err != nil:
 		return h + "  failed"
 	case !s.Loaded:

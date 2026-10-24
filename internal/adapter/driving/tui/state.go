@@ -27,6 +27,11 @@ type state struct {
 	// Err is the last failed load or reload, shown until the next success.
 	Err error
 
+	// Watching says that the watcher runs, and WatchFailed that it stopped;
+	// the header shows both. Reloading is a reload asked for and not answered yet; WatchAgain a
+	// change the watcher saw meanwhile, whose reload waits for that answer.
+	Watching, WatchFailed, Reloading, WatchAgain bool
+
 	List fileList
 	// LSP is the language server of the file shown, for the footer.
 	LSP lspState

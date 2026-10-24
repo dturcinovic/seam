@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"seam/internal/config"
+	"seam/internal/domain/change"
 )
 
 // version is stamped by `task build`. A plain `go build` leaves it empty, and
@@ -42,14 +43,15 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 func newRootCommand() *cobra.Command {
 	var flags config.Flags
-	var staged bool
+	var staged, watch bool
 	cmd := &cobra.Command{
 		Use:     "seam [<rev> [<rev>]]",
 		Short:   "Side-by-side diff viewer with type info from the language server",
 		Version: versionString(),
 		Long: `Without arguments seam compares HEAD with the worktree, untracked files
 included. One revision replaces HEAD, two compare two commits, and --staged
-compares HEAD with the index.`,
+compares HEAD with the index. --watch reloads whenever the worktree, the
+index or HEAD changes.`,
 		Args: cobra.MaximumNArgs(2),
 		// Errors are printed once by run; usage only on --help.
 		SilenceErrors: true,
@@ -59,15 +61,21 @@ compares HEAD with the index.`,
 			if err != nil {
 				return err
 			}
+			if watch {
+				if _, err := change.WatchesWorktree(c); err != nil {
+					return fmt.Errorf("--watch: %w", err)
+				}
+			}
 			cfg, err := config.Load(flags)
 			if err != nil {
 				return err
 			}
-			return session(cmd.Context(), cfg, c, cmd.OutOrStdout())
+			return session(cmd.Context(), cfg, c, watch, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().BoolVarP(&flags.Verbose, "verbose", "v", false, "log at debug level")
 	cmd.Flags().BoolVar(&staged, "staged", false, "compare HEAD with the index")
+	cmd.Flags().BoolVarP(&watch, "watch", "w", false, "reload when the worktree, the index or HEAD changes")
 	cmd.Flags().StringVar(&flags.MaxFileSize, "max-file-size", "", "largest side of a file to load, in bytes or with K, M or G (default 8M)")
 	return cmd
 }

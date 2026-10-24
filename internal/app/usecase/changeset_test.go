@@ -152,28 +152,33 @@ func mustID(t *testing.T, s string) change.ObjectID {
 	return id
 }
 
-// reloadOne reloads and waits for the update of gen.
-func reloadOne(t *testing.T, uc *usecase.Changesets, gen change.Gen) change.Update {
+// reloadOne reloads as generation 1 and waits for its update.
+func reloadOne(t *testing.T, uc *usecase.Changesets) change.Update {
 	t.Helper()
+	const gen change.Gen = 1
 	uc.Reload(gen)
 	all := testsupport.Collect(t, uc, func(u []change.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == gen })
 	return all[len(all)-1]
 }
 
-func TestReloadListsAgainstTheResolvedCommits(t *testing.T) {
+func TestReloadResolvesTheRevisionsAnew(t *testing.T) {
 	uc, f := newChangesets()
 	start(t, uc)
-	cs, err := uc.LoadChangeset(t.Context(), comparison(t, change.Commit("a"), change.Worktree()))
+	_, err := uc.LoadChangeset(t.Context(), comparison(t, change.Commit("a"), change.Worktree()))
 	require.NoError(t, err)
+	moved := mustID(t, strings.Repeat("c", 40))
+	f.revisions.ResolveCommitReturns(moved, nil)
 	f.changes.ListChangesReturns([]change.ChangedFile{{Status: change.Modified, OldPath: "b.go", NewPath: "b.go"}}, nil)
 
-	u := reloadOne(t, uc, 1)
+	u := reloadOne(t, uc)
 
 	require.NoError(t, u.Err)
 	assert.Equal(t, change.Gen(1), u.Gen)
-	assert.Equal(t, cs.Comparison, u.Changeset.Comparison)
+	assert.Equal(t, moved, u.Changeset.Comparison.Left.ID(), "a commit moved HEAD")
+	assert.Equal(t, "a", u.Changeset.Comparison.Left.Rev())
 	assert.Equal(t, []string{"b.go"}, paths(u.Changeset.Files))
-	assert.Equal(t, 1, f.revisions.ResolveCommitCallCount(), "a moved branch does not move the comparison")
+	_, rev := f.revisions.ResolveCommitArgsForCall(1)
+	assert.Equal(t, "a", rev)
 }
 
 func TestReloadErrors(t *testing.T) {
@@ -181,7 +186,7 @@ func TestReloadErrors(t *testing.T) {
 		uc, _ := newChangesets()
 		start(t, uc)
 
-		require.ErrorIs(t, reloadOne(t, uc, 1).Err, change.ErrNotLoaded)
+		require.ErrorIs(t, reloadOne(t, uc).Err, change.ErrNotLoaded)
 	})
 	t.Run("from listing", func(t *testing.T) {
 		uc, f := newChangesets()
@@ -191,7 +196,17 @@ func TestReloadErrors(t *testing.T) {
 		boom := errors.New("boom")
 		f.changes.ListChangesReturns(nil, boom)
 
-		require.ErrorIs(t, reloadOne(t, uc, 1).Err, boom)
+		require.ErrorIs(t, reloadOne(t, uc).Err, boom)
+	})
+	t.Run("from resolving", func(t *testing.T) {
+		uc, f := newChangesets()
+		start(t, uc)
+		_, err := uc.LoadChangeset(t.Context(), comparison(t, change.Commit("a"), change.Worktree()))
+		require.NoError(t, err)
+		gone := errors.New("unknown revision")
+		f.revisions.ResolveCommitReturns(change.ObjectID{}, gone)
+
+		require.ErrorIs(t, reloadOne(t, uc).Err, gone)
 	})
 }
 

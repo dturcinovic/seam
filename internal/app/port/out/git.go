@@ -57,3 +57,21 @@ type WorktreeReader interface {
 type WorktreeStatter interface {
 	StatWorktree(ctx context.Context, path string) (change.Stamp, error)
 }
+
+//counterfeiter:generate . WatchPathsReader
+
+// WatchPathsReader names what a watcher of the repository looks at.
+type WatchPathsReader interface {
+	// WatchPaths returns the root, git's directory and the directories git
+	// ignores, as they are now.
+	WatchPaths(ctx context.Context) (change.WatchPaths, error)
+}
+
+//counterfeiter:generate . IgnoreChecker
+
+// IgnoreChecker asks git what it ignores.
+type IgnoreChecker interface {
+	// Ignored returns those of paths, absolute and in the worktree, that git
+	// ignores.
+	Ignored(ctx context.Context, paths []string) ([]string, error)
+}

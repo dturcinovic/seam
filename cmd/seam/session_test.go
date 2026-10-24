@@ -125,6 +125,7 @@ func TestCommandLineErrors(t *testing.T) {
 		{"unknown revision", []string{"no-such-branch"}, `seam: unknown revision "no-such-branch"` + "\n"},
 		{"staged with a revision", []string{"--staged", "first"}, "seam: invalid comparison: --staged compares HEAD with the index and takes no revision\n"},
 		{"three revisions", []string{"a", "b", "c"}, "seam: accepts at most 2 arg(s), received 3\n"},
+		{"watching two commits", []string{"-w", "a", "b"}, "seam: --watch: nothing to watch: a and b are commits\n"},
 		{"empty revision", []string{""}, "seam: invalid comparison: the left side must be a commit\n"},
 	}
 	for _, tt := range tests {

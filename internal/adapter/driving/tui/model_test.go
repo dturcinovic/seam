@@ -23,6 +23,7 @@ func fakePorts() Ports {
 	return Ports{
 		Files: &infakes.FakeFileDiffLoader{}, Reload: &infakes.FakeChangesetReloader{},
 		Docs: &infakes.FakeDocumentTracker{}, LSP: &infakes.FakeLSPUpdates{}, Hover: &infakes.FakeHoverer{},
+		Watch: &infakes.FakeWatchUpdates{},
 	}
 }
 

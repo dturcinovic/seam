@@ -41,6 +41,9 @@ type outFakes struct {
 	events    *outfakes.FakeServerEvents
 	checkouts *outfakes.FakeCommitCheckouts
 	roots     *outfakes.FakeCheckoutRoots
+	paths     *outfakes.FakeWatchPathsReader
+	ignores   *outfakes.FakeIgnoreChecker
+	watcher   *outfakes.FakeChangeWatcher
 }
 
 func newOutFakes(t *testing.T) outFakes {
@@ -50,6 +53,7 @@ func newOutFakes(t *testing.T) outFakes {
 		&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{},
 		&outfakes.FakeHighlighter{}, &outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{},
 		&outfakes.FakeCommitCheckouts{}, &outfakes.FakeCheckoutRoots{},
+		&outfakes.FakeWatchPathsReader{}, &outfakes.FakeIgnoreChecker{}, &outfakes.FakeChangeWatcher{},
 	}
 	f.events.SignalReturns(make(chan struct{}))
 	head, err := change.ParseObjectID("0123456789abcdef0123456789abcdef01234567")
@@ -80,12 +84,15 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.ServerEvents { return f.events },
 			func() out.CommitCheckouts { return f.checkouts },
 			func() out.CheckoutRoots { return f.roots },
+			func() out.WatchPathsReader { return f.paths },
+			func() out.IgnoreChecker { return f.ignores },
+			func() out.ChangeWatcher { return f.watcher },
 			func() supervise.PanicFunc { return nil },
 		),
 		fx.Supply(limits.DefaultFileSize, lang.Defaults()),
 		usecase.Module,
 		fx.NopLogger,
-		fx.Populate(&ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &loader),
+		fx.Populate(&ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch, &loader),
 	)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))

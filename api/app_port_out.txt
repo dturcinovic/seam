@@ -18,6 +18,15 @@ type ChangeLister interface {
     ChangeLister lists the files that differ between the sides of a resolved
     comparison, as git sees them; files git does not track are not among them.
 
+type ChangeWatcher interface {
+	// Watch watches git's index and HEAD in p, and with worktree the files
+	// under p's root but its ignored directories, until ctx ends, and tells
+	// l. It returns nil once ctx ends and an error if watching fails, at
+	// the start or later.
+	Watch(ctx context.Context, p change.WatchPaths, worktree bool, l WatchListener) error
+}
+    ChangeWatcher watches the files of a repository for changes.
+
 type CheckoutRoots interface {
 	// Mount makes dir the tree of commit id's documents.
 	Mount(id change.ObjectID, dir string)
@@ -61,6 +70,13 @@ type HoverRequester interface {
     HoverRequester asks for hovers. Neither call blocks; the answer comes
     through ServerEvents.
 
+type IgnoreChecker interface {
+	// Ignored returns those of paths, absolute and in the worktree, that git
+	// ignores.
+	Ignored(ctx context.Context, paths []string) ([]string, error)
+}
+    IgnoreChecker asks git what it ignores.
+
 type RevisionResolver interface {
 	// ResolveCommit fails for a revision that names no commit.
 	ResolveCommit(ctx context.Context, rev string) (change.ObjectID, error)
@@ -79,6 +95,26 @@ type UntrackedLister interface {
 }
     UntrackedLister lists the worktree files git does not track and does not
     ignore, relative to the repository root.
+
+type WatchListener interface {
+	// Changed reports a change, without saying which, and once when the
+	// watcher is set up, as what changed before cannot be told. It must not
+	// block.
+	Changed()
+	// Ignored returns those of dirs, directories that came into the
+	// worktree after the start, that git ignores; the watcher leaves them
+	// out. The watcher waits for the answer.
+	Ignored(dirs []string) []string
+}
+    WatchListener hears from a ChangeWatcher. Its calls come from the watcher's
+    goroutine, one at a time.
+
+type WatchPathsReader interface {
+	// WatchPaths returns the root, git's directory and the directories git
+	// ignores, as they are now.
+	WatchPaths(ctx context.Context) (change.WatchPaths, error)
+}
+    WatchPathsReader names what a watcher of the repository looks at.
 
 type WorktreeReader interface {
 	ReadWorktree(ctx context.Context, path string, max limits.FileSize) ([]byte, change.Stamp, error)

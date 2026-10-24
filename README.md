@@ -17,6 +17,27 @@ task build    # bin/seam
 
 The log is written to `$XDG_STATE_HOME/seam/seam.log`.
 
+## Use
+
+```bash
+seam                # HEAD against the worktree, untracked files included
+seam <rev>          # a revision against the worktree
+seam <rev> <rev>    # two commits
+seam --staged       # HEAD against the index
+seam --watch        # as seam, and reload whenever something changes
+```
+
+`--watch` (`-w`) reloads as `r` does whenever a file of the worktree, the
+index or HEAD changes, once the changes have been quiet for 200 ms but no
+later than a second after the first; with `--staged` only the index and HEAD
+count. The header says `watch` while it runs. Both `r` and `--watch`
+resolve the revisions anew, so after a commit or a checkout the diff is
+against the new HEAD. Directories git ignores are not watched, also those
+made after the start. On Linux each watched directory takes one of the user's
+inotify watches; when they run out, the footer says so, seam goes on
+without watching, and `fs.inotify.max_user_watches` is the setting to
+raise. Two commits never change, so `--watch` with two of them is an error.
+
 ## Language servers
 
 Hover needs a language server for the file's language. seam installs none

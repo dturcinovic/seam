@@ -22,9 +22,10 @@ type ChangesetReloader interface {
 	// Drain hands over the updates since the last call, oldest first.
 	Drain() []change.Update
 }
-    ChangesetReloader reloads the changeset while the TUI runs, against the
-    commits the first load resolved. Reload never blocks: the work runs in the
-    background, and its outcome waits in Drain until the UI collects it.
+    ChangesetReloader reloads the changeset while the TUI runs, resolving the
+    revisions of the first load anew, as a commit or a checkout moves HEAD.
+    Reload never blocks: the work runs in the background, and its outcome waits
+    in Drain until the UI collects it.
 
 type DocumentTracker interface {
 	// Track opens d or brings it to d's version, and keeps it open while it
@@ -73,4 +74,19 @@ type LSPUpdates interface {
 	Drain() []hover.Update
 }
     LSPUpdates hands out the answers and status changes of the servers.
+
+type WatchStarter interface {
+	// Watch watches the worktree or the index of c in the background until
+	// seam stops; the outcome reaches WatchUpdates. It returns at once.
+	Watch(c change.Comparison)
+}
+    WatchStarter starts watching what a comparison's right side reads from.
+
+type WatchUpdates interface {
+	// Signal is set, without blocking, after each new update.
+	Signal() <-chan struct{}
+	// Drain hands over the updates since the last call, oldest first.
+	Drain() []change.WatchUpdate
+}
+    WatchUpdates hands on what the watcher saw.
 

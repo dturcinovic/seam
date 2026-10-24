@@ -16,6 +16,7 @@ type (
 	fileDiffsReady struct{}
 	changesetReady struct{}
 	lspUpdated     struct{}
+	watchUpdated   struct{}
 )
 
 // model is the Bubble Tea model: the state, the ports Update calls, the

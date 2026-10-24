@@ -38,7 +38,10 @@ func (b *bridge) start(send func(tea.Msg), p Ports) error {
 	if err := b.watch("changeset", p.Reload.Signal(), send, changesetReady{}); err != nil {
 		return err
 	}
-	return b.watch("lsp", p.LSP.Signal(), send, lspUpdated{})
+	if err := b.watch("lsp", p.LSP.Signal(), send, lspUpdated{}); err != nil {
+		return err
+	}
+	return b.watch("watch", p.Watch.Signal(), send, watchUpdated{})
 }
 
 // stop ends the goroutines; after the program has ended none is held up in

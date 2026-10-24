@@ -20,6 +20,7 @@ type Ports struct {
 	Docs   in.DocumentTracker
 	LSP    in.LSPUpdates
 	Hover  in.Hoverer
+	Watch  in.WatchUpdates
 }
 
 // IO is where the program reads keys and writes the screen; nil means the

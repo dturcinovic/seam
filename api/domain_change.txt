@@ -33,6 +33,14 @@ var (
 )
     Errors of finding what to compare.
 
+var (
+	// ErrNotWatchable is a comparison whose sides cannot change: two
+	// commits.
+	ErrNotWatchable = errors.New("nothing to watch")
+	// ErrWatcherFailed is the end of the watcher when its background work
+	// panicked.
+	ErrWatcherFailed = errors.New("watcher failed")
+)
 var ErrInvalidComparison = errors.New("invalid comparison")
     ErrInvalidComparison is returned for a pair of sides seam cannot compare.
 
@@ -49,6 +57,11 @@ FUNCTIONS
 
 func IsBinary(data []byte) bool
     IsBinary reports whether data looks binary: a NUL byte in its first 8 KiB.
+
+func WatchesWorktree(c Comparison) (bool, error)
+    WatchesWorktree says whether watching c takes in the worktree, or only the
+    index and HEAD, which a commit or a checkout changes. Two commits never
+    change, so there is nothing to watch.
 
 
 TYPES
@@ -202,4 +215,33 @@ type Update struct {
 	Err       error
 }
     Update is the outcome of a reload: the changeset, or Err if it failed.
+
+type WatchKind int
+    WatchKind says what a WatchUpdate reports.
+
+const (
+
+	// Watching reports that the watcher runs.
+	Watching WatchKind
+	// Changed reports that the side being watched changed, once a burst of
+	// changes has settled.
+	Changed
+	// WatchFailed reports that the watcher stopped; Err says why.
+	WatchFailed
+)
+    The kinds of watch update. The zero value is no valid kind.
+
+type WatchPaths struct {
+	Root, GitDir string
+	Ignored      []string
+}
+    WatchPaths is what a watcher of the repository looks at: the worktree under
+    Root, git's own files in GitDir, and the directories git ignores, relative
+    to Root with "/" as git lists them.
+
+type WatchUpdate struct {
+	Kind WatchKind
+	Err  error
+}
+    WatchUpdate is news from the watcher.
 

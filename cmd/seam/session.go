@@ -27,9 +27,10 @@ import (
 const stopBudget = 3 * time.Second
 
 // session finds the repository, builds the graph, loads the changeset of c,
-// shows it and stops the graph within stopBudget. It owns the
-// logger and closes it only after the graph has stopped.
-func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout io.Writer) (err error) {
+// shows it, with watch reloading on every change, and stops the graph within
+// stopBudget. It owns the logger and closes it only after the graph has
+// stopped.
+func session(ctx context.Context, cfg config.Config, c change.Comparison, watch bool, stdout io.Writer) (err error) {
 	// Before the graph: it runs git, which ctx can cancel, and its errors
 	// and those of the configuration file are the user's to fix rather
 	// than faults of the wiring.
@@ -50,11 +51,12 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout
 
 	var (
 		changesets in.ChangesetLoader
+		watches    in.WatchStarter
 		ports      tui.Ports
 		panics     supervise.PanicFunc
 	)
 	app := fx.New(append(options(cfg, logger, root, file),
-		fx.Populate(&changesets, &ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &panics))...)
+		fx.Populate(&changesets, &watches, &ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch, &panics))...)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}
@@ -63,7 +65,11 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout
 	}
 	logger.Zap().Info("session started", zap.Stringer("left", c.Left), zap.Stringer("right", c.Right))
 
-	err = show(ctx, changesets, ports, panics, c, file.UI, stdout)
+	err = show(ctx, changesets, ports, panics, c, file.UI, stdout, func(c change.Comparison) {
+		if watch {
+			watches.Watch(c)
+		}
+	})
 	return errors.Join(err, stopGraph(app))
 }
 
@@ -80,9 +86,10 @@ func stopGraph(app *fx.App) error {
 	return nil
 }
 
-// show runs the TUI on the changeset of c, or lists its files when stdout is
-// no terminal: a screen written into a pipe would be of no use to anyone.
-func show(ctx context.Context, changesets in.ChangesetLoader, ports tui.Ports, panics supervise.PanicFunc, c change.Comparison, set ui.Settings, stdout io.Writer) error {
+// show runs the TUI on the changeset of c after calling watch with its
+// resolved comparison, or lists its files when stdout is no terminal: a
+// screen written into a pipe would be of no use to anyone.
+func show(ctx context.Context, changesets in.ChangesetLoader, ports tui.Ports, panics supervise.PanicFunc, c change.Comparison, set ui.Settings, stdout io.Writer, watch func(change.Comparison)) error {
 	cs, err := changesets.LoadChangeset(ctx, c)
 	if err != nil {
 		return err
@@ -90,6 +97,7 @@ func show(ctx context.Context, changesets in.ChangesetLoader, ports tui.Ports, p
 	if !isTerminal(stdout) {
 		return printChangeset(stdout, cs)
 	}
+	watch(cs.Comparison)
 	return tui.Run(ctx, cs, set, ports, panics, tui.IO{})
 }
 

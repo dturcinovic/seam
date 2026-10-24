@@ -291,6 +291,20 @@ linters:
             - seam/internal/supervise
             - seam/internal/adapter/driven/lsp
 
+        driven-fswatch:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/fswatch/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - go.uber.org/zap
+            - seam/internal/domain
+            - seam/internal/app/port/out
+            - seam/internal/adapter/driven/fswatch
+            - github.com/fsnotify/fsnotify
+
         driven-configfile:
           list-mode: strict
           files:

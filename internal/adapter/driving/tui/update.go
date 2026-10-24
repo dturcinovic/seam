@@ -3,6 +3,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"seam/internal/domain/change"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/ui"
 	"seam/internal/textcell"
@@ -49,6 +50,8 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 		}
 	case lspUpdated:
 		m.onLSP()
+	case watchUpdated:
+		m.onWatch()
 	case changesetReady:
 		for _, u := range m.p.Reload.Drain() {
 			before := m.s.Files
@@ -57,8 +60,33 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 				m.p.Docs.Untrack(hover.DocKey{Path: path})
 			}
 		}
+		if m.s.WatchAgain && !m.s.Reloading {
+			m.s.WatchAgain = false
+			m.watchReload()
+		}
 	}
 	return m, nil
+}
+
+// onWatch takes the watcher's news. A change reloads as r does, which
+// keeps the file and its place.
+func (m *model) onWatch() {
+	for _, u := range m.p.Watch.Drain() {
+		switch u.Kind {
+		case change.Watching:
+			m.s.Watching = true
+		case change.Changed:
+			m.watchReload()
+		case change.WatchFailed:
+			m.s.Watching, m.s.WatchFailed, m.s.Err = false, true, u.Err
+		}
+	}
+}
+
+func (m *model) watchReload() {
+	if gen, ok := m.s.watchReload(); ok {
+		m.p.Reload.Reload(gen)
+	}
 }
 
 // onLSP takes the servers' news.

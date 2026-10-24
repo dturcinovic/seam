@@ -20,6 +20,7 @@ var Module = fx.Module("usecase",
 		fx.Annotate(newChangesets, fx.As(new(in.ChangesetLoader)), fx.As(new(in.ChangesetReloader))),
 		fx.Annotate(newFileDiffs, fx.As(new(in.FileDiffLoader))),
 		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
+		fx.Annotate(newWatches, fx.As(new(in.WatchStarter)), fx.As(new(in.WatchUpdates))),
 	),
 )
 
@@ -39,14 +40,19 @@ func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, st ou
 	return f
 }
 
-// runWorker runs a use case's worker from start to stop, leaving
-// stopReserve of the deadline to the hooks after it.
+// runWorker runs a use case's worker from start to stop.
 func runWorker(lc fx.Lifecycle, w interface {
 	Start() error
 	Stop(context.Context) error
 },
 ) {
-	lc.Append(fx.StartStopHook(w.Start, func(ctx context.Context) error {
+	lc.Append(fx.StartStopHook(w.Start, reserved(w.Stop)))
+}
+
+// reserved is stop with stopReserve of its deadline left to the hooks after
+// it.
+func reserved(stop func(context.Context) error) func(context.Context) error {
+	return func(ctx context.Context) error {
 		// With less left than the reserve the worker keeps what there is: a
 		// deadline already past would report a cooperating worker as stuck.
 		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) > stopReserve {
@@ -54,8 +60,15 @@ func runWorker(lc fx.Lifecycle, w interface {
 			ctx, cancel = context.WithDeadline(ctx, deadline.Add(-stopReserve))
 			defer cancel()
 		}
-		return w.Stop(ctx)
-	}))
+		return stop(ctx)
+	}
+}
+
+// newWatches stops the watcher with the workers; it starts with Watch.
+func newWatches(lc fx.Lifecycle, p out.WatchPathsReader, i out.IgnoreChecker, w out.ChangeWatcher, panics supervise.PanicFunc) *Watches {
+	ws := NewWatches(p, i, w, panics)
+	lc.Append(fx.StopHook(reserved(ws.Stop)))
+	return ws
 }
 
 // hoverPorts gathers the ports of Hovers from the graph.
