@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"seam/internal/domain/change"
@@ -27,13 +28,12 @@ type catFile struct {
 	cmd *exec.Cmd
 	in  io.WriteCloser
 	out *bufio.Reader
+	// pipe is out's read end, which abort closes.
+	pipe io.Closer
 }
 
 // ReadBlob implements out.BlobReader.
 func (r *Repo) ReadBlob(ctx context.Context, id change.ObjectID, max limits.FileSize) ([]byte, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
 	// git's answer to an empty id has a shape of its own; the zero id is
 	// the missing side of a file, so it never reaches the process.
 	if id.IsZero() {
@@ -44,6 +44,11 @@ func (r *Repo) ReadBlob(ctx context.Context, id change.ObjectID, max limits.File
 	if r.closed {
 		return nil, ErrClosed
 	}
+	// Under the lock: a ctx that ended while it waited would make the read
+	// kill a cat-file that is in step.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if r.blobs == nil {
 		cat, err := r.startCatFile()
 		if err != nil {
@@ -51,7 +56,7 @@ func (r *Repo) ReadBlob(ctx context.Context, id change.ObjectID, max limits.File
 		}
 		r.blobs = cat
 	}
-	data, err := r.blobs.read(id, max)
+	data, err := r.readAbortable(ctx, r.blobs, id, max)
 	if errors.Is(err, errProtocol) {
 		// The process is in an unknown state; the next read starts afresh.
 		r.blobs.kill()
@@ -60,10 +65,48 @@ func (r *Repo) ReadBlob(ctx context.Context, id change.ObjectID, max limits.File
 	return data, err
 }
 
+// readAbortable reads id from cat. In a partial clone cat-file fetches a
+// missing blob from the remote, which can take any time; if ctx ends or
+// Close stops r.reads first, the read is aborted. A process aborted is out
+// of step whatever the read returned.
+func (r *Repo) readAbortable(ctx context.Context, cat *catFile, id change.ObjectID, max limits.FileSize) ([]byte, error) {
+	done := make(chan struct{})
+	// killed carries why the read was aborted, nil if it was not.
+	killed := make(chan error, 1)
+	err := r.reads.Go("abort cat-file read", func(stop context.Context) {
+		var cause error
+		select {
+		case <-done:
+			killed <- nil
+			return
+		case <-ctx.Done():
+			cause = ctx.Err()
+		case <-stop.Done():
+			cause = ErrClosed
+		}
+		cat.abort()
+		killed <- cause
+	})
+	if errors.Is(err, supervise.ErrStopped) {
+		err = ErrClosed
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errProtocol, err)
+	}
+	data, err := cat.read(id, max)
+	close(done)
+	if cause := <-killed; cause != nil {
+		return nil, fmt.Errorf("%w: read %s: %w", errProtocol, id, cause)
+	}
+	return data, err
+}
+
 func (r *Repo) startCatFile() (*catFile, error) {
 	// Not tied to a request's context: the process serves the whole session
 	// and Close ends it.
 	cmd := command(context.Background(), r.root, "cat-file", "--batch-command")
+	// A group of its own, so that killing it ends a lazy fetch it started.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("cat-file: %w", err)
@@ -75,7 +118,7 @@ func (r *Repo) startCatFile() (*catFile, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start cat-file: %w", err)
 	}
-	return &catFile{cmd: cmd, in: in, out: bufio.NewReader(out)}, nil
+	return &catFile{cmd: cmd, in: in, out: bufio.NewReader(out), pipe: out}, nil
 }
 
 // errProtocol marks a failure that leaves the process out of step.
@@ -133,8 +176,7 @@ func (c *catFile) request(command string, id change.ObjectID) (kind string, size
 // exitGrace it is killed.
 func (c *catFile) close(tasks *supervise.Group) error {
 	_ = c.in.Close() // Wait reports what matters; the pipe is gone either way.
-	// Kill fails only if the process has exited by then, which is the aim.
-	timer, err := tasks.AfterFunc(exitGrace, "kill cat-file", func() { _ = c.cmd.Process.Kill() })
+	timer, err := tasks.AfterFunc(exitGrace, "kill cat-file", c.killGroup)
 	if err != nil {
 		c.kill()
 		return err
@@ -150,6 +192,18 @@ func (c *catFile) close(tasks *supervise.Group) error {
 // process or pipe is gone already, and its exit status that it was killed.
 func (c *catFile) kill() {
 	_ = c.in.Close()
-	_ = c.cmd.Process.Kill()
+	c.killGroup()
 	_ = c.cmd.Wait()
 }
+
+// abort ends a read in flight. A lazy fetch started by cat-file holds its
+// stdout too, so the kill alone would leave the read waiting; closing the
+// pipe ends it.
+func (c *catFile) abort() {
+	_ = c.pipe.Close() // a second close, by Wait, changes nothing
+	c.killGroup()
+}
+
+// killGroup ends cat-file and what it started. It fails only if they have
+// exited already, which is the aim.
+func (c *catFile) killGroup() { _ = syscall.Kill(-c.cmd.Process.Pid, syscall.SIGKILL) }

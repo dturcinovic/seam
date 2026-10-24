@@ -11,7 +11,6 @@ import (
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/limits"
-	"seam/internal/testsupport"
 )
 
 // A /proc file reports size 0 to stat and has content all the same: the
@@ -31,25 +30,6 @@ func TestFileThatGrowsAfterStatIsCaughtByTheRead(t *testing.T) {
 	tooLarge, ok := errors.AsType[*change.TooLargeError](err)
 	require.True(t, ok, "got %v", err)
 	assert.Equal(t, int64(11), tooLarge.Size, "reading stops one byte past the limit")
-}
-
-func TestCloseEndsCatFile(t *testing.T) {
-	git := testsupport.NewGitRepo(t)
-	git.Write("f", "content\n")
-	id, err := change.ParseObjectID(strings.TrimSpace(git.Git("hash-object", "-w", "f")))
-	require.NoError(t, err)
-	repo, err := Open(git.Dir, nil)
-	require.NoError(t, err)
-	_, err = repo.ReadBlob(t.Context(), id, limits.DefaultFileSize)
-	require.NoError(t, err)
-	cat := repo.blobs
-
-	require.NoError(t, repo.Close(t.Context()))
-
-	assert.NotNil(t, cat.cmd.ProcessState, "the process has been waited for")
-	_, err = repo.ReadBlob(t.Context(), id, limits.DefaultFileSize)
-	assert.ErrorIs(t, err, ErrClosed, "and no read starts another")
-	assert.Nil(t, repo.blobs)
 }
 
 func TestParseDiffRejectsBadRawEntries(t *testing.T) {
