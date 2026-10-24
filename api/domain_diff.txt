@@ -30,6 +30,10 @@ func Compute(ctx context.Context, old, new Side) FileDiff
     Compute aligns old and new. When ctx ends, it stops searching and returns
     the rest of the files as changed blocks rather than fail.
 
+func (d FileDiff) ApproxBytes() int64
+    ApproxBytes is roughly the memory the diff holds: the lines with their
+    headers, the rows and the spans. A cache weighs its entries with it.
+
 type Row struct {
 	Kind                    RowKind
 	Left, Right             int

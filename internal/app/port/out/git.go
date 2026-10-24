@@ -31,12 +31,16 @@ type UntrackedLister interface {
 	ListUntracked(ctx context.Context) ([]string, error)
 }
 
+//counterfeiter:generate . BlobReader
+
 // BlobReader reads a blob of the repository. It never reads more than max+1
 // bytes: a larger blob yields *change.TooLargeError, an object that is no
 // blob change.ErrNotRegular, a missing one change.ErrNotExist.
 type BlobReader interface {
 	ReadBlob(ctx context.Context, id change.ObjectID, max limits.FileSize) ([]byte, error)
 }
+
+//counterfeiter:generate . WorktreeReader
 
 // WorktreeReader reads a file of the worktree with the stamp of what it read.
 // A symlink yields its target as text, as git stores it. It never reads more
@@ -46,6 +50,8 @@ type BlobReader interface {
 type WorktreeReader interface {
 	ReadWorktree(ctx context.Context, path string, max limits.FileSize) ([]byte, change.Stamp, error)
 }
+
+//counterfeiter:generate . WorktreeStatter
 
 // WorktreeStatter returns the stamp of a worktree file without reading it.
 type WorktreeStatter interface {

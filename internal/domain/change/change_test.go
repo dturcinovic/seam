@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,4 +113,14 @@ func TestIsBinary(t *testing.T) {
 
 	late := append(bytes.Repeat([]byte("x"), 8<<10), 0)
 	assert.False(t, change.IsBinary(late), "only the first 8 KiB count")
+}
+
+func TestStampEqual(t *testing.T) {
+	now := time.Unix(1700000000, 5)
+	s := change.Stamp{Size: 3, ModTime: now, Inode: 7}
+
+	assert.True(t, s.Equal(change.Stamp{Size: 3, ModTime: now.In(time.FixedZone("x", 3600)), Inode: 7}), "the same instant elsewhere")
+	assert.False(t, s.Equal(change.Stamp{Size: 4, ModTime: now, Inode: 7}))
+	assert.False(t, s.Equal(change.Stamp{Size: 3, ModTime: now.Add(time.Nanosecond), Inode: 7}))
+	assert.False(t, s.Equal(change.Stamp{Size: 3, ModTime: now, Inode: 8}))
 }

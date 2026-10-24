@@ -29,7 +29,7 @@ func newChangesets() (*usecase.Changesets, fakes) {
 	f.revisions.ResolveCommitCalls(func(_ context.Context, rev string) (change.ObjectID, error) {
 		return change.ParseObjectID(strings.Repeat(rev[:1], 40))
 	})
-	return usecase.NewChangesets(f.revisions, f.changes, f.untracked), f
+	return usecase.NewChangesets(f.revisions, f.changes, f.untracked, nil), f
 }
 
 func comparison(t *testing.T, left, right change.Source) change.Comparison {
@@ -149,4 +149,95 @@ func mustID(t *testing.T, s string) change.ObjectID {
 	id, err := change.ParseObjectID(s)
 	require.NoError(t, err)
 	return id
+}
+
+// reloadOne reloads and waits for the update of gen.
+func reloadOne(t *testing.T, uc *usecase.Changesets, gen change.Gen) change.Update {
+	t.Helper()
+	uc.Reload(gen)
+	all := collect(t, uc, func(u []change.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == gen })
+	return all[len(all)-1]
+}
+
+func TestReloadListsAgainstTheResolvedCommits(t *testing.T) {
+	uc, f := newChangesets()
+	start(t, uc)
+	cs, err := uc.LoadChangeset(t.Context(), comparison(t, change.Commit("a"), change.Worktree()))
+	require.NoError(t, err)
+	f.changes.ListChangesReturns([]change.ChangedFile{{Status: change.Modified, OldPath: "b.go", NewPath: "b.go"}}, nil)
+
+	u := reloadOne(t, uc, 1)
+
+	require.NoError(t, u.Err)
+	assert.Equal(t, change.Gen(1), u.Gen)
+	assert.Equal(t, cs.Comparison, u.Changeset.Comparison)
+	assert.Equal(t, []string{"b.go"}, paths(u.Changeset.Files))
+	assert.Equal(t, 1, f.revisions.ResolveCommitCallCount(), "a moved branch does not move the comparison")
+}
+
+func TestReloadErrors(t *testing.T) {
+	t.Run("before the first load", func(t *testing.T) {
+		uc, _ := newChangesets()
+		start(t, uc)
+
+		require.ErrorIs(t, reloadOne(t, uc, 1).Err, change.ErrNotLoaded)
+	})
+	t.Run("from listing", func(t *testing.T) {
+		uc, f := newChangesets()
+		start(t, uc)
+		_, err := uc.LoadChangeset(t.Context(), comparison(t, change.Commit("a"), change.Worktree()))
+		require.NoError(t, err)
+		boom := errors.New("boom")
+		f.changes.ListChangesReturns(nil, boom)
+
+		require.ErrorIs(t, reloadOne(t, uc, 1).Err, boom)
+	})
+}
+
+func TestANewerReloadCancelsTheRunningOne(t *testing.T) {
+	uc, f := newChangesets()
+	start(t, uc)
+	_, err := uc.LoadChangeset(t.Context(), comparison(t, change.Commit("a"), change.Index()))
+	require.NoError(t, err)
+	started := make(chan struct{})
+	f.changes.ListChangesCalls(func(ctx context.Context, _ change.Comparison) ([]change.ChangedFile, error) {
+		if f.changes.ListChangesCallCount() == 2 {
+			close(started)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		return nil, nil
+	})
+
+	uc.Reload(1)
+	until(t, started)
+	uc.Reload(2)
+
+	all := collect(t, uc, func(u []change.Update) bool { return len(u) > 0 })
+	require.Len(t, all, 1, "the cancelled reload publishes nothing")
+	assert.Equal(t, change.Gen(2), all[0].Gen)
+	require.NoError(t, all[0].Err)
+}
+
+func TestReloadNeverBlocks(t *testing.T) {
+	uc, f := newChangesets()
+	start(t, uc)
+	_, err := uc.LoadChangeset(t.Context(), comparison(t, change.Commit("a"), change.Index()))
+	require.NoError(t, err)
+	release := make(chan struct{})
+	defer close(release)
+	f.changes.ListChangesCalls(func(context.Context, change.Comparison) ([]change.ChangedFile, error) {
+		<-release
+		return nil, nil
+	})
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := range 100 {
+			uc.Reload(change.Gen(i + 1))
+		}
+		uc.Drain()
+	}()
+	until(t, done)
 }

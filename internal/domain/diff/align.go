@@ -1,6 +1,9 @@
 package diff
 
-import "context"
+import (
+	"context"
+	"unsafe"
+)
 
 // RowKind says how the lines of a row relate.
 type RowKind int
@@ -41,6 +44,25 @@ type FileDiff struct {
 	Rows       []Row
 	Changes    []RowRange
 	Simplified bool
+}
+
+// ApproxBytes is roughly the memory the diff holds: the lines with their
+// headers, the rows and the spans. A cache weighs its entries with it.
+func (d FileDiff) ApproxBytes() int64 {
+	n := sideBytes(d.Old) + sideBytes(d.New)
+	n += int64(cap(d.Rows)) * int64(unsafe.Sizeof(Row{}))
+	for _, r := range d.Rows {
+		n += int64(cap(r.LeftInline)+cap(r.RightInline)) * int64(unsafe.Sizeof(Span{}))
+	}
+	return n + int64(cap(d.Changes))*int64(unsafe.Sizeof(RowRange{}))
+}
+
+func sideBytes(s Side) int64 {
+	n := int64(cap(s.Lines)) * int64(unsafe.Sizeof(""))
+	for _, l := range s.Lines {
+		n += int64(len(l))
+	}
+	return n
 }
 
 // Compute aligns old and new. When ctx ends, it stops searching and returns

@@ -16,6 +16,7 @@ import (
 	"seam/internal/app/usecase"
 	"seam/internal/config"
 	"seam/internal/domain/change"
+	"seam/internal/domain/limits"
 	"seam/internal/observability"
 )
 
@@ -26,7 +27,8 @@ const stopBudget = 3 * time.Second
 // cases and adapters at once.
 func options(cfg config.Config, logger *observability.Logger, root string) []fx.Option {
 	return []fx.Option{
-		fx.Supply(cfg, logger, git.Config{Root: root}),
+		// The default until the TUI's command line has --max-file-size.
+		fx.Supply(cfg, logger, git.Config{Root: root}, limits.DefaultFileSize),
 		observability.Module,
 		git.Module,
 		usecase.Module,

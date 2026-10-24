@@ -74,3 +74,14 @@ func TestSplit(t *testing.T) {
 	assert.Equal(t, []string{"a\n", "b"}, diff.Split("a\nb").Lines)
 	assert.Equal(t, []string{"a\r\n", "\n"}, diff.Split("a\r\n\n").Lines)
 }
+
+func TestApproxBytes(t *testing.T) {
+	assert.Zero(t, diff.FileDiff{}.ApproxBytes())
+
+	d := diff.Compute(t.Context(), diff.Split("a b c\n"), diff.Split("a x c\n"))
+	unmarked := d
+	unmarked.Rows = []diff.Row{{Kind: diff.Change, Left: 0, Right: 0}}
+
+	assert.Greater(t, unmarked.ApproxBytes(), int64(len("a b c\n")*2), "the text and more")
+	assert.Equal(t, unmarked.ApproxBytes()+2*16, d.ApproxBytes(), "a span is two ints")
+}

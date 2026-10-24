@@ -1,0 +1,95 @@
+package filediff // import "seam/internal/domain/filediff"
+
+Package filediff describes loading the diff of one file in the background:
+the request with its generation, the snapshot the UI shows and the notices that
+explain what it leaves out. It reads nothing and keeps no cache.
+
+VARIABLES
+
+var ErrLoaderFailed = errors.New("file loader failed")
+    ErrLoaderFailed is the error of every request once the loader has failed:
+    its background work panicked and runs no more.
+
+
+TYPES
+
+type Gen uint64
+    Gen is a generation of choosing a file. The UI hands out strictly increasing
+    ones and shows only the update of the newest, so a late result never covers
+    the file chosen since.
+
+type Notice struct {
+	Kind NoticeKind
+	Side Which
+	Size int64
+}
+    Notice tells why a snapshot shows less than the file. Size is set for
+    TooLarge: the size known when reading stopped.
+
+func SideNotice(side Which, data []byte, err error) (*Notice, error)
+    SideNotice judges what reading a side returned. A side too large or binary
+    is a notice, as the file can still be named and listed; any other error
+    fails the load.
+
+type NoticeKind int
+    NoticeKind is what a notice reports.
+
+const (
+
+	// TooLarge means a side exceeds the file size limit and was not read.
+	TooLarge NoticeKind
+	// Binary means a side holds binary data and is not shown as text.
+	Binary
+	// Simplified means the time for the diff ran out: its blocks may be
+	// larger than needed. The UI learns it here, not from the diff.
+	Simplified
+)
+    The kinds of notice. The zero value is no valid kind.
+
+type Request struct {
+	Gen        Gen
+	Comparison change.Comparison
+	File       change.ChangedFile
+	Fresh      bool
+}
+    Request asks for the diff of File in Comparison, which says where each side
+    is read from. Fresh skips the cache even if the file looks unchanged.
+
+func (r Request) ReadsWorktree() bool
+    ReadsWorktree reports that the right side is a worktree file, whose stamp
+    tells whether it changed; a blob never changes. A side exists if it has a
+    path: an untracked file has no mode yet.
+
+type Snapshot struct {
+	File    change.ChangedFile
+	Diff    diff.FileDiff
+	Version Version
+	Notices []Notice
+}
+    Snapshot is the loaded diff of a file. Notices say what it leaves out;
+    a side that is too large or binary leaves the diff empty.
+
+type Update struct {
+	Gen      Gen
+	Snapshot Snapshot
+	Err      error
+}
+    Update is the outcome of a request: the snapshot, or Err if loading failed.
+
+type Version uint64
+    Version counts the contents the right side has had in a session. It rises
+    exactly when the text changes; zero means the right side has no text to
+    show.
+
+type Which int
+    Which names one side of the file.
+
+const (
+
+	// OldSide is the left side.
+	OldSide Which
+	// NewSide is the right side.
+	NewSide
+)
+    The sides. The zero value means the notice is about the whole file.
+

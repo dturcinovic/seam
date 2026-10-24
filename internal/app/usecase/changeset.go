@@ -5,21 +5,34 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sync"
 
 	"seam/internal/app/port/out"
 	"seam/internal/domain/change"
+	"seam/internal/supervise"
 )
 
-// Changesets implements in.ChangesetLoader.
+// Changesets implements in.ChangesetLoader and in.ChangesetReloader.
 type Changesets struct {
+	*worker[change.Gen, change.Update]
+
 	revisions out.RevisionResolver
 	changes   out.ChangeLister
 	untracked out.UntrackedLister
+
+	mu       sync.Mutex
+	resolved *change.Comparison
 }
 
-// NewChangesets returns the use case over its ports.
-func NewChangesets(r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister) *Changesets {
-	return &Changesets{revisions: r, changes: c, untracked: u}
+// NewChangesets returns the use case over its ports. Its reload worker runs
+// between Start and Stop.
+func NewChangesets(r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister, panics supervise.PanicFunc) *Changesets {
+	s := &Changesets{revisions: r, changes: c, untracked: u}
+	s.worker = newWorker("changeset", change.ErrReloaderFailed, panics, s.reload,
+		// A newer reload makes the running one pointless.
+		func(change.Gen, change.Gen) bool { return true },
+		func(gen change.Gen, err error) change.Update { return change.Update{Gen: gen, Err: err} })
+	return s
 }
 
 // LoadChangeset resolves the commits once, so a later reload compares
@@ -29,6 +42,32 @@ func (s *Changesets) LoadChangeset(ctx context.Context, c change.Comparison) (ch
 	if err != nil {
 		return change.Changeset{}, err
 	}
+	cs, err := s.list(ctx, resolved)
+	if err != nil {
+		return change.Changeset{}, err
+	}
+	s.mu.Lock()
+	s.resolved = &resolved
+	s.mu.Unlock()
+	return cs, nil
+}
+
+// Reload queues a reload against the commits of the first load.
+func (s *Changesets) Reload(gen change.Gen) { s.submit(gen) }
+
+func (s *Changesets) reload(ctx context.Context, gen change.Gen) change.Update {
+	s.mu.Lock()
+	resolved := s.resolved
+	s.mu.Unlock()
+	if resolved == nil {
+		return change.Update{Gen: gen, Err: change.ErrNotLoaded}
+	}
+	cs, err := s.list(ctx, *resolved)
+	return change.Update{Gen: gen, Changeset: cs, Err: err}
+}
+
+// list lists the files of a resolved comparison.
+func (s *Changesets) list(ctx context.Context, resolved change.Comparison) (change.Changeset, error) {
 	files, err := s.changes.ListChanges(ctx, resolved)
 	if err != nil {
 		return change.Changeset{}, fmt.Errorf("list changes: %w", err)

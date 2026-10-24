@@ -85,6 +85,12 @@ type Stamp struct {
 	Inode   uint64
 }
 
+// Equal reports whether both stamps describe the same state. ModTime is
+// compared as an instant: a time.Time read twice need not be == itself.
+func (s Stamp) Equal(o Stamp) bool {
+	return s.Size == o.Size && s.Inode == o.Inode && s.ModTime.Equal(o.ModTime)
+}
+
 // Errors of reading one side of a file.
 var (
 	// ErrNotExist means the path names nothing.
