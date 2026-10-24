@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"seam/internal/domain/diff"
+	"seam/internal/domain/filediff"
 )
 
 // chrome is the lines the view spends outside the panes: header and footer.
@@ -50,11 +51,25 @@ func (l layout) bodyLine(x, y int) (i int, ok bool) {
 	return l.within(x-l.List, y, l.panes())
 }
 
-// rightText is the screen columns of the right pane's text, from the
-// first after its gutter to the first past it, as writeRow lays them out.
-func (l layout) rightText() (from, to int) {
-	from = l.List + l.Left.Width + separatorWidth + l.Right.gutter()
-	return from, max(from, l.List+l.Left.Width+separatorWidth+l.Right.Width)
+// text is the screen columns of side w's text, from the first after its
+// gutter to the first past it, as writeRow lays them out.
+func (l layout) text(w filediff.Which) (from, to int) {
+	start, p := l.List, l.Left
+	if w == filediff.NewSide {
+		start, p = l.List+l.Left.Width+separatorWidth, l.Right
+	}
+	from = start + p.gutter()
+	return from, max(from, start+p.Width)
+}
+
+// sideAt is the side whose text holds screen column x.
+func (l layout) sideAt(x int) (filediff.Which, bool) {
+	for _, w := range []filediff.Which{filediff.OldSide, filediff.NewSide} {
+		if from, to := l.text(w); x >= from && x < to {
+			return w, true
+		}
+	}
+	return 0, false
 }
 
 // inList says whether screen cell x, y lies in the file list's lines, its

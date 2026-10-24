@@ -11,6 +11,8 @@ import (
 // the answer comes through LSPUpdates.
 type Hoverer interface {
 	// Hover asks at p. Only the answer to the last p asked is handed on.
+	// In a commit not checked out yet it starts the checkout and answers
+	// NotReady.
 	Hover(p hover.Position) hover.Submit
 	// CancelHover drops the request: no answer comes for it.
 	CancelHover(id hover.ReqID)
@@ -23,11 +25,13 @@ type Hoverer interface {
 type DocumentTracker interface {
 	// Track opens d or brings it to d's version, and keeps it open while it
 	// is among the last shown. It names the instance that serves d; ok is
-	// false if none does, as for a document without a path.
+	// false if none does, as for a document without a path. A document of
+	// a commit not checked out yet is served by the checkout's instance
+	// until the checkout is Ready; Track then names the server's.
 	Track(d hover.Document) (i lang.Instance, ok bool)
-	// Untrack closes the document at path: the file is gone, or its text
-	// no longer what the viewer shows, and the server reads it from disk.
-	Untrack(path string)
+	// Untrack closes the document k: the file is gone, or its text no
+	// longer what the viewer shows, and the server reads it from disk.
+	Untrack(k hover.DocKey)
 }
 
 //counterfeiter:generate . LSPUpdates

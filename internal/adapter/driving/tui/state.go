@@ -34,7 +34,7 @@ type state struct {
 	LSP lspState
 	// Hover is what the mouse rests on and the popup with its answer.
 	Hover hoverState
-	// Caret is the keyboard's cursor in the right pane, for hovers.
+	// Caret is the keyboard's cursor in a pane, for hovers.
 	Caret caret
 
 	Mode    view.Mode

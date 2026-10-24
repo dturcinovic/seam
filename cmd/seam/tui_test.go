@@ -38,6 +38,8 @@ type outFakes struct {
 	docs      *outfakes.FakeDocumentSync
 	requester *outfakes.FakeHoverRequester
 	events    *outfakes.FakeServerEvents
+	checkouts *outfakes.FakeCommitCheckouts
+	roots     *outfakes.FakeCheckoutRoots
 }
 
 func newOutFakes(t *testing.T) outFakes {
@@ -46,6 +48,7 @@ func newOutFakes(t *testing.T) outFakes {
 		&outfakes.FakeRevisionResolver{}, &outfakes.FakeChangeLister{}, &outfakes.FakeUntrackedLister{},
 		&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{},
 		&outfakes.FakeHighlighter{}, &outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{},
+		&outfakes.FakeCommitCheckouts{}, &outfakes.FakeCheckoutRoots{},
 	}
 	f.events.SignalReturns(make(chan struct{}))
 	head, err := change.ParseObjectID("0123456789abcdef0123456789abcdef01234567")
@@ -74,6 +77,8 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.DocumentSync { return f.docs },
 			func() out.HoverRequester { return f.requester },
 			func() out.ServerEvents { return f.events },
+			func() out.CommitCheckouts { return f.checkouts },
+			func() out.CheckoutRoots { return f.roots },
 			func() supervise.PanicFunc { return nil },
 		),
 		fx.Supply(limits.DefaultFileSize, lang.Defaults()),

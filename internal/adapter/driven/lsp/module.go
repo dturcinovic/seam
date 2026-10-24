@@ -16,6 +16,7 @@ var Module = fx.Module("lsp",
 		fx.As(new(out.DocumentSync)),
 		fx.As(new(out.HoverRequester)),
 		fx.As(new(out.ServerEvents)),
+		fx.As(new(out.CheckoutRoots)),
 	)),
 )
 

@@ -63,7 +63,7 @@ func groupGone(pgid int) bool {
 // it.
 func fakelspLog(t *testing.T, pool *Pool, dir string) []string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(pool.root, dir, "fakelsp.log"))
+	data, err := os.ReadFile(filepath.Join(worktree(pool), dir, "fakelsp.log"))
 	require.NoError(t, err)
 	var seen []string
 	for line := range strings.Lines(string(data)) {

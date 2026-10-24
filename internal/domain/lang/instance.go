@@ -2,6 +2,8 @@ package lang
 
 import (
 	"path"
+
+	"seam/internal/domain/change"
 	"slices"
 	"strings"
 )
@@ -11,8 +13,11 @@ import (
 // project do.
 type Instance struct {
 	Server string
-	// Root is the workspace, relative to the repository root in slash
-	// form; "." is the repository root.
+	// Commit is the commit whose checkout the server runs in; zero for the
+	// worktree.
+	Commit change.ObjectID
+	// Root is the workspace, relative to the top of the worktree or
+	// checkout in slash form; "." is the top.
 	Root string
 }
 
@@ -20,8 +25,9 @@ type Instance struct {
 // the repository root, in language l. The root is the nearest directory
 // above file that has one of the server's root markers, else the
 // repository root. has reports whether dir holds a file named name; the
-// table reads no filesystem itself. ok is false where Server's is, and for
-// a path that is absolute or leaves the repository.
+// table reads no filesystem itself, and leaves Commit to the caller. ok
+// is false where Server's is, and for a path that is absolute or leaves
+// the repository.
 func (t Table) Instance(l Lang, file string, has func(dir, name string) bool) (Instance, bool) {
 	file = path.Clean(file)
 	if path.IsAbs(file) || file == ".." || strings.HasPrefix(file, "../") {

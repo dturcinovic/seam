@@ -1,6 +1,9 @@
 package out
 
 import (
+	"context"
+
+	"seam/internal/domain/change"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 )
@@ -13,10 +16,29 @@ import (
 type DocumentSync interface {
 	// Sync opens d or brings it to d's version, starting its server if need
 	// be. It names the instance that serves d; ok is false if no server
-	// hovers over d's language.
+	// hovers over d's language, or d's commit has no checkout mounted.
 	Sync(d hover.Document) (i lang.Instance, ok bool)
-	// Close closes the document at path.
-	Close(path string)
+	// Close closes the document k; its server forgets the text.
+	Close(k hover.DocKey)
+}
+
+//counterfeiter:generate . CheckoutRoots
+
+// CheckoutRoots tells the language servers where the checkout of a commit
+// lies, so documents of that commit can be served from it.
+type CheckoutRoots interface {
+	// Mount makes dir the tree of commit id's documents.
+	Mount(id change.ObjectID, dir string)
+}
+
+//counterfeiter:generate . CommitCheckouts
+
+// CommitCheckouts makes checkouts of commits for the session, which go
+// with it.
+type CommitCheckouts interface {
+	// Checkout returns the directory of a checkout of commit id, making it
+	// the first time. That takes as long as git takes to write the tree.
+	Checkout(ctx context.Context, id change.ObjectID) (dir string, err error)
 }
 
 //counterfeiter:generate . HoverRequester

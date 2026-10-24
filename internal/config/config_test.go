@@ -40,6 +40,25 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestCheckouts(t *testing.T) {
+	home := t.TempDir()
+	tests := map[string]struct{ xdgCache, want string }{
+		"XDG_CACHE_HOME set":                 {"/var/cache/user", "/var/cache/user/seam/worktrees"},
+		"XDG_CACHE_HOME unset":               {"", filepath.Join(home, ".cache/seam/worktrees")},
+		"relative XDG_CACHE_HOME is ignored": {"cache", filepath.Join(home, ".cache/seam/worktrees")},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("HOME", home)
+			t.Setenv("XDG_CACHE_HOME", tt.xdgCache)
+
+			cfg, err := config.Load(config.Flags{})
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cfg.Checkouts)
+		})
+	}
+}
+
 func TestConfigFile(t *testing.T) {
 	home := t.TempDir()
 	tests := map[string]struct{ xdgConfig, want string }{

@@ -3,6 +3,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"seam/internal/domain/hover"
 	"seam/internal/textcell"
 )
 
@@ -46,22 +47,28 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 			}
 		}
 	case lspUpdated:
-		for _, u := range m.p.LSP.Drain() {
-			m.s.LSP.update(u)
-			if m.s.hoverUpdate(u) {
-				m.ask(m.s.Hover.Seq)
-			}
-		}
+		m.onLSP()
 	case changesetReady:
 		for _, u := range m.p.Reload.Drain() {
 			before := m.s.Files
 			m.load(m.s.reloaded(u))
 			for _, path := range gone(before, m.s.Files) {
-				m.p.Docs.Untrack(path)
+				m.p.Docs.Untrack(hover.DocKey{Path: path})
 			}
 		}
 	}
 	return m, nil
+}
+
+// onLSP takes the servers' news.
+func (m *model) onLSP() {
+	for _, u := range m.p.LSP.Drain() {
+		m.s.LSP.update(u)
+		m.retrack(u)
+		if m.s.hoverUpdate(u) {
+			m.ask(m.s.Hover.Seq)
+		}
+	}
 }
 
 // onKeyPress takes a key; Esc closes an open popup, then the caret,
@@ -101,6 +108,8 @@ func (m *model) onCaretKey(key string) (ok bool) {
 		s.wordBack()
 	case "e":
 		s.wordEnd()
+	case "o":
+		s.otherSide()
 	case "K":
 		m.hoverAtCaret()
 	default:

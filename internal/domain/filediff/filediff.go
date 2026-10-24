@@ -36,16 +36,25 @@ func (r Request) ReadsWorktree() bool {
 
 // Snapshot is the loaded diff of a file. Notices say what it leaves out; a
 // side that is too large or binary leaves the diff empty. Columns index the
-// long lines of the diff's sides, Highlights give their syntax. RightDoc is
-// the right side for the language server: set only when it is shown as text
-// and read from the worktree, as only there do hovers match the code.
+// long lines of the diff's sides, Highlights give their syntax. LeftDoc and
+// RightDoc are the sides for the language server: set only for a side shown
+// as text that comes from a commit or the worktree, as hovers match the
+// code only there; the index has no tree to serve it from.
 type Snapshot struct {
-	File       change.ChangedFile
-	Diff       diff.FileDiff
-	Columns    Columns
-	Highlights Highlights
-	RightDoc   hover.Document
-	Notices    []Notice
+	File              change.ChangedFile
+	Diff              diff.FileDiff
+	Columns           Columns
+	Highlights        Highlights
+	LeftDoc, RightDoc hover.Document
+	Notices           []Notice
+}
+
+// Doc is the document of side w.
+func (s Snapshot) Doc(w Which) hover.Document {
+	if w == OldSide {
+		return s.LeftDoc
+	}
+	return s.RightDoc
 }
 
 // Highlights are the tokens of both sides' lines.

@@ -4,31 +4,66 @@ import (
 	"path"
 
 	"seam/internal/domain/change"
+	"seam/internal/domain/filediff"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 )
 
-// lspState is what the footer tells of the language server of the file
+// lspState is what the footer tells of the language servers of the file
 // shown. Statuses come per instance, whether its file is shown or not, so
 // one shown again has its status at once.
 type lspState struct {
-	// Shown is the instance that serves the file shown; zero for none,
-	// which has no status.
-	Shown  lang.Instance
+	// Left and Right are the instances that serve the sides of the file
+	// shown; zero for none, which has no status.
+	Left, Right lang.Instance
+	// Side is the side asked about last, whose server the footer names.
+	Side   filediff.Which
 	Status map[lang.Instance]hover.ServerStatus
+	// Checkouts are how far the checkouts of commits have come, whose
+	// documents have no server before.
+	Checkouts map[change.ObjectID]hover.ServerStatus
 }
 
-// track tells the server of the file just shown: its right side, or that
-// the text it may have had is no longer on screen, as when the file turned
-// binary or too large.
+// shown is the instance that serves side w.
+func (l *lspState) shown(w filediff.Which) lang.Instance {
+	if w == filediff.OldSide {
+		return l.Left
+	}
+	return l.Right
+}
+
+// track tells the servers of the file just shown: both its sides, or that
+// the worktree text a server may have had is no longer on screen, as when
+// the file turned binary or too large.
 func (m *model) track() {
-	if d := m.s.Snapshot.RightDoc; d.Path != "" {
-		m.s.LSP.Shown, _ = m.p.Docs.Track(d)
+	snap := &m.s.Snapshot
+	m.s.LSP.Left, m.s.LSP.Right = m.tracked(snap.LeftDoc), m.tracked(snap.RightDoc)
+	if path := snap.File.NewPath; snap.RightDoc.Path == "" && path != "" {
+		m.p.Docs.Untrack(hover.DocKey{Path: path})
+	}
+}
+
+// tracked tells the servers of d and returns the instance serving it.
+func (m *model) tracked(d hover.Document) lang.Instance {
+	if d.Path == "" {
+		return lang.Instance{}
+	}
+	inst, _ := m.p.Docs.Track(d)
+	return inst
+}
+
+// retrack asks again for the instances of the sides of commit u, once its
+// checkout is Ready: the documents waiting for it have servers now.
+func (m *model) retrack(u hover.Update) {
+	if u.Kind != hover.CheckoutChanged || u.Status != hover.Ready {
 		return
 	}
-	m.s.LSP.Shown = lang.Instance{}
-	if path := m.s.Snapshot.File.NewPath; path != "" {
-		m.p.Docs.Untrack(path)
+	snap := &m.s.Snapshot
+	if snap.LeftDoc.Commit == u.Commit {
+		m.s.LSP.Left = m.tracked(snap.LeftDoc)
+	}
+	if snap.RightDoc.Commit == u.Commit {
+		m.s.LSP.Right = m.tracked(snap.RightDoc)
 	}
 }
 
@@ -50,35 +85,76 @@ func gone(before, after []change.ChangedFile) []string {
 
 // update takes a status change; answers are for the popup.
 func (l *lspState) update(u hover.Update) {
-	if u.Kind != hover.StatusChanged {
-		return
+	switch u.Kind {
+	case hover.StatusChanged:
+		if l.Status == nil {
+			l.Status = make(map[lang.Instance]hover.ServerStatus)
+		}
+		l.Status[u.Instance] = u.Status
+	case hover.CheckoutChanged:
+		if l.Checkouts == nil {
+			l.Checkouts = make(map[change.ObjectID]hover.ServerStatus)
+		}
+		l.Checkouts[u.Commit] = u.Status
+	case hover.HoverDone:
 	}
-	if l.Status == nil {
-		l.Status = make(map[lang.Instance]hover.ServerStatus)
-	}
-	l.Status[u.Instance] = u.Status
 }
 
-// hoverable says that a server may answer hovers over the file shown: one
-// serves it, and is neither missing nor failed.
+// hoverable says that a server may answer hovers over a side of the file
+// shown.
 func (s *state) hoverable() bool {
-	l := &s.LSP
-	if l.Shown == (lang.Instance{}) {
-		return false
-	}
-	st := l.Status[l.Shown]
-	return st != hover.Missing && st != hover.ServerFailed
+	return s.sideHoverable(filediff.OldSide) || s.sideHoverable(filediff.NewSide)
 }
 
-// lspText is the footer's word on the server of the file shown, as
-// "gopls starting…", or "no LSP for .go" when it is not installed; empty
-// when no server is meant to serve the file.
+// sideHoverable says that a server serves side w and is neither missing
+// nor failed, or may once w's commit is checked out, which a hover starts.
+func (s *state) sideHoverable(w filediff.Which) bool {
+	l := &s.LSP
+	if inst := l.shown(w); inst != (lang.Instance{}) {
+		st := l.Status[inst]
+		return st != hover.Missing && st != hover.ServerFailed
+	}
+	d := s.Snapshot.Doc(w)
+	st := l.Checkouts[d.Commit]
+	return d.Path != "" && !d.Commit.IsZero() && st != hover.Ready && st != hover.ServerFailed
+}
+
+// named is the side whose server the footer names: the one asked about
+// last, the right one before, or the one with a document at all.
+func (s *state) named() filediff.Which {
+	if s.LSP.Side == filediff.OldSide && s.Snapshot.LeftDoc.Path != "" || s.Snapshot.RightDoc.Path == "" {
+		return filediff.OldSide
+	}
+	return filediff.NewSide
+}
+
+// lspText is the footer's word on the server of a side of the file shown,
+// as "gopls starting…", or "no LSP for .go" when it is not installed;
+// empty when no server is meant to serve it. A commit's side says so, as
+// "HEAD: gopls", and tells of its checkout until it has a server.
 func lspText(s *state) string {
 	l := &s.LSP
-	name := shownText(l.Shown.Server)
-	switch l.Status[l.Shown] {
+	w := s.named()
+	inst, doc := l.shown(w), s.Snapshot.Doc(w)
+	text := serverText(inst, l.Status[inst], doc)
+	if inst == (lang.Instance{}) && !doc.Commit.IsZero() {
+		text = checkoutText(l.Checkouts[doc.Commit])
+	}
+	if text == "" || doc.Commit.IsZero() {
+		return text
+	}
+	src := s.Comparison.Right
+	if w == filediff.OldSide {
+		src = s.Comparison.Left
+	}
+	return shownText(src.String()) + ": " + text
+}
+
+func serverText(inst lang.Instance, st hover.ServerStatus, d hover.Document) string {
+	name := shownText(inst.Server)
+	switch st {
 	case hover.Missing:
-		return "no LSP for " + kindOf(s.Snapshot.RightDoc)
+		return "no LSP for " + kindOf(d)
 	case hover.Starting:
 		return name + " starting…"
 	case hover.Ready:
@@ -97,4 +173,17 @@ func kindOf(d hover.Document) string {
 		return shownText(ext)
 	}
 	return string(d.Lang)
+}
+
+// checkoutText is the footer's word on a checkout; once it is made, the
+// server's word follows.
+func checkoutText(st hover.ServerStatus) string {
+	switch st {
+	case hover.Starting:
+		return "checkout…"
+	case hover.ServerFailed:
+		return "checkout failed"
+	case hover.Missing, hover.Ready, hover.Stopped:
+	}
+	return ""
 }

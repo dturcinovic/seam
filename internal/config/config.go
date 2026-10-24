@@ -25,6 +25,8 @@ type Config struct {
 	// ConfigFile is the TOML file of languages and servers; it need not
 	// exist.
 	ConfigFile string
+	// Checkouts holds the checkouts of commits that hovers ask in.
+	Checkouts string
 	// Verbose raises the log level to debug. It does not mirror the log on
 	// stderr: the TUI owns the terminal.
 	Verbose bool
@@ -42,13 +44,18 @@ func (c Config) FileSizeLimit() limits.FileSize {
 }
 
 // Load resolves the configuration. The log is state and lives under the XDG
-// state directory, the configuration file under the XDG config directory.
+// state directory, the configuration file under the XDG config directory,
+// the checkouts, which can always be made again, under the cache directory.
 func Load(f Flags) (Config, error) {
 	state, err := xdgDir("XDG_STATE_HOME", ".local/state")
 	if err != nil {
 		return Config{}, err
 	}
 	conf, err := xdgDir("XDG_CONFIG_HOME", ".config")
+	if err != nil {
+		return Config{}, err
+	}
+	cache, err := xdgDir("XDG_CACHE_HOME", ".cache")
 	if err != nil {
 		return Config{}, err
 	}
@@ -64,6 +71,7 @@ func Load(f Flags) (Config, error) {
 		Dir:         dir,
 		LogFile:     filepath.Join(state, "seam", "seam.log"),
 		ConfigFile:  filepath.Join(conf, "seam", "config.toml"),
+		Checkouts:   filepath.Join(cache, "seam", "worktrees"),
 		Verbose:     f.Verbose,
 		MaxFileSize: size,
 	}, nil

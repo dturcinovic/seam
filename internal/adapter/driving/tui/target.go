@@ -10,11 +10,12 @@ import (
 	"seam/internal/textcell"
 )
 
-// hoverTarget is the grapheme under the mouse in the right pane: Line of
-// the right side and the grapheme's first Byte in that line. Word is the
-// bytes of the identifier around it, or of the grapheme alone, so moving
-// within one identifier asks no new question.
+// hoverTarget is the grapheme under the mouse: Line of Side and the
+// grapheme's first Byte in that line. Word is the bytes of the identifier
+// around it, or of the grapheme alone, so moving within one identifier
+// asks no new question.
 type hoverTarget struct {
+	Side       filediff.Which
 	Line, Byte int
 	Word       diff.Span
 }
@@ -26,9 +27,9 @@ const wordReach = 1 << 10
 
 // targetAt is what a hover at screen cell x, y asks about; within prev's
 // identifier it keeps prev's Word rather than look for it again. ok is false
-// where there is nothing to ask: outside the right pane's text, on a fold,
-// past a line's end, on a grapheme cut by an edge, and where targetOn
-// or rightLine find nothing.
+// where there is nothing to ask: outside the panes' text, on a fold, past a
+// line's end, on a grapheme cut by an edge, and where targetOn or
+// hoverLine find nothing.
 func (s *state) targetAt(x, y int, prev hoverTarget) (hoverTarget, bool) {
 	i, ok := s.Layout.bodyLine(x, y)
 	if !ok || s.Pos.Scroll+i >= len(s.Lines) {
@@ -38,51 +39,70 @@ func (s *state) targetAt(x, y int, prev hoverTarget) (hoverTarget, bool) {
 	if l.Fold {
 		return hoverTarget{}, false
 	}
-	text, points, ok := s.rightLine(l.Rows.Start)
-	from, to := s.Layout.rightText()
-	if !ok || x < from || x >= to {
+	w, ok := s.Layout.sideAt(x)
+	if !ok {
 		return hoverTarget{}, false
 	}
+	text, points, ok := s.hoverLine(w, l.Rows.Start)
+	if !ok {
+		return hoverTarget{}, false
+	}
+	from, to := s.Layout.text(w)
 	skip, end := s.HScroll, s.HScroll+to-from
 	cells := seek(text, points, skip+x-from, s.Cells)
 	c, ok := cells.Next()
 	if !ok || cut(c, skip, end) {
 		return hoverTarget{}, false
 	}
-	return targetOn(s.Snapshot.Diff.Rows[l.Rows.Start].Right, text, c, prev)
+	return targetOn(w, lineOf(s.Snapshot.Diff.Rows[l.Rows.Start], w), text, c, prev)
 }
 
-// rightLine is the text of row's right side and its column checkpoints,
-// if hovers may ask about it: the right side is the worktree (G0.2) and
-// the line no longer than hover.MaxLine.
-func (s *state) rightLine(row int) (string, []filediff.Checkpoint, bool) {
+// hoverLine is the text of side w of row and its column checkpoints, if
+// hovers may ask about it: the side has a document, as one from the index
+// has not, and the line is no longer than hover.MaxLine.
+func (s *state) hoverLine(w filediff.Which, row int) (string, []filediff.Checkpoint, bool) {
 	d := s.Snapshot.Diff
-	if s.Snapshot.RightDoc.Path == "" || row < 0 || row >= len(d.Rows) || d.Rows[row].Right < 0 {
+	if s.Snapshot.Doc(w).Path == "" || row < 0 || row >= len(d.Rows) {
 		return "", nil, false
 	}
-	right := d.Rows[row].Right
-	text := diff.Content(d.New.Lines[right])
+	i := lineOf(d.Rows[row], w)
+	if i < 0 {
+		return "", nil, false
+	}
+	lines, columns := d.New.Lines, s.Snapshot.Columns.New
+	if w == filediff.OldSide {
+		lines, columns = d.Old.Lines, s.Snapshot.Columns.Old
+	}
+	text := diff.Content(lines[i])
 	if len(text) > hover.MaxLine {
 		return "", nil, false
 	}
-	return text, s.Snapshot.Columns.New.At(right), true
+	return text, columns.At(i), true
 }
 
-// targetOn is what a hover asks about grapheme c of line of the right
-// side, of text; nothing on blanks and stand-ins.
-func targetOn(line int, text string, c textcell.Cell, prev hoverTarget) (hoverTarget, bool) {
+// lineOf is the line of side w in row r, -1 for none.
+func lineOf(r diff.Row, w filediff.Which) int {
+	if w == filediff.OldSide {
+		return r.Left
+	}
+	return r.Right
+}
+
+// targetOn is what a hover asks about grapheme c of line of side w, of
+// text; nothing on blanks and stand-ins.
+func targetOn(w filediff.Which, line int, text string, c textcell.Cell, prev hoverTarget) (hoverTarget, bool) {
 	first, _ := utf8.DecodeRuneInString(text[c.Start:])
 	if c.Replaced || unicode.IsSpace(first) {
 		return hoverTarget{}, false
 	}
 	word := diff.Span{Start: c.Start, End: c.End}
 	switch {
-	case prev.Line == line && prev.Word.Start <= c.Start && c.Start < prev.Word.End:
+	case prev.Side == w && prev.Line == line && prev.Word.Start <= c.Start && c.Start < prev.Word.End:
 		word = prev.Word
 	case identifier(first):
 		word = identifierAround(text, c.Start, c.End)
 	}
-	return hoverTarget{Line: line, Byte: c.Start, Word: word}, true
+	return hoverTarget{Side: w, Line: line, Byte: c.Start, Word: word}, true
 }
 
 func identifier(r rune) bool {

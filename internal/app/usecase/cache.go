@@ -96,6 +96,15 @@ func (c *lru[K, V]) put(k K, v V, size int64) (evicted []K) {
 	return evicted
 }
 
+// each calls fn for every entry, the most recent first, without making
+// any of them more recent.
+func (c *lru[K, V]) each(fn func(K, V)) {
+	for e := c.order.Front(); e != nil; e = e.Next() {
+		entry := e.Value.(*lruEntry[K, V])
+		fn(entry.key, entry.value)
+	}
+}
+
 func (c *lru[K, V]) remove(k K) {
 	e, ok := c.index[k]
 	if !ok {

@@ -16,10 +16,13 @@ import (
 	"seam/internal/supervise"
 )
 
-// Config locates the repository.
+// Config locates the repository and seam's checkouts of it.
 type Config struct {
 	// Root is the top of the worktree, as FindRoot returns it.
 	Root string
+	// Checkouts is the directory that holds seam's checkouts of all
+	// repositories, each under a name of its own.
+	Checkouts string
 }
 
 // Repo is the git repository seam compares in. It implements the outgoing
@@ -132,8 +135,19 @@ func (r *Repo) ListUntracked(ctx context.Context) ([]string, error) {
 // language FindRoot can recognise and seam's own messages use.
 func command(ctx context.Context, dir string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-C", dir}, args...)...)
-	cmd.Env = append(os.Environ(), "LC_ALL=C")
+	cmd.Env = append(environ(), "LC_ALL=C")
 	return cmd
+}
+
+// environ is seam's environment without the variables that tie git to one
+// repository, as a git hook or alias that runs seam has them set. dir
+// alone names the repository: a relative GIT_INDEX_FILE would point a new
+// checkout at the index of the directory it is run in.
+func environ() []string {
+	repo := []string{"GIT_DIR=", "GIT_WORK_TREE=", "GIT_INDEX_FILE=", "GIT_COMMON_DIR=", "GIT_PREFIX="}
+	return slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		return slices.ContainsFunc(repo, func(p string) bool { return strings.HasPrefix(kv, p) })
+	})
 }
 
 // commandError is a git command that ran and failed.
@@ -162,7 +176,11 @@ func reason(stderr string) string {
 }
 
 func run(ctx context.Context, dir string, args ...string) ([]byte, error) {
-	cmd := command(ctx, dir, args...)
+	return output(ctx, command(ctx, dir, args...), args)
+}
+
+// output runs cmd, git with args, and returns its stdout.
+func output(ctx context.Context, cmd *exec.Cmd, args []string) ([]byte, error) {
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

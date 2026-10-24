@@ -9,7 +9,7 @@ import (
 )
 
 type FakeDocumentSync struct {
-	CloseStub        func(string)
+	CloseStub        func(hover.DocKey)
 	closeMutex       sync.RWMutex
 	closeArgsForCall []FakeDocumentSyncCloseArgs
 	SyncStub         func(hover.Document) (lang.Instance, bool)
@@ -30,7 +30,7 @@ type FakeDocumentSync struct {
 
 // FakeDocumentSyncCloseArgs holds the arguments of one call to Close.
 type FakeDocumentSyncCloseArgs struct {
-	Arg1 string
+	Arg1 hover.DocKey
 }
 
 // FakeDocumentSyncSyncArgs holds the arguments of one call to Sync.
@@ -38,7 +38,7 @@ type FakeDocumentSyncSyncArgs struct {
 	Arg1 hover.Document
 }
 
-func (fake *FakeDocumentSync) Close(arg1 string) {
+func (fake *FakeDocumentSync) Close(arg1 hover.DocKey) {
 	fake.closeMutex.Lock()
 	fake.closeArgsForCall = append(fake.closeArgsForCall, FakeDocumentSyncCloseArgs{arg1})
 	stub := fake.CloseStub
@@ -55,13 +55,13 @@ func (fake *FakeDocumentSync) CloseCallCount() int {
 	return len(fake.closeArgsForCall)
 }
 
-func (fake *FakeDocumentSync) CloseCalls(stub func(string)) {
+func (fake *FakeDocumentSync) CloseCalls(stub func(hover.DocKey)) {
 	fake.closeMutex.Lock()
 	defer fake.closeMutex.Unlock()
 	fake.CloseStub = stub
 }
 
-func (fake *FakeDocumentSync) CloseArgsForCall(i int) string {
+func (fake *FakeDocumentSync) CloseArgsForCall(i int) hover.DocKey {
 	fake.closeMutex.RLock()
 	defer fake.closeMutex.RUnlock()
 	argsForCall := fake.closeArgsForCall[i]

@@ -139,11 +139,11 @@ func TestTheViewCatchesEveryMoveOnlyForHovers(t *testing.T) {
 	m := model{s: *loaded(t), theme: &theme{}}
 	assert.Equal(t, tea.MouseModeCellMotion, m.View().MouseMode, "no server for the file")
 
-	m.s.LSP.Shown = lang.Instance{Server: "gopls"}
+	m.s.LSP.Right = lang.Instance{Server: "gopls"}
 	assert.Equal(t, tea.MouseModeAllMotion, m.View().MouseMode, "hovers follow the mouse without a button")
 
 	for _, st := range []hover.ServerStatus{hover.Missing, hover.ServerFailed} {
-		m.s.LSP.update(hover.Update{Kind: hover.StatusChanged, Instance: m.s.LSP.Shown, Status: st})
+		m.s.LSP.update(hover.Update{Kind: hover.StatusChanged, Instance: m.s.LSP.Right, Status: st})
 		assert.Equal(t, tea.MouseModeCellMotion, m.View().MouseMode, st)
 	}
 }

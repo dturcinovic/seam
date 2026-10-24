@@ -17,10 +17,15 @@ type GitRepo struct {
 
 // NewGitRepo makes an empty repository on branch main. It shuts out the
 // user's and the system's git configuration, so hooks, signing or a default
-// branch name cannot change what the test sees; it therefore sets
+// branch name cannot change what the test sees, and the repository of a git
+// hook the tests run in, as the pre-commit hook; it therefore sets
 // environment variables and rules out t.Parallel.
 func NewGitRepo(t *testing.T) *GitRepo {
 	t.Helper()
+	for _, name := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_PREFIX"} {
+		t.Setenv(name, "") // restores the value after the test
+		require.NoError(t, os.Unsetenv(name))
+	}
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	t.Setenv("GIT_AUTHOR_NAME", "seam")

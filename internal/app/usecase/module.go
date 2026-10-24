@@ -58,8 +58,22 @@ func runWorker(lc fx.Lifecycle, w interface {
 	}))
 }
 
-func newHovers(lc fx.Lifecycle, d out.DocumentSync, r out.HoverRequester, e out.ServerEvents, h out.Highlighter, panics supervise.PanicFunc) *Hovers {
-	hs := NewHovers(d, r, e, h, panics)
+// hoverPorts gathers the ports of Hovers from the graph.
+type hoverPorts struct {
+	fx.In
+
+	Docs        out.DocumentSync
+	Requester   out.HoverRequester
+	Events      out.ServerEvents
+	Highlighter out.Highlighter
+	Checkouts   out.CommitCheckouts
+	Roots       out.CheckoutRoots
+}
+
+func newHovers(lc fx.Lifecycle, p hoverPorts, languages lang.Table, panics supervise.PanicFunc) *Hovers {
+	hs := NewHovers(HoverPorts{
+		Docs: p.Docs, Requester: p.Requester, Events: p.Events, Highlighter: p.Highlighter, Checkouts: p.Checkouts, Roots: p.Roots,
+	}, languages, panics)
 	runWorker(lc, hs)
 	return hs
 }

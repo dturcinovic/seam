@@ -56,7 +56,7 @@ func TestTheServersRequestsGetThePlansAnswers(t *testing.T) {
 		assert.Equal(t, "error -32601", answers[`"three"`])
 		assert.Equal(t, `{"applied":false,"failureReason":"seam is read-only"}`, answers["4"])
 		assert.Equal(t, "null", answers["5"])
-		assert.Equal(t, `[{"uri":"file://`+filepath.ToSlash(pool.root)+`","name":"`+filepath.Base(pool.root)+`"}]`, answers["6"])
+		assert.Equal(t, `[{"uri":"file://`+filepath.ToSlash(worktree(pool))+`","name":"`+filepath.Base(worktree(pool))+`"}]`, answers["6"])
 		stopPool(t, pool)
 	})
 }
@@ -121,7 +121,7 @@ func TestUnderOverloadNoCallBlocks(t *testing.T) {
 		}
 		assert.True(t, busy, "a full request queue says Busy")
 		// A file change is taken all the same.
-		pool.Close("a.go")
+		pool.Close(hover.DocKey{Path: "a.go"})
 		_, ok := pool.Sync(doc("b.go", 1, "b\n"))
 		require.True(t, ok)
 		synctest.Wait()
@@ -177,8 +177,8 @@ func TestAServerRequestWithTheMandatoryQueueFullFailsTheServer(t *testing.T) {
 func rooted(t *testing.T, pool *Pool, roots ...string) {
 	t.Helper()
 	for _, r := range roots {
-		require.NoError(t, os.MkdirAll(filepath.Join(pool.root, r), 0o700))
-		require.NoError(t, os.WriteFile(filepath.Join(pool.root, r, "go.mod"), nil, 0o600))
+		require.NoError(t, os.MkdirAll(filepath.Join(worktree(pool), r), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(worktree(pool), r, "go.mod"), nil, 0o600))
 	}
 }
 
@@ -215,7 +215,7 @@ func TestAnInstanceWithoutDocumentsEndsAfterItsIdleTime(t *testing.T) {
 		f := &pipes{serve: served}
 		pool := testPool(t, goTable(t, lang.Server{}), f)
 		ready(t, pool, doc("a.go", 1, "package a\n"))
-		pool.Close("a.go")
+		pool.Close(hover.DocKey{Path: "a.go"})
 
 		time.Sleep(idleTimeout - time.Second)
 		synctest.Wait()
@@ -236,7 +236,7 @@ func TestANewDocumentKeepsAnIdleInstance(t *testing.T) {
 		f := &pipes{serve: served}
 		pool := testPool(t, goTable(t, lang.Server{}), f)
 		ready(t, pool, doc("a.go", 1, "package a\n"))
-		pool.Close("a.go")
+		pool.Close(hover.DocKey{Path: "a.go"})
 		time.Sleep(idleTimeout / 2)
 		_, _ = pool.Sync(doc("b.go", 1, "package b\n"))
 
@@ -364,7 +364,7 @@ func TestAFailedServerStaysFailed(t *testing.T) {
 		_, _ = pool.Sync(doc("a.go", 1, "package a\n"))
 		testsupport.Collect(t, pool, hasStatus(hover.ServerFailed))
 
-		pool.Close("a.go")
+		pool.Close(hover.DocKey{Path: "a.go"})
 		_, ok := pool.Sync(doc("a.go", 2, "package a\n"))
 		synctest.Wait()
 

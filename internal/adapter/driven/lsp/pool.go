@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"seam/internal/domain/change"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 	"seam/internal/supervise"
@@ -41,13 +42,13 @@ type Config struct {
 
 // Pool runs the language servers of a session: one client per instance,
 // at most maxInstances at a time. Each instance keeps its documents, so a
-// server stopped and started anew gets them again. It implements
-// out.DocumentSync, out.HoverRequester and out.ServerEvents; none of its
-// calls blocks.
+// server stopped and started anew gets them again. Servers run in the
+// worktree, or in the checkout of the commit whose documents they serve.
+// It implements out.DocumentSync, out.HoverRequester, out.ServerEvents and
+// out.CheckoutRoots; none of its calls blocks.
 type Pool struct {
 	*events
 
-	root    string
 	table   lang.Table
 	starter starter
 	log     *zap.Logger
@@ -59,15 +60,24 @@ type Pool struct {
 	mu        sync.Mutex
 	stopped   bool
 	instances map[lang.Instance]*instance
-	paths     map[string]lang.Instance
+	paths     map[hover.DocKey]lang.Instance
+	// trees are where the documents of each commit lie, the worktree's
+	// under the zero commit.
+	trees map[change.ObjectID]*tree
 	// clients are all clients whose stop has not returned, evicted ones
 	// included, so the pool's own Stop waits for them too.
 	clients map[*client]struct{}
 	tick    uint64
-	markers *markers
 	// programs are the resolved commands by server name, "" for one that
 	// is not installed: a missing server stays so for the session.
 	programs map[string]string
+}
+
+// tree is the worktree or the checkout of a commit, with the root markers
+// found in it.
+type tree struct {
+	dir     string
+	markers *markers
 }
 
 type instance struct {
@@ -82,12 +92,12 @@ type instance struct {
 
 func newPool(cfg Config, table lang.Table, s starter, log *zap.Logger, panics supervise.PanicFunc) *Pool {
 	return &Pool{
-		events: newEvents(), root: cfg.Root, table: table, starter: s, log: log, panics: panics,
+		events: newEvents(), table: table, starter: s, log: log, panics: panics,
 		group:     supervise.NewGroup("lsp pool", panics, nil),
 		instances: make(map[lang.Instance]*instance),
-		paths:     make(map[string]lang.Instance),
+		paths:     make(map[hover.DocKey]lang.Instance),
+		trees:     map[change.ObjectID]*tree{{}: {dir: cfg.Root, markers: newMarkers(cfg.Root)}},
 		clients:   make(map[*client]struct{}),
-		markers:   newMarkers(cfg.Root),
 		programs:  make(map[string]string),
 	}
 }
@@ -99,9 +109,14 @@ func (p *Pool) Sync(d hover.Document) (lang.Instance, bool) {
 	if p.stopped {
 		return lang.Instance{}, false
 	}
-	inst, ok := p.table.Instance(d.Lang, d.Path, p.markers.has)
-	if old, had := p.paths[d.Path]; had && (!ok || old != inst) {
-		p.closeLocked(d.Path)
+	var inst lang.Instance
+	t, ok := p.trees[d.Commit]
+	if ok {
+		inst, ok = p.table.Instance(d.Lang, d.Path, t.markers.has)
+		inst.Commit = d.Commit
+	}
+	if old, had := p.paths[d.Key()]; had && (!ok || old != inst) {
+		p.closeLocked(d.Key())
 	}
 	if !ok {
 		return lang.Instance{}, false
@@ -113,7 +128,7 @@ func (p *Pool) Sync(d hover.Document) (lang.Instance, bool) {
 		p.instances[inst] = in
 	}
 	in.docs.put(desiredDoc{Document: d, languageID: languageID})
-	p.paths[d.Path] = inst
+	p.paths[d.Key()] = inst
 	if in.idle != nil {
 		in.idle.Stop()
 		in.idle = nil
@@ -123,17 +138,27 @@ func (p *Pool) Sync(d hover.Document) (lang.Instance, bool) {
 }
 
 // Close implements out.DocumentSync.
-func (p *Pool) Close(path string) {
+func (p *Pool) Close(k hover.DocKey) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.closeLocked(path)
+	p.closeLocked(k)
+}
+
+// Mount implements out.CheckoutRoots. A commit's tree never moves: a
+// second mount changes nothing.
+func (p *Pool) Mount(id change.ObjectID, dir string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if _, ok := p.trees[id]; !ok {
+		p.trees[id] = &tree{dir: dir, markers: newMarkers(dir)}
+	}
 }
 
 // Request implements out.HoverRequester.
 func (p *Pool) Request(pos hover.Position) hover.Submit {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	inst, ok := p.paths[pos.Path]
+	inst, ok := p.paths[pos.Key()]
 	if !ok || p.stopped {
 		return hover.Unsupported
 	}
@@ -228,7 +253,7 @@ func (p *Pool) clientLocked(inst lang.Instance, in *instance) *client {
 	p.evictLocked(inst)
 	s := in.server
 	s.Command = program
-	c := newClient(clientConfig{inst: inst, server: s, repoRoot: p.root, languages: p.table, docs: in.docs, starter: p.starter, log: p.log, panics: p.panics})
+	c := newClient(clientConfig{inst: inst, server: s, repoRoot: p.trees[inst.Commit].dir, languages: p.table, docs: in.docs, starter: p.starter, log: p.log, panics: p.panics})
 	c.sink = p.of(c)
 	in.client = c
 	p.clients[c] = struct{}{}
@@ -282,14 +307,14 @@ func (p *Pool) stopInstanceLocked(in *instance) {
 	}
 }
 
-func (p *Pool) closeLocked(path string) {
-	inst, ok := p.paths[path]
+func (p *Pool) closeLocked(k hover.DocKey) {
+	inst, ok := p.paths[k]
 	if !ok {
 		return
 	}
-	delete(p.paths, path)
+	delete(p.paths, k)
 	in := p.instances[inst]
-	if in.docs.remove(path) > 0 {
+	if in.docs.remove(k.Path) > 0 {
 		return
 	}
 	switch {

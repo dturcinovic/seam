@@ -16,6 +16,7 @@ import (
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/limits"
+	"seam/internal/testsupport"
 )
 
 func size(t *testing.T, n int64) limits.FileSize {
@@ -25,7 +26,7 @@ func size(t *testing.T, n int64) limits.FileSize {
 	return s
 }
 
-func blobID(t *testing.T, f fixture, spec string) change.ObjectID {
+func blobID(t *testing.T, f *testsupport.GitRepo, spec string) change.ObjectID {
 	t.Helper()
 	id, err := change.ParseObjectID(strings.TrimSpace(f.Git("rev-parse", spec)))
 	require.NoError(t, err)
@@ -35,7 +36,7 @@ func blobID(t *testing.T, f fixture, spec string) change.ObjectID {
 func TestBlobOverTheLimitIsNotTransferred(t *testing.T) {
 	f := newFixture(t)
 	repo := f.open(t)
-	big := blobID(t, f, "HEAD:old-name.txt")
+	big := blobID(t, f.GitRepo, "HEAD:old-name.txt")
 
 	_, err := repo.ReadBlob(t.Context(), big, size(t, 10))
 
@@ -45,7 +46,7 @@ func TestBlobOverTheLimitIsNotTransferred(t *testing.T) {
 
 	// Had cat-file sent the content, it would still sit in the pipe and
 	// garble the next answer.
-	data, err := repo.ReadBlob(t.Context(), blobID(t, f, "HEAD:a.txt"), limits.DefaultFileSize)
+	data, err := repo.ReadBlob(t.Context(), blobID(t, f.GitRepo, "HEAD:a.txt"), limits.DefaultFileSize)
 	require.NoError(t, err)
 	assert.Equal(t, "HEAD\n", string(data))
 }
@@ -54,7 +55,7 @@ func TestBlobAtTheLimitIsRead(t *testing.T) {
 	f := newFixture(t)
 	repo := f.open(t)
 
-	data, err := repo.ReadBlob(t.Context(), blobID(t, f, "HEAD:a.txt"), size(t, 5))
+	data, err := repo.ReadBlob(t.Context(), blobID(t, f.GitRepo, "HEAD:a.txt"), size(t, 5))
 	require.NoError(t, err)
 	assert.Equal(t, "HEAD\n", string(data))
 }
@@ -63,7 +64,7 @@ func TestObjectsThatAreNoBlob(t *testing.T) {
 	f := newFixture(t)
 	repo := f.open(t)
 
-	_, err := repo.ReadBlob(t.Context(), blobID(t, f, "HEAD^{tree}"), limits.DefaultFileSize)
+	_, err := repo.ReadBlob(t.Context(), blobID(t, f.GitRepo, "HEAD^{tree}"), limits.DefaultFileSize)
 	assert.ErrorIs(t, err, change.ErrNotRegular)
 
 	missing, err := change.ParseObjectID(strings.Repeat("1", 40))
@@ -73,7 +74,7 @@ func TestObjectsThatAreNoBlob(t *testing.T) {
 
 	_, err = repo.ReadBlob(t.Context(), change.ObjectID{}, limits.DefaultFileSize)
 	assert.ErrorIs(t, err, change.ErrNotExist, "the missing side of an added file")
-	data, err := repo.ReadBlob(t.Context(), blobID(t, f, "HEAD:a.txt"), limits.DefaultFileSize)
+	data, err := repo.ReadBlob(t.Context(), blobID(t, f.GitRepo, "HEAD:a.txt"), limits.DefaultFileSize)
 	require.NoError(t, err)
 	assert.Equal(t, "HEAD\n", string(data), "and cat-file is still in step")
 }
@@ -172,7 +173,7 @@ func TestCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := repo.ReadBlob(ctx, blobID(t, f, "HEAD:a.txt"), limits.DefaultFileSize)
+	_, err := repo.ReadBlob(ctx, blobID(t, f.GitRepo, "HEAD:a.txt"), limits.DefaultFileSize)
 	assert.ErrorIs(t, err, ctx.Err())
 	_, _, err = repo.ReadWorktree(ctx, "a.txt", limits.DefaultFileSize)
 	assert.ErrorIs(t, err, ctx.Err())

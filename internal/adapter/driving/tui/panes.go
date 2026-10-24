@@ -33,12 +33,17 @@ func writeRow(b *strings.Builder, s *state, th *theme, l view.Line) {
 		return
 	}
 	left, right := sides(s.Snapshot, l.Rows.Start)
-	writePane(&ln, s.Layout.Left, left, s.HScroll, caret{})
+	writePane(&ln, s.Layout.Left, left, s.HScroll, s.caretOn(l.Rows.Start, filediff.OldSide))
 	ln.text("│", separatorStyle)
-	c := s.Caret
-	c.On = c.On && c.Row == l.Rows.Start
-	writePane(&ln, s.Layout.Right, right, s.HScroll, c)
+	writePane(&ln, s.Layout.Right, right, s.HScroll, s.caretOn(l.Rows.Start, filediff.NewSide))
 	ln.end(plain)
+}
+
+// caretOn is the caret if it is on side w of row, else none.
+func (s *state) caretOn(row int, w filediff.Which) caret {
+	c := s.Caret
+	c.On = c.On && c.Row == row && c.Side == w
+	return c
 }
 
 // sides is how row i of snap shows on either side.

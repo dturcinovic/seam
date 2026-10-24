@@ -60,20 +60,31 @@ func (c Content) HasCode() bool
     HasCode says that some block is code in a known language, which a
     highlighter can colour.
 
+type DocKey struct {
+	Commit change.ObjectID
+	Path   string
+}
+    DocKey names a document: the file at Path, relative to the repository root
+    in slash form, in the worktree if Commit is zero, else as Commit has it,
+    served from a checkout of that commit.
+
 type DocVersion uint64
     DocVersion counts the texts a document has had in a session. It rises
     exactly when the text changes, so an answer to an older version can be told
     apart from one to the text on screen.
 
 type Document struct {
+	Commit  change.ObjectID
 	Path    string
 	Lang    lang.Lang
 	Version DocVersion
 	Text    string
 }
-    Document is the text a language server is to see for a file: the right side
-    of the diff on screen. Path is relative to the repository root in slash form
-    and names the document.
+    Document is the text a language server is to see for a file: a side of the
+    diff on screen.
+
+func (d Document) Key() DocKey
+    Key names the document.
 
 type Outcome int
     Outcome is how a hover request ended.
@@ -90,13 +101,17 @@ const (
 )
 type Position struct {
 	Req     ReqID
+	Commit  change.ObjectID
 	Path    string
 	Version DocVersion
 	Line    int
 	Byte    int
 }
-    Position is where a hover asks: in the document at Path as of Version,
-    at a byte offset into a line, both counted from zero.
+    Position is where a hover asks: in the document of Commit and Path as of
+    Version, at a byte offset into a line, both counted from zero.
+
+func (p Position) Key() DocKey
+    Key names the document asked about.
 
 type ReqID uint64
     ReqID names a hover request. The viewer hands out strictly increasing ones
@@ -158,6 +173,7 @@ type Update struct {
 	Kind UpdateKind
 
 	Instance lang.Instance
+	Commit   change.ObjectID
 	Status   ServerStatus
 
 	Req     ReqID
@@ -177,4 +193,8 @@ const (
 	StatusChanged UpdateKind = iota + 1
 	// HoverDone sets Req, Version, Outcome and, for Text, Content.
 	HoverDone
+	// CheckoutChanged sets Commit and Status, of the checkout that serves
+	// Commit's documents: Starting while it is made, Ready once it is,
+	// ServerFailed if it could not be.
+	CheckoutChanged
 )

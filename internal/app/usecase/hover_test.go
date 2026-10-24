@@ -20,6 +20,8 @@ type hoverFakes struct {
 	requester   *outfakes.FakeHoverRequester
 	events      *outfakes.FakeServerEvents
 	highlighter *outfakes.FakeHighlighter
+	checkouts   *outfakes.FakeCommitCheckouts
+	roots       *outfakes.FakeCheckoutRoots
 	// signal is the events' signal, which a test sets after it gave Drain
 	// something to return.
 	signal chan struct{}
@@ -29,11 +31,16 @@ type hoverFakes struct {
 // panics records the panics of its goroutines.
 func newHovers(t *testing.T) (*usecase.Hovers, hoverFakes) {
 	t.Helper()
-	f := hoverFakes{&outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{}, &outfakes.FakeHighlighter{}, make(chan struct{}, 1)}
+	f := hoverFakes{
+		&outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{}, &outfakes.FakeHighlighter{},
+		&outfakes.FakeCommitCheckouts{}, &outfakes.FakeCheckoutRoots{}, make(chan struct{}, 1),
+	}
 	f.events.SignalReturns(f.signal)
 	f.docs.SyncReturns(gopls(), true)
 	f.requester.RequestReturns(hover.Sent)
-	h := usecase.NewHovers(f.docs, f.requester, f.events, f.highlighter, nil)
+	h := usecase.NewHovers(usecase.HoverPorts{
+		Docs: f.docs, Requester: f.requester, Events: f.events, Highlighter: f.highlighter, Checkouts: f.checkouts, Roots: f.roots,
+	}, lang.Defaults(), nil)
 	require.NoError(t, h.Start())
 	t.Cleanup(func() { assert.NoError(t, h.Stop(context.Background())) })
 	return h, f
@@ -79,29 +86,29 @@ func TestADocumentWithoutPathGetsNoServer(t *testing.T) {
 
 func TestTheDocumentsShownLastStayOpen(t *testing.T) {
 	h, f := newHovers(t)
-	for i := range 16 {
+	for i := range 32 {
 		h.Track(goDoc(fmt.Sprintf("%d.go", i), 1))
 	}
 	h.Track(goDoc("0.go", 2))
-	assert.Zero(t, f.docs.CloseCallCount(), "sixteen stay open")
+	assert.Zero(t, f.docs.CloseCallCount(), "thirty-two stay open")
 
-	h.Track(goDoc("16.go", 1))
+	h.Track(goDoc("32.go", 1))
 
 	require.Equal(t, 1, f.docs.CloseCallCount())
-	assert.Equal(t, "1.go", f.docs.CloseArgsForCall(0), "0.go was shown again since")
+	assert.Equal(t, hover.DocKey{Path: "1.go"}, f.docs.CloseArgsForCall(0), "0.go was shown again since")
 }
 
 func TestUntrackClosesTheDocument(t *testing.T) {
 	h, f := newHovers(t)
 	h.Track(goDoc("a.go", 1))
 
-	h.Untrack("a.go")
-	for i := range 16 {
+	h.Untrack(hover.DocKey{Path: "a.go"})
+	for i := range 32 {
 		h.Track(goDoc(fmt.Sprintf("%d.go", i), 1))
 	}
 
 	require.Equal(t, 1, f.docs.CloseCallCount(), "a.go took no place since")
-	assert.Equal(t, "a.go", f.docs.CloseArgsForCall(0))
+	assert.Equal(t, hover.DocKey{Path: "a.go"}, f.docs.CloseArgsForCall(0))
 }
 
 func TestADocumentWithoutServerIsNotKept(t *testing.T) {
@@ -111,7 +118,7 @@ func TestADocumentWithoutServerIsNotKept(t *testing.T) {
 	require.False(t, ok)
 	f.docs.SyncReturns(gopls(), true)
 
-	for i := range 16 {
+	for i := range 32 {
 		h.Track(goDoc(fmt.Sprintf("%d.go", i), 1))
 	}
 

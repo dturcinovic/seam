@@ -11,11 +11,12 @@ import (
 )
 
 // caret is the keyboard's stand-in for the mouse, for terminals that send
-// no motion: a grapheme of the right pane, at Byte of the right line of
-// Row. A row rather than a line of the view, so it stays put when the view
-// changes around it.
+// no motion: a grapheme of Side, at Byte of that side's line of Row. A row
+// rather than a line of the view, so it stays put when the view changes
+// around it.
 type caret struct {
 	On   bool
+	Side filediff.Which
 	Row  int
 	Byte int
 }
@@ -35,7 +36,7 @@ func (s *state) caretText(line int) (string, []filediff.Checkpoint, bool) {
 	if line < 0 || line >= len(s.Lines) || s.Lines[line].Fold {
 		return "", nil, false
 	}
-	text, points, ok := s.rightLine(s.Lines[line].Rows.Start)
+	text, points, ok := s.hoverLine(s.Caret.Side, s.Lines[line].Rows.Start)
 	return text, points, ok && text != ""
 }
 
@@ -142,8 +143,13 @@ func (s *state) onScreen(line int) bool {
 }
 
 // startCaret puts the caret on the first text of the screen, from the
-// first column shown.
+// first column shown: on the right side, unless only the left one has a
+// document.
 func (s *state) startCaret() {
+	s.Caret.Side = filediff.NewSide
+	if s.Snapshot.RightDoc.Path == "" {
+		s.Caret.Side = filediff.OldSide
+	}
 	line, ok := s.caretLine(s.Pos.Scroll, 1, s.Pos.Scroll+s.Layout.shown())
 	if !ok {
 		return
@@ -159,15 +165,38 @@ func (s *state) startCaret() {
 	s.moveCaret(p)
 }
 
+// otherSide moves the caret to the other side, at the same column of the
+// nearest line there it may stand on, below first.
+func (s *state) otherSide() {
+	p, ok := s.spot()
+	if !ok {
+		return
+	}
+	was := s.Caret
+	s.Caret.Side = filediff.OldSide
+	if was.Side == filediff.OldSide {
+		s.Caret.Side = filediff.NewSide
+	}
+	line, ok := s.caretLine(p.line, 1, -1)
+	if !ok {
+		line, ok = s.caretLine(p.line, -1, -1)
+	}
+	if !ok {
+		s.Caret = was
+		return
+	}
+	s.moveCaret(s.spotAtCol(line, p.c.Col))
+}
+
 // moveCaret puts the caret on p and brings it into view.
 func (s *state) moveCaret(p spot) {
-	s.Caret = caret{On: true, Row: s.Lines[p.line].Rows.Start, Byte: p.c.Start}
+	s.Caret = caret{On: true, Side: s.Caret.Side, Row: s.Lines[p.line].Rows.Start, Byte: p.c.Start}
 	if h := s.Layout.shown(); p.line < s.Pos.Scroll {
 		s.scrollTo(p.line)
 	} else if p.line >= s.Pos.Scroll+h {
 		s.scrollTo(p.line - h + 1)
 	}
-	from, to := s.Layout.rightText()
+	from, to := s.Layout.text(s.Caret.Side)
 	switch w := to - from; {
 	case w <= 0:
 	case p.c.Col < s.HScroll:
@@ -287,9 +316,9 @@ func (s *state) keepCaret() {
 }
 
 // keepColumn is the grapheme of p's line nearest p within the columns of
-// the right pane's text, or p if none of them shows.
+// its pane's text, or p if none of them shows.
 func (s *state) keepColumn(p spot) spot {
-	from, to := s.Layout.rightText()
+	from, to := s.Layout.text(s.Caret.Side)
 	left, right := s.HScroll, s.HScroll+to-from
 	if right <= left || !cut(p.c, left, right) {
 		return p
@@ -310,6 +339,6 @@ func (s *state) caretCell(p spot) (x, y int, ok bool) {
 	if !s.onScreen(p.line) {
 		return 0, 0, false
 	}
-	from, _ := s.Layout.rightText()
+	from, _ := s.Layout.text(s.Caret.Side)
 	return from + p.c.Col - s.HScroll, bodyTop + p.line - s.Pos.Scroll, true
 }

@@ -127,7 +127,7 @@ func TestAFileShownWithoutTextIsUntracked(t *testing.T) {
 	docs := m.p.Docs.(*infakes.FakeDocumentTracker)
 	assert.Zero(t, docs.TrackCallCount())
 	require.Equal(t, 1, docs.UntrackCallCount())
-	assert.Equal(t, "a.go", docs.UntrackArgsForCall(0))
+	assert.Equal(t, hover.DocKey{Path: "a.go"}, docs.UntrackArgsForCall(0))
 }
 
 func TestAFileGoneFromTheChangesetIsUntracked(t *testing.T) {
@@ -139,5 +139,5 @@ func TestAFileGoneFromTheChangesetIsUntracked(t *testing.T) {
 
 	docs := m.p.Docs.(*infakes.FakeDocumentTracker)
 	require.Equal(t, 1, docs.UntrackCallCount())
-	assert.Equal(t, "a.go", docs.UntrackArgsForCall(0))
+	assert.Equal(t, hover.DocKey{Path: "a.go"}, docs.UntrackArgsForCall(0))
 }

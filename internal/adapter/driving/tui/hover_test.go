@@ -48,7 +48,7 @@ func hoverModel(t *testing.T) (model, hoverFakes) {
 
 // at is the screen cell of column col of codeLine's text.
 func at(m model, col int) (x, y int) {
-	from, _ := m.s.Layout.rightText()
+	from, _ := m.s.Layout.text(filediff.NewSide)
 	return from + col, bodyTop
 }
 

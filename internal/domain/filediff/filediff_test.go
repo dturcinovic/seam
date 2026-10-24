@@ -9,6 +9,7 @@ import (
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/hover"
 )
 
 func TestReadsWorktree(t *testing.T) {
@@ -67,4 +68,11 @@ func mustID(t *testing.T) change.ObjectID {
 	id, err := change.ParseObjectID("0123456789abcdef0123456789abcdef01234567")
 	require.NoError(t, err)
 	return id
+}
+
+func TestDocIsTheDocumentOfASide(t *testing.T) {
+	s := filediff.Snapshot{LeftDoc: hover.Document{Path: "old.go"}, RightDoc: hover.Document{Path: "new.go"}}
+
+	assert.Equal(t, "old.go", s.Doc(filediff.OldSide).Path)
+	assert.Equal(t, "new.go", s.Doc(filediff.NewSide).Path)
 }

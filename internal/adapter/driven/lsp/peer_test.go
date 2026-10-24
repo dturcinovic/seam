@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"seam/internal/domain/change"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 )
@@ -82,6 +83,8 @@ type pipes struct {
 	live    int
 	maxLive int
 	started int
+	// dirs are where the servers were started, in order.
+	dirs []string
 }
 
 func (f *pipes) find(command string) (string, error) {
@@ -91,7 +94,7 @@ func (f *pipes) find(command string) (string, error) {
 	return command, nil
 }
 
-func (f *pipes) start(lang.Server, string) (*conn, error) {
+func (f *pipes) start(_ lang.Server, dir string) (*conn, error) {
 	if f.gate != nil {
 		<-f.gate
 	}
@@ -110,6 +113,7 @@ func (f *pipes) start(lang.Server, string) (*conn, error) {
 	f.live++
 	f.started++
 	f.maxLive = max(f.maxLive, f.live)
+	f.dirs = append(f.dirs, dir)
 	f.mu.Unlock()
 	go func() {
 		defer func() {
@@ -149,6 +153,9 @@ func goTable(t *testing.T, s lang.Server) lang.Table {
 	require.NoError(t, err)
 	return table
 }
+
+// worktree is the directory of the pool's worktree.
+func worktree(p *Pool) string { return p.trees[change.ObjectID{}].dir }
 
 func testPool(t *testing.T, table lang.Table, s starter) *Pool {
 	t.Helper()

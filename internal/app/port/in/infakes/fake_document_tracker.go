@@ -20,7 +20,7 @@ type FakeDocumentTracker struct {
 		result1 lang.Instance
 		result2 bool
 	}
-	UntrackStub        func(string)
+	UntrackStub        func(hover.DocKey)
 	untrackMutex       sync.RWMutex
 	untrackArgsForCall []FakeDocumentTrackerUntrackArgs
 	invocations        map[string][][]interface{}
@@ -35,7 +35,7 @@ type FakeDocumentTrackerTrackArgs struct {
 
 // FakeDocumentTrackerUntrackArgs holds the arguments of one call to Untrack.
 type FakeDocumentTrackerUntrackArgs struct {
-	Arg1 string
+	Arg1 hover.DocKey
 }
 
 func (fake *FakeDocumentTracker) Track(arg1 hover.Document) (lang.Instance, bool) {
@@ -108,7 +108,7 @@ func (fake *FakeDocumentTracker) TrackReturnsOnCall(i int, result1 lang.Instance
 	}{result1, result2}
 }
 
-func (fake *FakeDocumentTracker) Untrack(arg1 string) {
+func (fake *FakeDocumentTracker) Untrack(arg1 hover.DocKey) {
 	fake.untrackMutex.Lock()
 	fake.untrackArgsForCall = append(fake.untrackArgsForCall, FakeDocumentTrackerUntrackArgs{arg1})
 	stub := fake.UntrackStub
@@ -125,13 +125,13 @@ func (fake *FakeDocumentTracker) UntrackCallCount() int {
 	return len(fake.untrackArgsForCall)
 }
 
-func (fake *FakeDocumentTracker) UntrackCalls(stub func(string)) {
+func (fake *FakeDocumentTracker) UntrackCalls(stub func(hover.DocKey)) {
 	fake.untrackMutex.Lock()
 	defer fake.untrackMutex.Unlock()
 	fake.UntrackStub = stub
 }
 
-func (fake *FakeDocumentTracker) UntrackArgsForCall(i int) string {
+func (fake *FakeDocumentTracker) UntrackArgsForCall(i int) hover.DocKey {
 	fake.untrackMutex.RLock()
 	defer fake.untrackMutex.RUnlock()
 	argsForCall := fake.untrackArgsForCall[i]

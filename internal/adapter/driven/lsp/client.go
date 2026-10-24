@@ -57,8 +57,9 @@ type frame struct {
 // and a writer goroutine and the requests in flight. It owns its supervise
 // group; the documents are the instance's, which it is handed.
 type client struct {
-	inst     lang.Instance
-	server   lang.Server
+	inst   lang.Instance
+	server lang.Server
+	// repoRoot is the top of the worktree or checkout the server runs in.
 	repoRoot string
 	// languages names the language of a code fence in an answer.
 	languages lang.Table
@@ -108,7 +109,7 @@ func newClient(cfg clientConfig) *client {
 	dir := filepath.Join(cfg.repoRoot, filepath.FromSlash(cfg.inst.Root))
 	c := &client{
 		inst: cfg.inst, server: cfg.server, repoRoot: cfg.repoRoot, languages: cfg.languages, dir: dir, docs: cfg.docs, starter: cfg.starter,
-		log:          cfg.log.With(zap.String("server", cfg.server.Name), zap.String("root", cfg.inst.Root)),
+		log:          cfg.log.With(zap.String("server", cfg.server.Name), zap.String("root", dir)),
 		ws:           workspace{uri: fileURI(dir), name: filepath.Base(dir), settings: cfg.server.Settings},
 		mandatory:    make(chan frame, mandatoryCap),
 		requests:     make(chan []byte, requestCap),

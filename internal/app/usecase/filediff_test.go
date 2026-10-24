@@ -121,9 +121,10 @@ func worktreeComparison(t *testing.T) change.Comparison {
 	return comparison(t, mustSource(t, "a"), change.Worktree())
 }
 
+// mustSource is the commit rev, one hex digit, resolved to rev repeated.
 func mustSource(t *testing.T, rev string) change.Source {
 	t.Helper()
-	s, err := change.Commit(rev).Resolved(mustID(t, strings.Repeat("a", 40)))
+	s, err := change.Commit(rev).Resolved(mustID(t, strings.Repeat(rev, 40)))
 	require.NoError(t, err)
 	return s
 }
@@ -152,14 +153,20 @@ func rendered(s filediff.Snapshot) []string {
 }
 
 func TestLoadReadsEachSideFromItsSource(t *testing.T) {
+	left, right := mustSource(t, "a"), mustSource(t, "b")
+	newDoc := hover.Document{Path: "a.go", Lang: lang.Go, Version: 1, Text: "x\nz\n"}
+	commitDoc := newDoc
+	commitDoc.Commit = right.ID()
 	tests := []struct {
 		name         string
-		right        func(*testing.T) change.Source
+		right        change.Source
 		wantWorktree int
+		wantRight    hover.Document
 	}{
-		{"worktree", func(*testing.T) change.Source { return change.Worktree() }, 1},
-		{"index", func(*testing.T) change.Source { return change.Index() }, 0},
-		{"commit", func(t *testing.T) change.Source { return mustSource(t, "b") }, 0},
+		{"worktree", change.Worktree(), 1, newDoc},
+		// The index has no tree for a server to work in.
+		{"index", change.Index(), 0, hover.Document{}},
+		{"commit", right, 0, commitDoc},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -167,16 +174,13 @@ func TestLoadReadsEachSideFromItsSource(t *testing.T) {
 			start(t, uc)
 			file := f.modified(t, "a.go", "x\ny\n", "x\nz\n")
 
-			u := loadOne(t, uc, comparison(t, mustSource(t, "a"), tt.right(t)), 1, file, false)
+			u := loadOne(t, uc, comparison(t, left, tt.right), 1, file, false)
 
 			require.NoError(t, u.Err)
 			assert.Equal(t, []string{"x|x", "y|z"}, rendered(u.Snapshot))
 			assert.Equal(t, file, u.Snapshot.File)
-			if tt.wantWorktree == 1 {
-				assert.Equal(t, hover.Document{Path: "a.go", Lang: lang.Go, Version: 1, Text: "x\nz\n"}, u.Snapshot.RightDoc)
-			} else {
-				assert.Zero(t, u.Snapshot.RightDoc, "hovers only over the worktree")
-			}
+			assert.Equal(t, hover.Document{Commit: left.ID(), Path: "a.go", Lang: lang.Go, Version: 1, Text: "x\ny\n"}, u.Snapshot.LeftDoc)
+			assert.Equal(t, tt.wantRight, u.Snapshot.RightDoc)
 			assert.Empty(t, u.Snapshot.Notices)
 			assert.Equal(t, tt.wantWorktree, f.worktree.ReadWorktreeCallCount())
 			_, oldID, max := f.blobs.ReadBlobArgsForCall(0)
@@ -204,6 +208,8 @@ func TestMissingSidesAreEmpty(t *testing.T) {
 	u = loadOne(t, uc, c, 2, deleted, false)
 	assert.Equal(t, []string{"x|"}, rendered(u.Snapshot))
 	assert.Zero(t, u.Snapshot.RightDoc, "no text on the right")
+	assert.Equal(t, "a.go", u.Snapshot.LeftDoc.Path)
+	assert.Zero(t, loadOne(t, uc, c, 3, added, false).Snapshot.LeftDoc, "no text on the left")
 	assert.Equal(t, 1, f.worktree.ReadWorktreeCallCount(), "a deleted file is not read")
 }
 
@@ -273,6 +279,7 @@ func TestTextThatIsNotShownHasNoDocument(t *testing.T) {
 	u := loadOne(t, uc, worktreeComparison(t), 1, file, false)
 
 	assert.Equal(t, []filediff.Notice{{Kind: filediff.Binary, Side: filediff.OldSide}}, u.Snapshot.Notices)
+	assert.Zero(t, u.Snapshot.LeftDoc)
 	assert.Zero(t, u.Snapshot.RightDoc)
 }
 

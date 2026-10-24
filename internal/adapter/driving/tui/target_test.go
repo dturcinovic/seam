@@ -14,8 +14,8 @@ import (
 	"seam/internal/textcell"
 )
 
-// worktreeDoc marks a snapshot's right side as the worktree's, which alone
-// has hovers.
+// worktreeDoc gives a snapshot's right side the worktree's document; the
+// left side, without one, has no hovers.
 func worktreeDoc(snap filediff.Snapshot) filediff.Snapshot {
 	snap.RightDoc = hover.Document{Path: "a.go", Version: 1}
 	return snap
@@ -39,7 +39,7 @@ func renderedAt(line string, x int, m textcell.Method) string {
 // none.
 func screenHits(t *testing.T, s *state, screen []string, i int, line string) int {
 	t.Helper()
-	from, to := s.Layout.rightText()
+	from, to := s.Layout.text(filediff.NewSide)
 	hits := 0
 	for x := from; x < to; x++ {
 		shownThere := renderedAt(screen[bodyTop+i], x, s.Cells)
@@ -105,7 +105,7 @@ func TestATargetHasItsIdentifier(t *testing.T) {
 	line := "\tfmt.Println(cafe\u0301_1, $v)"
 	d := diff.Compute(t.Context(), diff.Split("x\n"), diff.Split(line+"\n"))
 	s := shown(t, files("a.go"), 80, 5, worktreeDoc(filediff.Snapshot{Diff: d}))
-	from, _ := s.Layout.rightText()
+	from, _ := s.Layout.text(filediff.NewSide)
 	tests := []struct {
 		col  int
 		want string
@@ -120,10 +120,10 @@ func TestATargetHasItsIdentifier(t *testing.T) {
 	}
 }
 
-func TestNoTargetOutsideTheRightSidesText(t *testing.T) {
+func TestNoTargetOutsideTheTextOfASideWithDocument(t *testing.T) {
 	d := diff.Compute(t.Context(), diff.Split(numbered(20)), diff.Split(numbered(20, 10)))
 	s := shown(t, files("a.go"), 80, 12, worktreeDoc(filediff.Snapshot{Diff: d}))
-	from, to := s.Layout.rightText()
+	from, to := s.Layout.text(filediff.NewSide)
 	fold := 0
 	require.True(t, s.Lines[fold].Fold)
 	changed := 4
@@ -139,7 +139,7 @@ func TestNoTargetOutsideTheRightSidesText(t *testing.T) {
 		{"the fold", from, bodyTop + fold},
 		{"the gutter", from - 1, bodyTop + changed},
 		{"the separator", s.Layout.List + s.Layout.Left.Width, bodyTop + changed},
-		{"the left pane", s.Layout.List + 6, bodyTop + changed},
+		{"the left pane without document", s.Layout.List + 6, bodyTop + changed},
 		{"past the line's end", to - 1, bodyTop + changed},
 		{"the scrollbar", s.Layout.Width - 1, bodyTop + changed},
 		{"the footer", from, s.Layout.Height - 1},
@@ -156,14 +156,14 @@ func TestNoTargetWhereTheServerHasNothingToSay(t *testing.T) {
 		snap     func(filediff.Snapshot) filediff.Snapshot
 		line     int
 	}{
-		{"not the worktree", "a\n", "b\n", func(s filediff.Snapshot) filediff.Snapshot { return s }, 0},
+		{"a side without document", "a\n", "b\n", func(s filediff.Snapshot) filediff.Snapshot { return s }, 0},
 		{"a row without right line", "a\nb\n", "a\n", worktreeDoc, 1},
 		{"a line past the limit", "x\n", strings.Repeat("a", hover.MaxLine+1) + "\n", worktreeDoc, 0},
 	}
 	for _, tt := range tests {
 		d := diff.Compute(t.Context(), diff.Split(tt.old), diff.Split(tt.new))
 		s := shown(t, files("a.go"), 80, 5, tt.snap(filediff.Snapshot{Diff: d}))
-		from, _ := s.Layout.rightText()
+		from, _ := s.Layout.text(filediff.NewSide)
 
 		_, ok := s.targetAt(from, bodyTop+tt.line, hoverTarget{Line: -1})
 

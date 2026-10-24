@@ -16,6 +16,10 @@ import (
 	"seam/internal/supervise"
 )
 
+// commitVersion is the version of a document from a commit, whose text
+// never changes.
+const commitVersion hover.DocVersion = 1
+
 // diffBudget bounds the search of one diff; past it the diff comes out
 // coarser rather than late. highlightBudget bounds finding the tokens of one
 // side; past it the rest of the side has no colours.
@@ -107,7 +111,7 @@ func (f *FileDiffs) fromCache(ctx context.Context, r filediff.Request) (filediff
 	s := e.snapshot
 	// The path may have had other text since, under another key: its
 	// version must not go back.
-	if s.RightDoc.Path != "" {
+	if r.ReadsWorktree() && s.RightDoc.Path != "" {
 		s.RightDoc.Version = f.version(r.File.NewPath, e.sum)
 	}
 	return s, true
@@ -138,7 +142,7 @@ func (f *FileDiffs) compute(ctx context.Context, r filediff.Request) (*cached, e
 	}
 	e := &cached{stamp: stamp}
 	if len(s.Notices) == 0 {
-		if err := f.showText(ctx, &s, e, r.ReadsWorktree(), old, new); err != nil {
+		if err := f.showText(ctx, &s, e, r, old, new); err != nil {
 			return nil, err
 		}
 	}
@@ -147,9 +151,8 @@ func (f *FileDiffs) compute(ctx context.Context, r filediff.Request) (*cached, e
 }
 
 // showText puts the diff of both sides' text into s with the column index of
-// its long lines and their tokens, and the right side's document if it is
-// the worktree's.
-func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cached, worktree bool, old, new string) error {
+// its long lines and their tokens, and the documents of the sides.
+func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cached, r filediff.Request, old, new string) error {
 	d, err := f.diff(ctx, old, new)
 	if err != nil {
 		return err
@@ -160,9 +163,9 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	if s.Columns, err = indexColumns(ctx, d); err != nil {
 		return err
 	}
-	newLang := f.languages.Detect(s.File.NewPath, new)
+	oldLang, newLang := f.languages.Detect(s.File.OldPath, old), f.languages.Detect(s.File.NewPath, new)
 	var oldLate, newLate bool
-	if s.Highlights.Old, oldLate, err = f.highlightSide(ctx, s, filediff.OldSide, f.languages.Detect(s.File.OldPath, old), old, len(d.Old.Lines)); err != nil {
+	if s.Highlights.Old, oldLate, err = f.highlightSide(ctx, s, filediff.OldSide, oldLang, old, len(d.Old.Lines)); err != nil {
 		return err
 	}
 	if s.Highlights.New, newLate, err = f.highlightSide(ctx, s, filediff.NewSide, newLang, new, len(d.New.Lines)); err != nil {
@@ -170,9 +173,15 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	}
 	e.late = oldLate || newLate
 	s.Diff = d
-	if worktree {
+	if s.File.OldPath != "" {
+		s.LeftDoc = hover.Document{Commit: r.Comparison.Left.ID(), Path: s.File.OldPath, Lang: oldLang, Version: commitVersion, Text: old}
+	}
+	switch {
+	case r.ReadsWorktree():
 		e.sum = maphash.String(f.seed, new)
 		s.RightDoc = hover.Document{Path: s.File.NewPath, Lang: newLang, Version: f.version(s.File.NewPath, e.sum), Text: new}
+	case r.Comparison.Right.Kind() == change.KindCommit && s.File.NewPath != "":
+		s.RightDoc = hover.Document{Commit: r.Comparison.Right.ID(), Path: s.File.NewPath, Lang: newLang, Version: commitVersion, Text: new}
 	}
 	return nil
 }

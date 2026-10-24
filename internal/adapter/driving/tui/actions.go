@@ -39,7 +39,7 @@ func (s *state) open(i int, fresh bool) (r filediff.Request, ok bool) {
 // unload shows no file until the next one arrives.
 func (s *state) unload() {
 	s.Snapshot, s.Loaded = filediff.Snapshot{}, false
-	s.LSP.Shown = lang.Instance{}
+	s.LSP.Left, s.LSP.Right = lang.Instance{}, lang.Instance{}
 	s.Pos, s.HScroll = view.Pos{}, 0
 	s.Caret = caret{}
 	s.place(s.Layout.Width, s.Layout.Height)

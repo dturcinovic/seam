@@ -65,7 +65,7 @@ func (s *state) hoverMove(x, y int) (cancel hover.ReqID, due bool) {
 	}
 	// A target left has an empty Word, which holds no grapheme.
 	t, ok := s.targetAt(x, y, h.Target)
-	if ok && h.On && t.Line == h.Target.Line && t.Word == h.Target.Word {
+	if ok && h.On && t.Side == h.Target.Side && t.Line == h.Target.Line && t.Word == h.Target.Word {
 		// The popup opens where the mouse rests, not where it came in.
 		if !h.Popup.Open {
 			h.X, h.Y = x, y
@@ -109,8 +109,9 @@ func (s *state) hoverAsk(seq uint64) (hover.Position, bool) {
 	}
 	h.LastReq++
 	h.Inflight, h.Waiting = h.LastReq, false
-	d := s.Snapshot.RightDoc
-	return hover.Position{Req: h.Inflight, Path: d.Path, Version: d.Version, Line: h.Target.Line, Byte: h.Target.Byte}, true
+	s.LSP.Side = h.Target.Side
+	d := s.Snapshot.Doc(h.Target.Side)
+	return hover.Position{Req: h.Inflight, Commit: d.Commit, Path: d.Path, Version: d.Version, Line: h.Target.Line, Byte: h.Target.Byte}, true
 }
 
 // hoverSubmitted takes how the request was taken. Only an answer to come
@@ -131,15 +132,22 @@ func (s *state) hoverSubmitted(sub hover.Submit) {
 }
 
 // hoverUpdate takes news from the servers: the answer waited for opens
-// the popup, if it is about the text on screen; the server of the file
-// shown becoming ready makes retry ask again.
+// the popup, if it is about the text on screen; the server of the side
+// asked about, or its checkout, becoming ready makes retry ask again.
 func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 	h := &s.Hover
 	switch u.Kind {
 	case hover.StatusChanged:
-		return h.Waiting && u.Status == hover.Ready && u.Instance == s.LSP.Shown
+		return h.Waiting && u.Status == hover.Ready && u.Instance == s.LSP.shown(h.Target.Side)
+	case hover.CheckoutChanged:
+		if !h.Waiting || u.Commit != s.Snapshot.Doc(h.Target.Side).Commit {
+			return false
+		}
+		// A checkout that failed brings no server to wait for.
+		h.Waiting = u.Status != hover.ServerFailed
+		return u.Status == hover.Ready
 	case hover.HoverDone:
-		if u.Req == 0 || u.Req != h.Inflight || u.Version != s.Snapshot.RightDoc.Version {
+		if u.Req == 0 || u.Req != h.Inflight || u.Version != s.Snapshot.Doc(h.Target.Side).Version {
 			return false
 		}
 		h.Inflight = 0
@@ -172,7 +180,8 @@ func (m *model) hoverAtCaret() {
 	if !ok {
 		return
 	}
-	if t, ok := targetOn(m.s.Snapshot.Diff.Rows[m.s.Caret.Row].Right, p.text, p.c, hoverTarget{}); ok {
+	w := m.s.Caret.Side
+	if t, ok := targetOn(w, lineOf(m.s.Snapshot.Diff.Rows[m.s.Caret.Row], w), p.text, p.c, hoverTarget{}); ok {
 		cancel, seq := m.s.hoverNow(t, x, y)
 		m.cancel(cancel)
 		m.ask(seq)

@@ -67,11 +67,13 @@ func TestTheGraphStopsInTimeWithAStubbornServer(t *testing.T) {
 
 	assert.Less(t, time.Since(begin), stopBudget)
 	assert.Empty(t, children(t), "cat-file and the server have ended")
-	assert.Equal(t, []string{"lsp", "git"}, stopOrder(t, log), "git stops last")
+	assert.Equal(t, []string{"lsp.newModulePool", "git.newCheckouts", "git.newRepo"}, stopOrder(t, log),
+		"the checkouts once their servers are gone, git last")
 }
 
-// stopOrder is the adapters of the stop hooks as fx logged running them;
-// the use cases' workers stop in the order their ports were asked for.
+// stopOrder is the constructors in the adapters that added the stop hooks,
+// as fx logged running them; the use cases' workers stop in the order
+// their ports were asked for.
 func stopOrder(t *testing.T, log string) []string {
 	t.Helper()
 	data, err := os.ReadFile(log)
@@ -82,9 +84,9 @@ func stopOrder(t *testing.T, log string) []string {
 			continue
 		}
 		_, caller, _ := strings.Cut(line, `"caller":"seam/internal/`)
-		pkg, _, _ := strings.Cut(caller, ".")
-		if strings.HasPrefix(pkg, "adapter/") {
-			order = append(order, path.Base(pkg))
+		caller, _, _ = strings.Cut(caller, `"`)
+		if strings.HasPrefix(caller, "adapter/") {
+			order = append(order, path.Base(caller))
 		}
 	}
 	return order
@@ -92,13 +94,15 @@ func stopOrder(t *testing.T, log string) []string {
 
 // fakeGraph starts seam's graph on root, fakelsp serving Go, and fills
 // targets from it. stop stops it; the test's end does, if a failure came
-// first, as the servers must not outlive it. log is the debug log.
+// first, as the servers must not outlive it. log is the debug log, next to
+// which the checkouts lie, in worktrees.
 func fakeGraph(t *testing.T, root, fakelsp string, targets ...any) (stop func() error, log string) {
 	t.Helper()
 	table, err := lang.NewTable([]lang.Language{{Lang: lang.Go, Extensions: []string{".go"}, Server: "fake"}},
 		[]lang.Server{{Name: "fake", Command: fakelsp}})
 	require.NoError(t, err)
-	cfg := config.Config{Dir: root, LogFile: filepath.Join(t.TempDir(), "seam.log"), Verbose: true}
+	state := t.TempDir()
+	cfg := config.Config{Dir: root, LogFile: filepath.Join(state, "seam.log"), Checkouts: filepath.Join(state, "worktrees"), Verbose: true}
 	logger, err := observability.NewLogger(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, logger.Close()) })
