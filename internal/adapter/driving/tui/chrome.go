@@ -29,7 +29,10 @@ func everyKey(does string, a ui.Action) hint {
 // has the focus, and of those of the caret.
 func viewHints() []hint {
 	return []hint{
+		// The layout early: a narrow footer is cut, and the narrow screen
+		// is where seam turns unified by itself.
 		firstKeys("quit", ui.Quit), firstKeys("reload", ui.Reload), firstKeys("full/hunks", ui.ToggleView),
+		firstKeys("unified/split", ui.ToggleLayout),
 		firstKeys("change", ui.NextChange, ui.PrevChange), firstKeys("file", ui.NextFile, ui.PrevFile),
 		firstKeys("scroll", ui.Down, ui.Up), firstKeys("sideways", ui.ScrollLeft, ui.ScrollRight),
 		firstKeys("files", ui.ToggleFiles), firstKeys("caret", ui.StartCaret),
@@ -110,6 +113,9 @@ func header(s *state) string {
 		return "no changes"
 	}
 	h := fmt.Sprintf("%d/%d  %s %s  %s", s.Current+1, len(s.Files), f.Status, shownText(f.Path()), modeName(s.Mode))
+	if s.Layout.Unified {
+		h += " unified"
+	}
 	switch {
 	case !s.Loaded && s.Err != nil:
 		return h + "  failed"

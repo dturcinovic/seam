@@ -1,15 +1,21 @@
 package view // import "seam/internal/domain/view"
 
-Package view lays out the rows of a file diff as the lines of a view,
-the full file or the changed blocks with context and folds, and keeps a view's
-place across a change of view through its anchor row. It knows nothing of the
-terminal: no widths, colours or keys.
+Package view lays out the rows of a file diff as the lines of a view, the full
+file or the changed blocks with context and folds, side by side or unified,
+and keeps a view's place across a change of view through its anchor row.
+It knows nothing of the terminal: no widths, colours or keys.
 
 FUNCTIONS
 
+func LineFor(lines []Line, row int, h Half) int
+    LineFor is the index of the line that shows half h of row; for a row that
+    shows whole or is folded, and for a half the row lacks, it is LineForRow.
+
 func LineForRow(lines []Line, row int) int
-    LineForRow is the index of the line that shows or folds row. A row past the
-    end gives the last line, and no lines give 0.
+    LineForRow is the index of the first line that shows or folds row. A row
+    past the end gives the last line, and no lines give 0. The new halves of a
+    unified block repeat rows of its old halves before them, so they count as
+    reaching as far as those: that keeps the search's key from falling.
 
 func RowAt(lines []Line, i int) int
     RowAt is the row of line i, the first one for a fold; i must index lines.
@@ -24,16 +30,36 @@ func Unfold(lines []Line, pos Pos, i int) ([]Line, Pos)
 
 TYPES
 
+type Half int
+    Half is which side of its row a line shows.
+
+const (
+	Whole Half = iota
+	OldHalf
+	NewHalf
+)
+    The halves of a row. A row of the side-by-side view, and an unchanged row of
+    the unified one, shows Whole.
+
 type Line struct {
 	Rows diff.RowRange
 	Fold bool
+	Half Half
+
+	// Has unexported fields.
 }
     Line is one line of a view: a single row, or with Fold a range of unchanged
-    rows shown as one line.
+    rows shown as one line. Half says which side of its row the line shows;
+    only Unify splits a row.
 
 func Lines(d diff.FileDiff, m Mode, context int) []Line
     Lines lays out d in mode m, in Hunks with context rows around each change.
     The lines cover every row once and in order.
+
+func Unify(d diff.FileDiff, lines []Line) []Line
+    Unify lays out lines as the unified view does, as git does: each changed
+    block shows the old halves of its rows, then the new ones, so a Change row
+    shows twice. Unchanged rows and folds stay as they are.
 
 func (l Line) Contains(row int) bool
     Contains reports whether the line shows or folds row.
@@ -52,13 +78,16 @@ const (
     as hiding nothing is the safe choice.
 
 type Pos struct {
-	AnchorRow, Scroll int
+	AnchorRow  int
+	AnchorHalf Half
+	Scroll     int
 }
     Pos is where a view stands. AnchorRow is the row the view keeps across a
-    change of view; Scroll is the index of the top line. Switch derives Scroll
-    from the anchor, Navigate the anchor from Scroll. The scroll position alone
-    would not do: a row the hunk view folds away would be lost on the way from
-    the full view and back.
+    change of view, and AnchorHalf its half, as the unified view may show a row
+    twice; Scroll is the index of the top line. Switch derives Scroll from the
+    anchor, Navigate the anchor from Scroll. The scroll position alone would not
+    do: a row the hunk view folds away would be lost on the way from the full
+    view and back.
 
 func Navigate(lines []Line, pos Pos, scroll, height int) Pos
     Navigate moves the top line to scroll, within the bounds of the lines, and
@@ -68,7 +97,7 @@ func Navigate(lines []Line, pos Pos, scroll, height int) Pos
     so the place must not change.
 
 func Switch(lines []Line, pos Pos, height int) Pos
-    Switch places a view whose lines changed, after a change of mode or context:
-    the anchor stays, and the top line becomes the one that holds it, within the
-    bounds of the lines.
+    Switch places a view whose lines changed, after a change of mode or context
+    or layout: the anchor stays, and the top line becomes the one that holds it,
+    within the bounds of the lines.
 

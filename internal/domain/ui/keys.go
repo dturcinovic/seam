@@ -31,6 +31,7 @@ const (
 	Quit
 	Reload
 	ToggleView
+	ToggleLayout
 	NextChange
 	PrevChange
 	NextFile
@@ -111,7 +112,7 @@ func actionNames() [Actions]string {
 	return [Actions]string{
 		Down: "down", Up: "up", HalfPageDown: "half_page_down", HalfPageUp: "half_page_up",
 		PageDown: "page_down", PageUp: "page_up", Top: "top", Bottom: "bottom",
-		Quit: "quit", Reload: "reload", ToggleView: "toggle_view",
+		Quit: "quit", Reload: "reload", ToggleView: "toggle_view", ToggleLayout: "toggle_layout",
 		NextChange: "next_change", PrevChange: "prev_change", NextFile: "next_file", PrevFile: "prev_file",
 		ScrollLeft: "scroll_left", ScrollRight: "scroll_right", ToggleFiles: "toggle_files", StartCaret: "start_caret",
 		Open: "open", Back: "back", PrevFolder: "prev_folder", NextFolder: "next_folder",
@@ -126,7 +127,7 @@ func defaultKeys() [Actions][]string {
 	return [Actions][]string{
 		Down: {"j", "down"}, Up: {"k", "up"}, HalfPageDown: {"ctrl+d"}, HalfPageUp: {"ctrl+u"},
 		PageDown: {"pgdown", "space"}, PageUp: {"pgup"}, Top: {"g", "home"}, Bottom: {"G", "end"},
-		Quit: {"q", "esc", "ctrl+c"}, Reload: {"r"}, ToggleView: {"f"},
+		Quit: {"q", "esc", "ctrl+c"}, Reload: {"r"}, ToggleView: {"f"}, ToggleLayout: {"u"},
 		NextChange: {"n"}, PrevChange: {"p"}, NextFile: {"tab", "]"}, PrevFile: {"shift+tab", "["},
 		ScrollLeft: {"h", "left"}, ScrollRight: {"l", "right"}, ToggleFiles: {"b"}, StartCaret: {"i"},
 		Open: {"enter"}, Back: {"esc"}, PrevFolder: {"["}, NextFolder: {"]"},
@@ -150,9 +151,11 @@ type keymap struct {
 }
 
 // NewKeymap lays bindings over the default keys: each replaces the keys of
-// its action, an empty one leaves the action without. Every key must be
-// one the TUI can receive, a layer must not take a key for two actions,
-// and quitting must keep a key.
+// its action, an empty one leaves the action without. A bound key leaves
+// the defaults of the actions that share a layer with its own, so a new
+// default never breaks a configuration. Every key must be one the TUI can
+// receive, a layer must not take a key for two bound actions, and quitting
+// must keep a key.
 func NewKeymap(bindings map[Action][]string) (Keymap, error) {
 	for a := range bindings {
 		if a >= Actions {
@@ -174,6 +177,7 @@ func NewKeymap(bindings map[Action][]string) (Keymap, error) {
 		}
 		k.keys[a] = slices.Clone(keys)
 	}
+	k.yield(bindings)
 	if len(k.keys[Quit]) == 0 {
 		return Keymap{}, fmt.Errorf("%w: quit needs a key", ErrInvalidKeys)
 	}
@@ -182,6 +186,33 @@ func NewKeymap(bindings map[Action][]string) (Keymap, error) {
 	}
 	k.index()
 	return Keymap{m: k}, nil
+}
+
+// yield drops from the default keys of the actions not bound those that a
+// bound action sharing a layer with them takes.
+func (k *keymap) yield(bindings map[Action][]string) {
+	for a := range Actions {
+		if _, bound := bindings[a]; bound {
+			continue
+		}
+		k.keys[a] = slices.DeleteFunc(k.keys[a], func(key string) bool {
+			for b, keys := range bindings {
+				if sharesLayer(a, b) && slices.Contains(keys, key) {
+					return true
+				}
+			}
+			return false
+		})
+	}
+}
+
+func sharesLayer(a, b Action) bool {
+	for l := range Layers {
+		if l.Takes(a) && l.Takes(b) {
+			return true
+		}
+	}
+	return false
 }
 
 // conflict is a key a layer would take for two actions; the actions are

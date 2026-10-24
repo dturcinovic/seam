@@ -87,8 +87,9 @@ func TestABindingReplacesTheDefaultsOfItsAction(t *testing.T) {
 func TestNewKeymapRefuses(t *testing.T) {
 	tests := map[string]map[ui.Action][]string{
 		"no key to quit":       {ui.Quit: {}},
-		"a key twice in view":  {ui.Reload: {"n"}},
-		"a motion in the list": {ui.Open: {"j"}},
+		"a key twice in view":  {ui.Reload: {"x"}, ui.ToggleView: {"x"}},
+		"a motion in the list": {ui.Open: {"x"}, ui.Down: {"x"}},
+		"quit loses all keys":  {ui.Reload: {"q", "esc", "ctrl+c"}},
 		"no action":            {ui.Actions: {"x"}},
 		"two characters":       {ui.Quit: {"qq"}},
 		"empty":                {ui.Quit: {""}},
@@ -131,9 +132,22 @@ func TestLayersHideTheKeysBelowThem(t *testing.T) {
 }
 
 func TestTheConflictNamesBothActions(t *testing.T) {
-	_, err := ui.NewKeymap(map[ui.Action][]string{ui.Reload: {"n"}})
+	_, err := ui.NewKeymap(map[ui.Action][]string{ui.Reload: {"x"}, ui.NextChange: {"x"}})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"n" is a key of both reload and next_change`)
+	assert.Contains(t, err.Error(), `"x" is a key of both reload and next_change`)
+}
+
+func TestABoundKeyTakesItFromADefault(t *testing.T) {
+	k, err := ui.NewKeymap(map[ui.Action][]string{ui.HalfPageUp: {"u"}, ui.Reload: {"n"}})
+	require.NoError(t, err)
+
+	got, _ := k.Action(ui.ViewLayer, "u")
+	assert.Equal(t, ui.HalfPageUp, got)
+	assert.Empty(t, k.Keys(ui.ToggleLayout), "u was its only default")
+	assert.Empty(t, k.Keys(ui.NextChange))
+	got, _ = k.Action(ui.ListLayer, "u")
+	assert.Equal(t, ui.HalfPageUp, got, "the motion takes u in the list too")
+	assert.Equal(t, []string{"i", "esc"}, k.Keys(ui.LeaveCaret), "no layer in common with reload")
 }
 
 func TestKeysAreCopies(t *testing.T) {

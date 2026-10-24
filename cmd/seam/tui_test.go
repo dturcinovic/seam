@@ -102,16 +102,18 @@ func changeset() change.Changeset {
 	return change.Changeset{Comparison: change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()}, Files: files}
 }
 
-// runTUI starts the TUI on cs, writing to out, and returns a function that
-// types keys and one that waits for it to end, failing after
-// testsupport.Guard.
+// runTUI starts the TUI on cs, side by side on 80 columns, writing to out,
+// and returns a function that types keys and one that waits for it to end,
+// failing after testsupport.Guard.
 func runTUI(t *testing.T, ports tui.Ports, cs change.Changeset, out io.Writer) (typeKeys func(string), wait func() error) {
 	t.Helper()
 	keys, w := io.Pipe()
 	t.Cleanup(func() { _ = w.Close() }) // Closing a pipe end does not fail.
+	set := ui.DefaultSettings()
+	set.Layout = ui.SplitLayout
 	done := make(chan error, 1)
 	go func() {
-		done <- tui.Run(context.Background(), cs, ui.DefaultSettings(), ports, nil, tui.IO{In: keys, Out: out, Width: 80, Height: 24})
+		done <- tui.Run(context.Background(), cs, set, ports, nil, tui.IO{In: keys, Out: out, Width: 80, Height: 24})
 	}()
 	typeKeys = func(s string) {
 		_, err := io.WriteString(w, s)

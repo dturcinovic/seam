@@ -16,28 +16,53 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, ui.DefaultKeymap(), s.Keys)
 	assert.Equal(t, 3, s.ContextLines)
 	assert.Equal(t, 300*time.Millisecond, s.HoverDelay)
+	assert.Equal(t, ui.AutoLayout, s.Layout)
+	assert.Equal(t, 120, s.SplitMinWidth)
 }
 
 func TestNewSettings(t *testing.T) {
 	tests := []struct {
-		lines int
-		delay time.Duration
-		ok    bool
+		name string
+		set  func(*ui.Settings)
+		ok   bool
 	}{
-		{0, 0, true},
-		{1000, 5 * time.Second, true},
-		{-1, 0, false},
-		{1001, 0, false},
-		{3, -time.Millisecond, false},
-		{3, 5*time.Second + 1, false},
+		{"least", func(s *ui.Settings) { s.ContextLines, s.HoverDelay, s.SplitMinWidth = 0, 0, 0 }, true},
+		{"most", func(s *ui.Settings) { s.ContextLines, s.HoverDelay, s.SplitMinWidth = 1000, 5*time.Second, 1000 }, true},
+		{"unified", func(s *ui.Settings) { s.Layout = ui.UnifiedLayout }, true},
+		{"negative context", func(s *ui.Settings) { s.ContextLines = -1 }, false},
+		{"too much context", func(s *ui.Settings) { s.ContextLines = 1001 }, false},
+		{"negative delay", func(s *ui.Settings) { s.HoverDelay = -time.Millisecond }, false},
+		{"too long a delay", func(s *ui.Settings) { s.HoverDelay = 5*time.Second + 1 }, false},
+		{"no layout", func(s *ui.Settings) { s.Layout = 3 }, false},
+		{"negative width", func(s *ui.Settings) { s.SplitMinWidth = -1 }, false},
+		{"too wide", func(s *ui.Settings) { s.SplitMinWidth = 1001 }, false},
 	}
 	for _, tt := range tests {
-		s, err := ui.NewSettings(ui.Light(), ui.DefaultKeymap(), tt.lines, tt.delay)
-		if !tt.ok {
-			assert.ErrorIs(t, err, ui.ErrInvalidSetting, "%d %s", tt.lines, tt.delay)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, ui.Settings{Palette: ui.Light(), Keys: ui.DefaultKeymap(), ContextLines: tt.lines, HoverDelay: tt.delay}, s)
+		t.Run(tt.name, func(t *testing.T) {
+			want := ui.DefaultSettings()
+			want.Palette = ui.Light()
+			tt.set(&want)
+
+			s, err := ui.NewSettings(want)
+
+			if !tt.ok {
+				assert.ErrorIs(t, err, ui.ErrInvalidSetting)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, want, s)
+		})
 	}
+}
+
+func TestLayoutNames(t *testing.T) {
+	for _, l := range []ui.Layout{ui.AutoLayout, ui.SplitLayout, ui.UnifiedLayout} {
+		got, err := ui.ParseLayout(l.String())
+		require.NoError(t, err)
+		assert.Equal(t, l, got)
+	}
+	assert.Equal(t, "unified", ui.UnifiedLayout.String())
+	assert.Equal(t, "Layout(3)", ui.Layout(3).String())
+	_, err := ui.ParseLayout("Unified")
+	assert.ErrorIs(t, err, ui.ErrInvalidSetting)
 }

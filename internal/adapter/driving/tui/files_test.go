@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"seam/internal/domain/change"
-	"seam/internal/domain/ui"
 	"seam/internal/textcell"
 )
 
@@ -79,7 +78,7 @@ func TestTotalsTooNarrowForTheirCounts(t *testing.T) {
 }
 
 func TestTheListIsWideEnoughForItsTotals(t *testing.T) {
-	s := newState(change.Changeset{Files: manyFiles(25)}, ui.DefaultSettings())
+	s := newState(change.Changeset{Files: manyFiles(25)}, splitSettings())
 
 	assert.Equal(t, totalsWidth(25, s.List.CountWidth, s.Cells), s.List.Longest)
 }

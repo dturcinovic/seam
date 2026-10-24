@@ -1,18 +1,20 @@
 package ui // import "seam/internal/domain/ui"
 
-Package ui holds what a user may set about the viewer: the palette,
-the keys of its actions, the context of the hunk view and the delay of a hover.
-It checks each setting and knows the names the configuration file gives them.
-It draws nothing and reads no key: the TUI does both, and the key names it
-checks are those the TUI receives.
+Package ui holds what a user may set about the viewer: the palette, the keys
+of its actions, the context of the hunk view, the delay of a hover and when
+the sides stand side by side. It checks each setting and knows the names the
+configuration file gives them. It draws nothing and reads no key: the TUI does
+both, and the key names it checks are those the TUI receives.
 
 CONSTANTS
 
 const (
-	DefaultContextLines = 3
-	MaxContextLines     = 1000
-	DefaultHoverDelay   = 300 * time.Millisecond
-	MaxHoverDelay       = 5 * time.Second
+	DefaultContextLines  = 3
+	MaxContextLines      = 1000
+	DefaultHoverDelay    = 300 * time.Millisecond
+	MaxHoverDelay        = 5 * time.Second
+	DefaultSplitMinWidth = 120
+	MaxSplitMinWidth     = 1000
 )
     The bounds and defaults of the settings; the bounds catch a typo rather than
     limit a taste.
@@ -30,7 +32,7 @@ var ErrInvalidKeys = errors.New("invalid keys")
     ErrInvalidKeys is a key map that breaks one of the rules NewKeymap checks.
 
 var ErrInvalidSetting = errors.New("invalid setting")
-    ErrInvalidSetting is a context or hover delay out of its bounds.
+    ErrInvalidSetting is a setting out of its bounds or of no known name.
 
 var ErrUnknownTheme = errors.New("unknown theme")
     ErrUnknownTheme is a theme name that names no built-in palette.
@@ -55,6 +57,7 @@ const (
 	Quit
 	Reload
 	ToggleView
+	ToggleLayout
 	NextChange
 	PrevChange
 	NextFile
@@ -148,10 +151,12 @@ func DefaultKeymap() Keymap
     that the defaults have no conflict, as NewKeymap would.
 
 func NewKeymap(bindings map[Action][]string) (Keymap, error)
-    NewKeymap lays bindings over the default keys: each replaces the keys of its
-    action, an empty one leaves the action without. Every key must be one the
-    TUI can receive, a layer must not take a key for two actions, and quitting
-    must keep a key.
+    NewKeymap lays bindings over the default keys: each replaces the keys of
+    its action, an empty one leaves the action without. A bound key leaves the
+    defaults of the actions that share a layer with its own, so a new default
+    never breaks a configuration. Every key must be one the TUI can receive,
+    a layer must not take a key for two bound actions, and quitting must keep a
+    key.
 
 func (k Keymap) Action(l Layer, key string) (a Action, ok bool)
     Action is what key does in layer l; ok is false for nothing.
@@ -176,6 +181,23 @@ const (
 func (l Layer) Takes(a Action) bool
     Takes reports whether layer l takes action a: the actions of a layer are a
     stretch of the constants above, and the file list takes the motions too.
+
+type Layout uint8
+    Layout is how the viewer lays out the two sides.
+
+const (
+	AutoLayout Layout = iota
+	SplitLayout
+	UnifiedLayout
+)
+    The layouts. Auto is side by side from SplitMinWidth on and unified below
+    it.
+
+func ParseLayout(name string) (Layout, error)
+    ParseLayout is the layout named name.
+
+func (l Layout) String() string
+    String is the name of l in the configuration file.
 
 type Palette struct {
 	// Has unexported fields.
@@ -207,6 +229,11 @@ type Settings struct {
 	// HoverDelay is how long the mouse rests on a word before it is asked
 	// about.
 	HoverDelay time.Duration
+	// Layout is how the sides stand: side by side, unified, or by width.
+	Layout Layout
+	// SplitMinWidth is the narrowest diff, in columns, that AutoLayout
+	// shows side by side; zero never unifies.
+	SplitMinWidth int
 }
     Settings are how the viewer looks and takes keys. The zero value is not
     valid; use NewSettings or DefaultSettings.
@@ -214,6 +241,6 @@ type Settings struct {
 func DefaultSettings() Settings
     DefaultSettings are the settings without a configuration.
 
-func NewSettings(p Palette, k Keymap, contextLines int, hoverDelay time.Duration) (Settings, error)
-    NewSettings checks the context and the delay and returns the settings.
+func NewSettings(s Settings) (Settings, error)
+    NewSettings checks the bounds of s and returns it.
 

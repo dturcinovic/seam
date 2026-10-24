@@ -7,6 +7,7 @@ import (
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/hover"
+	"seam/internal/domain/view"
 	"seam/internal/textcell"
 )
 
@@ -43,6 +44,7 @@ func (s *state) targetAt(x, y int, prev hoverTarget) (hoverTarget, bool) {
 	if !ok {
 		return hoverTarget{}, false
 	}
+	w = s.lineSide(l, w)
 	text, points, ok := s.hoverLine(w, l.Rows.Start)
 	if !ok {
 		return hoverTarget{}, false
@@ -55,6 +57,31 @@ func (s *state) targetAt(x, y int, prev hoverTarget) (hoverTarget, bool) {
 		return hoverTarget{}, false
 	}
 	return targetOn(w, lineOf(s.Snapshot.Diff.Rows[l.Rows.Start], w), text, c, prev)
+}
+
+// lineSide is the side of line l that w points at: w itself side by side,
+// but in the unified view, where both sides share the columns, the line's.
+func (s *state) lineSide(l view.Line, w filediff.Which) filediff.Which {
+	if s.Layout.Unified {
+		return s.halfSide(l)
+	}
+	return w
+}
+
+// halfSide is the side line l of the unified view shows: its half's, or for
+// a whole row the new side, unless only the old one has a document.
+func (s *state) halfSide(l view.Line) filediff.Which {
+	switch l.Half {
+	case view.OldHalf:
+		return filediff.OldSide
+	case view.NewHalf:
+		return filediff.NewSide
+	case view.Whole:
+	}
+	if s.Snapshot.RightDoc.Path == "" {
+		return filediff.OldSide
+	}
+	return filediff.NewSide
 }
 
 // hoverLine is the text of side w of row and its column checkpoints, if

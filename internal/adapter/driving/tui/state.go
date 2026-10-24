@@ -42,6 +42,10 @@ type state struct {
 	Context int
 	Keys    ui.Keymap
 	KeyText keyTexts
+	// LayoutSetting is the setting ui.Layout, which with SplitMinWidth
+	// decides whether Layout, the screen, is unified.
+	LayoutSetting ui.Layout
+	SplitMinWidth int
 
 	Mode    view.Mode
 	Pos     view.Pos
@@ -61,7 +65,10 @@ type state struct {
 
 // newState holds the files of cs in the hunk view, none of them open yet.
 func newState(cs change.Changeset, set ui.Settings) state {
-	s := state{Comparison: cs.Comparison, Current: -1, Mode: view.Hunks, Context: set.ContextLines}
+	s := state{
+		Comparison: cs.Comparison, Current: -1, Mode: view.Hunks, Context: set.ContextLines,
+		LayoutSetting: set.Layout, SplitMinWidth: set.SplitMinWidth,
+	}
 	s.setKeys(set.Keys)
 	s.setFiles(cs.Files)
 	s.place(0, 0)

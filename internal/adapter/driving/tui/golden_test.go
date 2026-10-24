@@ -47,6 +47,10 @@ func fixtures(t *testing.T) []fixture {
 	focused := shown(t, listFiles(), 140, 9, filediff.Snapshot{Diff: code})
 	focused.toggleList()
 	focused.moveCursor(2)
+	// Narrower than split_min_width: unified by itself.
+	unifiedHunks := shownWith(t, ui.DefaultSettings(), files("cmd/main.go"), 100, 16, filediff.Snapshot{Diff: code})
+	unifiedFull := shownWith(t, ui.DefaultSettings(), files("cmd/main.go"), 100, 30, filediff.Snapshot{Diff: code})
+	unifiedFull.toggleMode()
 
 	text := diff.Compute(t.Context(),
 		diff.Split("cafe\nfamily 👨\u200d👩\u200d👧 x\n日本語のテキスト\na\tb\n日\tb\n👨\u200d👩\u200d👧\tb\n"),
@@ -60,7 +64,10 @@ func fixtures(t *testing.T) []fixture {
 			unicode = append(unicode, fixture{fmt.Sprintf("unicode-%s-scroll%d", m.name, scroll), s})
 		}
 	}
-	return append([]fixture{{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}, {"list", list}, {"list-focused", focused}}, unicode...)
+	return append([]fixture{
+		{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}, {"list", list}, {"list-focused", focused},
+		{"unified-hunks", unifiedHunks}, {"unified-full", unifiedFull},
+	}, unicode...)
 }
 
 // TestGolden renders each fixture with the real theme. cat shows a golden
@@ -84,6 +91,13 @@ func TestTheGoldenFilesShowTheirCases(t *testing.T) {
 	assert.Contains(t, hunks, `18 ~     fmt.Println("a finding, an`)
 	assert.Contains(t, hunks, "19 -     gone()")
 	assert.Contains(t, strings.Join(byName["full"], "\n"), " 1   package main")
+	unified := strings.Join(byName["unified-hunks"], "\n")
+	assert.Contains(t, unified, "hunks unified")
+	assert.Contains(t, unified, ` 17 17   func main() {`)
+	assert.Contains(t, unified, ` 18    -     fmt.Println("a finding, an`)
+	assert.Contains(t, unified, `    18 +     fmt.Println("a finding and`)
+	assert.Contains(t, unified, ` 19    -     gone()`)
+	assert.Contains(t, strings.Join(byName["unified-full"], "\n"), "  1  1   package main")
 	assert.Contains(t, byName["unicode-codepoints-scroll0"][4], "a   b")
 	assert.Contains(t, byName["unicode-codepoints-scroll0"][5], "日  b")
 	assert.Contains(t, byName["unicode-graphemes-scroll0"][6], "👨\u200d👩\u200d👧  b")

@@ -20,10 +20,16 @@ func changeMarks(d diff.FileDiff, lines []view.Line, body int) []tone {
 	}
 	out := make([]tone, body)
 	n := max(len(lines), body)
-	cell := func(row int) int { return view.LineForRow(lines, row) * body / n }
+	cell := func(line int) int { return line * body / n }
 	for _, c := range d.Changes {
 		t := blockTone(d.Rows[c.Start:c.End])
-		for i := cell(c.Start); i <= cell(c.End-1); i++ {
+		// The block ends before the line of the row after it: the unified
+		// view shows new halves after its last row's old one.
+		last := len(lines) - 1
+		if c.End < len(d.Rows) {
+			last = view.LineForRow(lines, c.End) - 1
+		}
+		for i := cell(view.LineForRow(lines, c.Start)); i <= cell(last); i++ {
 			out[i] = merge(out[i], t)
 		}
 	}

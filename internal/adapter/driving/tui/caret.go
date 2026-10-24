@@ -36,8 +36,13 @@ func (s *state) caretText(line int) (string, []filediff.Checkpoint, bool) {
 	if line < 0 || line >= len(s.Lines) || s.Lines[line].Fold {
 		return "", nil, false
 	}
-	text, points, ok := s.hoverLine(s.Caret.Side, s.Lines[line].Rows.Start)
+	text, points, ok := s.hoverLine(s.caretSide(line), s.Lines[line].Rows.Start)
 	return text, points, ok && text != ""
+}
+
+// caretSide is the side the caret stands on on line, see lineSide.
+func (s *state) caretSide(line int) filediff.Which {
+	return s.lineSide(s.Lines[line], s.Caret.Side)
 }
 
 // caretLine is the first line from i on, going by dir and stopping short
@@ -127,10 +132,14 @@ func (s *state) spot() (spot, bool) {
 	return s.spotAt(line, s.Caret.Byte), true
 }
 
-// shownLine is the line of the view that shows row on its own; ok is false
-// for a row folded away.
+// shownLine is the line of the view that shows row, on the caret's side if
+// the unified view splits it; ok is false for a row folded away.
 func (s *state) shownLine(row int) (int, bool) {
-	i := view.LineForRow(s.Lines, row)
+	h := view.NewHalf
+	if s.Caret.Side == filediff.OldSide {
+		h = view.OldHalf
+	}
+	i := view.LineFor(s.Lines, row, h)
 	if i >= len(s.Lines) || s.Lines[i].Fold || s.Lines[i].Rows.Start != row {
 		return 0, false
 	}
@@ -172,6 +181,10 @@ func (s *state) otherSide() {
 	if !ok {
 		return
 	}
+	if s.Layout.Unified {
+		s.otherHalf(p)
+		return
+	}
 	was := s.Caret
 	s.Caret.Side = filediff.OldSide
 	if was.Side == filediff.OldSide {
@@ -188,9 +201,31 @@ func (s *state) otherSide() {
 	s.moveCaret(s.spotAtCol(line, p.c.Col))
 }
 
+// otherHalf is otherSide in the unified view: from one half of a changed
+// row to its other, at the same column. Whole rows and rows of one half
+// have no other side to go to.
+func (s *state) otherHalf(p spot) {
+	l := s.Lines[p.line]
+	h := view.OldHalf
+	switch l.Half {
+	case view.Whole:
+		return
+	case view.OldHalf:
+		h = view.NewHalf
+	case view.NewHalf:
+	}
+	i := view.LineFor(s.Lines, l.Rows.Start, h)
+	if s.Lines[i].Half != h || s.Lines[i].Rows.Start != l.Rows.Start {
+		return
+	}
+	if _, _, ok := s.caretText(i); ok {
+		s.moveCaret(s.spotAtCol(i, p.c.Col))
+	}
+}
+
 // moveCaret puts the caret on p and brings it into view.
 func (s *state) moveCaret(p spot) {
-	s.Caret = caret{On: true, Side: s.Caret.Side, Row: s.Lines[p.line].Rows.Start, Byte: p.c.Start}
+	s.Caret = caret{On: true, Side: s.caretSide(p.line), Row: s.Lines[p.line].Rows.Start, Byte: p.c.Start}
 	if h := s.Layout.shown(); p.line < s.Pos.Scroll {
 		s.scrollTo(p.line)
 	} else if p.line >= s.Pos.Scroll+h {
@@ -291,7 +326,9 @@ func (s *state) keepCaret() {
 	}
 	p, ok := s.spot()
 	if ok && s.onScreen(p.line) {
-		s.Caret.Byte = s.keepColumn(p).c.Start
+		// The unified view may have found the row's other half, after a
+		// reload made it a row of one side.
+		s.Caret.Side, s.Caret.Byte = s.caretSide(p.line), s.keepColumn(p).c.Start
 		return
 	}
 	top, bottom := s.Pos.Scroll, s.Pos.Scroll+s.Layout.shown()
@@ -307,7 +344,7 @@ func (s *state) keepCaret() {
 	switch {
 	case found:
 		q := s.keepColumn(s.spotAtCol(l, col))
-		s.Caret.Row, s.Caret.Byte = s.Lines[l].Rows.Start, q.c.Start
+		s.Caret.Side, s.Caret.Row, s.Caret.Byte = s.caretSide(l), s.Lines[l].Rows.Start, q.c.Start
 	case ok:
 		s.Caret.Byte = p.c.Start
 	default:

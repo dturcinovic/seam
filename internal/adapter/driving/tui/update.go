@@ -143,6 +143,8 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		m.load(s.step(-1))
 	case ui.ToggleView:
 		s.toggleMode()
+	case ui.ToggleLayout:
+		s.toggleLayout()
 	case ui.ScrollLeft:
 		s.shiftH(-1)
 	case ui.ScrollRight:

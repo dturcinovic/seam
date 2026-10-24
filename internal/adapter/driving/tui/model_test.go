@@ -12,7 +12,6 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
-	"seam/internal/domain/ui"
 )
 
 func TestMain(m *testing.M) {
@@ -30,7 +29,7 @@ func fakePorts() Ports {
 func startModel(t *testing.T, paths ...string) (model, *infakes.FakeFileDiffLoader, *infakes.FakeChangesetReloader) {
 	t.Helper()
 	p := fakePorts()
-	m := newModel(change.Changeset{Files: files(paths...)}, p, ui.DefaultSettings())
+	m := newModel(change.Changeset{Files: files(paths...)}, p, splitSettings())
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	return next.(model), p.Files.(*infakes.FakeFileDiffLoader), p.Reload.(*infakes.FakeChangesetReloader)
 }

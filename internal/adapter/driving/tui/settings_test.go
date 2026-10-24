@@ -22,7 +22,7 @@ func ownModel(t *testing.T, bindings map[ui.Action][]string) (model, *infakes.Fa
 	t.Helper()
 	keys, err := ui.NewKeymap(bindings)
 	require.NoError(t, err)
-	set := ui.DefaultSettings()
+	set := splitSettings()
 	set.Keys = keys
 	p := fakePorts()
 	m := newModel(change.Changeset{Files: files("a.go", "b.go")}, p, set)
@@ -50,7 +50,7 @@ func TestOwnKeysReplaceTheDefaults(t *testing.T) {
 	_, _ = typed(m, "tab")
 	assert.Equal(t, 2, fl.LoadCallCount(), "tab no longer does")
 
-	assert.Equal(t, "x quit  f full/hunks  n/p change  ctrl+n/shift+tab file  j/k scroll  h/l sideways  b files  i caret", footerLine(m),
+	assert.Equal(t, "x quit  f full/hunks  u unified/split  n/p change  ctrl+n/shift+tab file  j/k scroll  h/l sideways  b files  i caret", footerLine(m),
 		"the footer names the own keys and drops the action without one")
 }
 
@@ -98,7 +98,7 @@ func TestTheThemeIsThePalettes(t *testing.T) {
 func TestTheContextOfTheHunkView(t *testing.T) {
 	d := diff.Compute(t.Context(), diff.Split(numbered(20)), diff.Split(numbered(20, 10)))
 	for _, tt := range []struct{ context, lines int }{{0, 3}, {3, 9}} {
-		set := ui.DefaultSettings()
+		set := splitSettings()
 		set.ContextLines = tt.context
 		s := newState(change.Changeset{Files: files("a.go")}, set)
 		s.resize(80, 30)

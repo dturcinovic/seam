@@ -21,15 +21,20 @@ type sideLine struct {
 	points []filediff.Checkpoint
 }
 
-// writeRow writes one line of the view: both panes, or a fold across them.
+// writeRow writes one line of the view: both panes, the unified one, or a
+// fold across them.
 func writeRow(b *strings.Builder, s *state, th *theme, l view.Line) {
 	ln := newLine(b, th, s.Cells, s.Layout.panes())
 	if l.Fold {
-		ln.spaces(s.Layout.Left.gutter(), foldStyle)
+		ln.spaces(s.Layout.gutter(), foldStyle)
 		ln.text("⋯ ", foldStyle)
 		ln.number(l.Rows.End-l.Rows.Start, 0, foldStyle)
 		ln.text(" unchanged lines", foldStyle)
 		ln.end(foldStyle)
+		return
+	}
+	if s.Layout.Unified {
+		writeUnified(&ln, s, l)
 		return
 	}
 	left, right := sides(s.Snapshot, l.Rows.Start)
@@ -37,6 +42,43 @@ func writeRow(b *strings.Builder, s *state, th *theme, l view.Line) {
 	ln.text("│", separatorStyle)
 	writePane(&ln, s.Layout.Right, right, s.HScroll, s.caretOn(l.Rows.Start, filediff.NewSide))
 	ln.end(plain)
+}
+
+// writeUnified writes a line of the unified view: the old line number,
+// then a pane of the line's side with the new one. A changed row's halves
+// take the tones of a deletion and an insertion, as their words are marked.
+func writeUnified(ln *line, s *state, l view.Line) {
+	left, right := sides(s.Snapshot, l.Rows.Start)
+	sl, old := right, left.index
+	// A whole row shows the caret from either side: it keeps the side it
+	// had side by side.
+	w := s.Caret.Side
+	switch l.Half {
+	case view.OldHalf:
+		w, sl = filediff.OldSide, left
+		sl.tone, sl.mark, sl.index = deletedTone, "-", -1
+	case view.NewHalf:
+		w, sl, old = filediff.NewSide, right, -1
+		sl.tone, sl.mark = insertedTone, "+"
+	case view.Whole:
+		if s.halfSide(l) == filediff.OldSide {
+			sl.text, sl.points, sl.runs = left.text, left.points, left.runs
+		}
+	}
+	gutter := paneStyle(sl.tone, gutterRole)
+	ln.spaces(1, gutter)
+	writeNumber(ln, old, s.Layout.Left.Digits, gutter)
+	writePane(ln, pane{Width: ln.free, Digits: s.Layout.Right.Digits}, sl, s.HScroll, s.caretOn(l.Rows.Start, w))
+	ln.end(plain)
+}
+
+// writeNumber writes line index+1 in digits columns, blank for no line.
+func writeNumber(ln *line, index, digits int, st style) {
+	if index < 0 {
+		ln.spaces(digits, st)
+		return
+	}
+	ln.number(index+1, digits, st)
 }
 
 // caretOn is the caret if it is on side w of row, else none.
@@ -81,11 +123,7 @@ func writePane(ln *line, p pane, sl sideLine, skip int, c caret) {
 	rest := ln.narrow(p.Width)
 	gutter := paneStyle(sl.tone, gutterRole)
 	ln.spaces(1, gutter)
-	if sl.index >= 0 {
-		ln.number(sl.index+1, p.Digits, gutter)
-	} else {
-		ln.spaces(p.Digits, gutter)
-	}
+	writeNumber(ln, sl.index, p.Digits, gutter)
 	ln.spaces(1, gutter)
 	ln.text(sl.mark, gutter)
 	ln.spaces(1, gutter)

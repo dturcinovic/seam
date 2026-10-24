@@ -12,7 +12,6 @@ import (
 
 	"seam/internal/app/port/in/infakes"
 	"seam/internal/domain/change"
-	"seam/internal/domain/ui"
 )
 
 // program stands in for Program.Send: it records messages and can be held
@@ -93,7 +92,7 @@ func TestManyUpdatesFallTogetherAndNoneIsLost(t *testing.T) {
 
 		msgs := p.received()
 		assert.Len(t, msgs, 2, "one in flight, one for everything after")
-		m := newModel(change.Changeset{}, ports, ui.DefaultSettings())
+		m := newModel(change.Changeset{}, ports, splitSettings())
 		m.Update(msgs[0])
 		assert.Equal(t, 1, ports.Files.(*infakes.FakeFileDiffLoader).DrainCallCount(), "one message drains every update")
 		require.NoError(t, b.stop())

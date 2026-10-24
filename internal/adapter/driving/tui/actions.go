@@ -6,6 +6,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/lang"
+	"seam/internal/domain/ui"
 	"seam/internal/domain/view"
 	"seam/internal/textcell"
 )
@@ -114,23 +115,33 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 // resize takes the new terminal size; the top line stays where it is.
 func (s *state) resize(width, height int) {
 	body := s.Layout.Body
-	s.place(width, height)
+	laid := s.place(width, height)
+	s.List.keep(s.Current, s.listLines())
+	if laid {
+		return
+	}
 	if s.Layout.Body != body {
 		s.mark()
 	}
-	s.List.keep(s.Current, s.listLines())
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }
 
-// place lays out the screen for the current file.
-func (s *state) place(width, height int) {
-	s.Layout = computeLayout(width, height, s.List.columns(width), s.Snapshot.Diff)
+// place lays out the screen for the current file, and its lines anew when
+// the sides change between side by side and unified; laid says it did.
+func (s *state) place(width, height int) (laid bool) {
+	was := s.Layout.Unified
+	s.Layout = computeLayout(width, height, s.List.columns(width), s.Snapshot.Diff, s.unified)
+	if s.Layout.Unified != was {
+		s.layLines()
+		laid = true
+	}
 	// Only a list on the screen can have the focus, and a page that
 	// shrank keeps its last line full.
 	if s.Layout.List == 0 {
 		s.List.blur()
 	}
 	s.scrollList(0)
+	return laid
 }
 
 // setFiles is the one way to replace the files: in the order the list
@@ -149,6 +160,28 @@ func (s *state) show(lines []view.Line) {
 // mark derives the scrollbar's marks from Lines at the body's height.
 func (s *state) mark() {
 	s.Marks = changeMarks(s.Snapshot.Diff, s.Lines, s.Layout.Body)
+}
+
+// unified says whether a diff of width columns shows unified.
+func (s *state) unified(width int) bool {
+	switch s.LayoutSetting {
+	case ui.SplitLayout:
+		return false
+	case ui.UnifiedLayout:
+		return true
+	case ui.AutoLayout:
+	}
+	return width < s.SplitMinWidth
+}
+
+// toggleLayout turns the sides the other way, for good: a resize after it
+// leaves them so.
+func (s *state) toggleLayout() {
+	s.LayoutSetting = ui.UnifiedLayout
+	if s.Layout.Unified {
+		s.LayoutSetting = ui.SplitLayout
+	}
+	s.place(s.Layout.Width, s.Layout.Height)
 }
 
 // toggleMode switches between the hunk and the full view at the same row.
@@ -230,7 +263,18 @@ func (s *state) scrollTo(line int) {
 // relayout lays out the diff again after it or the mode changed, keeping
 // the anchor row.
 func (s *state) relayout() {
-	s.place(s.Layout.Width, s.Layout.Height)
-	s.show(view.Lines(s.Snapshot.Diff, s.Mode, s.Context))
+	if !s.place(s.Layout.Width, s.Layout.Height) {
+		s.layLines()
+	}
+}
+
+// layLines lays out the diff in Mode, unified if Layout is, and keeps the
+// anchor row on the screen.
+func (s *state) layLines() {
+	lines := view.Lines(s.Snapshot.Diff, s.Mode, s.Context)
+	if s.Layout.Unified {
+		lines = view.Unify(s.Snapshot.Diff, lines)
+	}
+	s.show(lines)
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }

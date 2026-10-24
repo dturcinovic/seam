@@ -20,10 +20,15 @@ const (
 )
 
 // Line is one line of a view: a single row, or with Fold a range of
-// unchanged rows shown as one line.
+// unchanged rows shown as one line. Half says which side of its row the
+// line shows; only Unify splits a row.
 type Line struct {
 	Rows diff.RowRange
 	Fold bool
+	Half Half
+	// reach is how far the rows of the old halves before a new half reach,
+	// see LineForRow.
+	reach int
 }
 
 // Contains reports whether the line shows or folds row.
@@ -67,10 +72,12 @@ func rowLines(lines []Line, start, end int) []Line {
 	return lines
 }
 
-// LineForRow is the index of the line that shows or folds row. A row past
-// the end gives the last line, and no lines give 0.
+// LineForRow is the index of the first line that shows or folds row. A row
+// past the end gives the last line, and no lines give 0. The new halves of
+// a unified block repeat rows of its old halves before them, so they count
+// as reaching as far as those: that keeps the search's key from falling.
 func LineForRow(lines []Line, row int) int {
-	i := sort.Search(len(lines), func(i int) bool { return lines[i].Rows.End > row })
+	i := sort.Search(len(lines), func(i int) bool { return max(lines[i].Rows.End, lines[i].reach) > row })
 	return max(min(i, len(lines)-1), 0)
 }
 

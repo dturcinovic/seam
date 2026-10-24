@@ -43,7 +43,7 @@ func TestANewlineInAPathShowsAsNewline(t *testing.T) {
 }
 
 func TestAFailedLoadSaysSo(t *testing.T) {
-	s := newState(change.Changeset{Files: files("a.go")}, ui.DefaultSettings())
+	s := newState(change.Changeset{Files: files("a.go")}, splitSettings())
 	s.resize(80, 5)
 	r, _ := s.open(0, false)
 	s.apply(filediff.Update{Gen: r.Gen, Err: errors.New("boom")})
@@ -114,12 +114,12 @@ func TestRender(t *testing.T) {
 }
 
 func TestRenderWhileLoading(t *testing.T) {
-	s := newState(change.Changeset{Files: files("a.go")}, ui.DefaultSettings())
+	s := newState(change.Changeset{Files: files("a.go")}, splitSettings())
 	s.resize(40, 5)
 	s.open(0, false)
 
 	assert.Contains(t, render(&s, &theme{}), "loading…")
-	empty := newState(change.Changeset{}, ui.DefaultSettings())
+	empty := newState(change.Changeset{}, splitSettings())
 	empty.resize(40, 5)
 	assert.Contains(t, render(&empty, &theme{}), "nothing to compare")
 }

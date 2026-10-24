@@ -14,7 +14,6 @@ import (
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
-	"seam/internal/domain/ui"
 )
 
 func baseCommit(t *testing.T) change.ObjectID {
@@ -35,7 +34,7 @@ func leftModel(t *testing.T, left *lang.Instance) (model, hoverFakes) {
 	c, err := change.NewComparison(head, change.Worktree())
 	require.NoError(t, err)
 	p := fakePorts()
-	m := newModel(change.Changeset{Comparison: c, Files: files("a.go")}, p, ui.DefaultSettings())
+	m := newModel(change.Changeset{Comparison: c, Files: files("a.go")}, p, splitSettings())
 	m, _ = send(m, tea.WindowSizeMsg{Width: 80, Height: 24})
 	p.Docs.(*infakes.FakeDocumentTracker).TrackCalls(func(d hover.Document) (lang.Instance, bool) {
 		if d.Commit.IsZero() {

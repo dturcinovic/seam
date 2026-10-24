@@ -177,7 +177,7 @@ func (m *model) hoverAtCaret() {
 	if !ok {
 		return
 	}
-	w := m.s.Caret.Side
+	w := m.s.caretSide(p.line)
 	if t, ok := targetOn(w, lineOf(m.s.Snapshot.Diff.Rows[m.s.Caret.Row], w), p.text, p.c, hoverTarget{}); ok {
 		cancel, seq := m.s.hoverNow(t, x, y)
 		m.cancel(cancel)

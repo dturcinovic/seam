@@ -97,6 +97,8 @@ from `javascript` too.
 theme = "light"          # dark (the default) or light
 context_lines = 3        # around each change in the hunk view, 0 to 1000
 hover_delay = "300ms"    # how long the mouse rests before a hover, up to 5s
+layout = "auto"          # auto, split (side by side) or unified
+split_min_width = 120    # auto is unified below this many columns, 0 to 1000
 
 [limits]
 max_file_size = "16M"    # as --max-file-size, which wins over it
@@ -118,13 +120,19 @@ Keys are written as the terminal sends them: modifiers in the order `ctrl`,
 `alt`, `shift`, `meta`, `hyper`, `super`, then the key's character (`G`,
 not `shift+g`) or its name (`enter`, `tab`, `esc`, `space`, `backspace`,
 `up`, `down`, `left`, `right`, `home`, `end`, `pgup`, `pgdown`, `insert`,
-`delete`, `f1` to `f63`). A key does one thing in each place; the popup,
+`delete`, `f1` to `f63`). A key you bind leaves the defaults of the other
+actions in its place. A key does one thing in each place; the popup,
 the focused file list and the caret hide the keys of the view beneath them.
+
+The width `split_min_width` counts is the diff's: the terminal's less the
+file list, so opening the list can turn the view unified. `u` turns the
+sides the other way for the rest of the session, whatever the width; in the
+unified view, `o` goes between the old and the new half of a changed line.
 
 | Place | Actions (default keys) |
 |---|---|
 | view and file list | `down` (j, down), `up` (k, up), `half_page_down` (ctrl+d), `half_page_up` (ctrl+u), `page_down` (pgdown, space), `page_up` (pgup), `top` (g, home), `bottom` (G, end) |
-| view | `quit` (q, esc, ctrl+c), `reload` (r), `toggle_view` (f), `next_change` (n), `prev_change` (p), `next_file` (tab, ]), `prev_file` (shift+tab, [), `scroll_left` (h, left), `scroll_right` (l, right), `toggle_files` (b), `start_caret` (i) |
+| view | `quit` (q, esc, ctrl+c), `reload` (r), `toggle_view` (f), `toggle_layout` (u), `next_change` (n), `prev_change` (p), `next_file` (tab, ]), `prev_file` (shift+tab, [), `scroll_left` (h, left), `scroll_right` (l, right), `toggle_files` (b), `start_caret` (i) |
 | file list | `open` (enter), `back` (esc), `prev_folder` ([), `next_folder` (]) |
 | caret | `leave_caret` (i, esc), `caret_down` (j, down), `caret_up` (k, up), `caret_left` (h, left), `caret_right` (l, right), `word_forward` (w), `word_back` (b), `word_end` (e), `other_side` (o), `hover` (K) |
 | popup | `close_popup` (esc) |

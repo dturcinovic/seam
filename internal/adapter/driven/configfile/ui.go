@@ -13,7 +13,9 @@ type uiEntry struct {
 	Theme        *string `toml:"theme"`
 	ContextLines *int    `toml:"context_lines"`
 	// HoverDelay is a duration as Go writes it, such as "300ms".
-	HoverDelay *string `toml:"hover_delay"`
+	HoverDelay    *string `toml:"hover_delay"`
+	Layout        *string `toml:"layout"`
+	SplitMinWidth *int    `toml:"split_min_width"`
 }
 
 // settings lays the ui, colors and keys sections over the defaults, the
@@ -27,15 +29,21 @@ func (d document) settings() (ui.Settings, error) {
 	if err != nil {
 		return ui.Settings{}, err
 	}
-	lines, delay := ui.DefaultContextLines, ui.DefaultHoverDelay
-	set(&lines, d.UI.ContextLines)
+	s := ui.DefaultSettings()
+	s.Palette, s.Keys = palette, keys
+	set(&s.ContextLines, d.UI.ContextLines)
+	set(&s.SplitMinWidth, d.UI.SplitMinWidth)
 	if d.UI.HoverDelay != nil {
-		if delay, err = time.ParseDuration(*d.UI.HoverDelay); err != nil {
+		if s.HoverDelay, err = time.ParseDuration(*d.UI.HoverDelay); err != nil {
 			return ui.Settings{}, fmt.Errorf("ui.hover_delay: %w", err)
 		}
 	}
-	s, err := ui.NewSettings(palette, keys, lines, delay)
-	if err != nil {
+	if d.UI.Layout != nil {
+		if s.Layout, err = ui.ParseLayout(*d.UI.Layout); err != nil {
+			return ui.Settings{}, fmt.Errorf("ui.layout: %w", err)
+		}
+	}
+	if s, err = ui.NewSettings(s); err != nil {
 		return ui.Settings{}, fmt.Errorf("ui: %w", err)
 	}
 	return s, nil

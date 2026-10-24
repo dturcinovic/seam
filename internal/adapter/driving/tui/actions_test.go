@@ -41,7 +41,13 @@ func files(paths ...string) []change.ChangedFile {
 // shown is a state of the given size showing snap as the first of fs.
 func shown(t *testing.T, fs []change.ChangedFile, width, height int, snap filediff.Snapshot) *state {
 	t.Helper()
-	s := newState(change.Changeset{Files: fs}, ui.DefaultSettings())
+	return shownWith(t, splitSettings(), fs, width, height, snap)
+}
+
+// shownWith is shown with the settings set.
+func shownWith(t *testing.T, set ui.Settings, fs []change.ChangedFile, width, height int, snap filediff.Snapshot) *state {
+	t.Helper()
+	s := newState(change.Changeset{Files: fs}, set)
 	s.resize(width, height)
 	r, ok := s.open(0, false)
 	require.True(t, ok)

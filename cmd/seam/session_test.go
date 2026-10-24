@@ -87,13 +87,13 @@ func TestABrokenConfigurationStopsTheStart(t *testing.T) {
 
 func TestBadSettingsStopTheStart(t *testing.T) {
 	inRepo(t)
-	p := configure(t, "[keys]\nreload = [\"n\"]\n")
+	p := configure(t, "[keys]\nreload = [\"x\"]\nnext_change = [\"x\"]\n")
 
 	code, stdout, stderr := runSeam(t)
 
 	assert.Equal(t, 1, code)
 	assert.Empty(t, stdout)
-	assert.Equal(t, "seam: "+p+": keys: invalid keys: \"n\" is a key of both reload and next_change\n", stderr)
+	assert.Equal(t, "seam: "+p+": keys: invalid keys: \"x\" is a key of both reload and next_change\n", stderr)
 }
 
 func TestTheViewersSettingsDoNotStopTheStart(t *testing.T) {

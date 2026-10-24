@@ -30,7 +30,10 @@ type layout struct {
 	Body int
 	// List is the columns of the file list and its separator at the left
 	// edge, none while it is hidden.
-	List        int
+	List int
+	// Unified shows both sides in one pane, Left's and Right's Digits side
+	// by side in its gutter; their Width is then none.
+	Unified     bool
 	Left, Right pane
 }
 
@@ -51,9 +54,23 @@ func (l layout) bodyLine(x, y int) (i int, ok bool) {
 	return l.within(x-l.List, y, l.panes())
 }
 
+// gutter is the width of the first pane's gutter; the unified one puts
+// the old line number before the new side's, as writeUnified does.
+func (l layout) gutter() int {
+	if l.Unified {
+		return 1 + l.Left.Digits + l.Right.gutter()
+	}
+	return l.Left.gutter()
+}
+
 // text is the screen columns of side w's text, from the first after its
-// gutter to the first past it, as writeRow lays them out.
+// gutter to the first past it, as writeRow lays them out. Both sides of the
+// unified view share them.
 func (l layout) text(w filediff.Which) (from, to int) {
+	if l.Unified {
+		from = l.List + l.gutter()
+		return from, max(from, l.List+l.panes())
+	}
 	start, p := l.List, l.Left
 	if w == filediff.NewSide {
 		start, p = l.List+l.Left.Width+separatorWidth, l.Right
@@ -123,12 +140,17 @@ type pane struct {
 func (p pane) gutter() int { return p.Digits + 4 }
 
 // computeLayout splits width between a file list of list columns, both
-// panes of d and the scrollbar; the right pane takes the odd column.
-func computeLayout(width, height, list int, d diff.FileDiff) layout {
+// panes of d, or the one of a unified view if unified says so for the
+// columns beside the list, and the scrollbar; the right pane takes the odd
+// column.
+func computeLayout(width, height, list int, d diff.FileDiff, unified func(width int) bool) layout {
 	l := layout{Width: width, Height: height, Body: max(height-chrome, 1), List: list}
-	left := max((l.panes()-separatorWidth)/2, 0)
-	l.Left = pane{Width: left, Digits: digits(len(d.Old.Lines))}
-	l.Right = pane{Width: max(l.panes()-separatorWidth-left, 0), Digits: digits(len(d.New.Lines))}
+	l.Unified = unified(max(width-list, 0))
+	l.Left.Digits, l.Right.Digits = digits(len(d.Old.Lines)), digits(len(d.New.Lines))
+	if !l.Unified {
+		l.Left.Width = max((l.panes()-separatorWidth)/2, 0)
+		l.Right.Width = max(l.panes()-separatorWidth-l.Left.Width, 0)
+	}
 	return l
 }
 
