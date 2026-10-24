@@ -1,0 +1,211 @@
+version: '3'
+
+# The commands are scripts, not one-liners; echoing them would bury the
+# message of the step that failed.
+silent: true
+# check runs its steps in parallel; the prefix tells their lines apart.
+output: prefixed
+
+env:
+  # The binary is static. Only the race detector in `test` needs cgo.
+  CGO_ENABLED: '0'
+
+vars:
+  BINARY: seam
+  MAIN_PKG: ./cmd/seam
+  # Run with `go run pkg@version` rather than a go.mod tool directive, whose
+  # module graph would override the linter's own dependency versions. It is
+  # built with the toolchain go.mod selects, which it must match to read the
+  # export data, and go caches the binary.
+  GOLANGCI_LINT_VERSION: v2.15.0
+  GOLANGCI_LINT: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+  COVER_PROFILE: bin/cover.out
+  # Packages held to MIN_COVERAGE each; a package with no statements (only
+  # doc.go) has nothing to cover and is left out.
+  COVER_PACKAGES: seam/internal/domain seam/internal/app/usecase
+  MIN_COVERAGE: 85
+
+tasks:
+  default:
+    cmds:
+      - task: check
+
+  fmt:
+    desc: Format the source
+    cmds:
+      - go fmt ./...
+
+  fmt:check:
+    desc: Verify that the source is formatted
+    cmds:
+      - |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "not gofmt-ed:"
+          echo "$unformatted"
+          exit 1
+        fi
+
+  fix:
+    desc: Apply the go fix modernizers
+    cmds:
+      - go fix ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  lint:
+    desc: Run golangci-lint including the depguard layering rules and the file length limit
+    cmds:
+      - '{{.GOLANGCI_LINT}} run ./...'
+
+  test:
+    desc: Run the tests with the race detector, archtest among them, and write the cover profile
+    env:
+      CGO_ENABLED: '1'
+      # A race-enabled test binary otherwise sleeps a second on exit.
+      GORACE: atexit_sleep_ms=0
+    cmds:
+      - mkdir -p bin
+      - go test -race -coverprofile={{.COVER_PROFILE}} ./...
+
+  cov:
+    desc: Fail if a domain or use case package is below the minimum coverage
+    cmds:
+      # Reads the profile `test` wrote, so the tests do not run twice.
+      # LC_ALL=C: mawk prints the locale's decimal comma otherwise.
+      - |
+        test -f {{.COVER_PROFILE}} || { echo "no cover profile; run: task test"; exit 1; }
+        LC_ALL=C awk -v min={{.MIN_COVERAGE}} -v prefixes="{{.COVER_PACKAGES}}" '
+          BEGIN { n = split(prefixes, want, " ") }
+          NR == 1 { next }
+          {
+            split($1, loc, ":"); pkg = loc[1]; sub("/[^/]*$", "", pkg)
+            keep = 0
+            for (i = 1; i <= n; i++) if (pkg == want[i] || index(pkg, want[i] "/") == 1) keep = 1
+            if (!keep) next
+            # The same block appears once per test binary that covers it.
+            block = $1
+            if (!(block in seen)) { seen[block] = 1; total[pkg] += $2 }
+            if ($3 > 0 && !(block in hit)) { hit[block] = 1; covered[pkg] += $2 }
+          }
+          END {
+            bad = 0
+            for (pkg in total) {
+              if (total[pkg] == 0) continue
+              pct = 100 * covered[pkg] / total[pkg]
+              printf "%-50s %5.1f%%\n", pkg, pct
+              if (pct < min) { printf "  below %d%%\n", min; bad = 1 }
+            }
+            exit bad
+          }' {{.COVER_PROFILE}}
+
+  generate:
+    desc: Regenerate the counterfeiter fakes
+    cmds:
+      - go generate ./...
+
+  generate:check:
+    desc: Fail if generated code is out of date with its sources
+    cmds:
+      # Compared by content rather than against git, so the check works before
+      # the first commit too. Stale generated code compiles happily; it just
+      # answers for the interfaces as they used to be.
+      - |
+        snapshot() {
+          grep -rl --include='*.go' --exclude-dir=.git --exclude-dir=bin '^// Code generated .* DO NOT EDIT\.$' . \
+            | sort | xargs -r sha256sum
+        }
+        before=$(snapshot)
+        go generate ./... >/dev/null || exit 1
+        changed=$(diff <(printf '%s\n' "$before") <(snapshot) | sed -n 's/^> [0-9a-f]*  /  /p')
+        if [ -n "$changed" ]; then
+          echo "generated code was out of date and has been regenerated; changed or new files:"
+          echo "$changed"
+          exit 1
+        fi
+
+  api:write:
+    internal: true
+    cmds:
+      # One file per port and domain package; the fakes are no contract.
+      - |
+        set -e
+        rm -rf {{.DIR}} && mkdir -p {{.DIR}}
+        for pkg in $(go list ./internal/app/port/... ./internal/domain/... | grep -v 'fakes$'); do
+          name=$(echo "${pkg#seam/internal/}" | tr / _)
+          go doc -all "$pkg" > "{{.DIR}}/$name.txt"
+        done
+
+  api:check:
+    desc: Fail if a port or domain API differs from its snapshot in api/
+    cmds:
+      - task: api:write
+        vars: {DIR: bin/api}
+      - |
+        if ! diff -ru api bin/api; then
+          echo "the API changed; give the reason in the task and run: task api:bless"
+          exit 1
+        fi
+
+  api:bless:
+    desc: Accept the current port and domain APIs as the snapshot
+    cmds:
+      - task: api:write
+        vars: {DIR: api}
+
+  mod:check:
+    desc: Fail on untidy modules, known vulnerabilities or unacceptable licenses
+    cmds:
+      - go mod tidy -diff
+      - go tool govulncheck ./...
+      # seam itself has no license yet; the check is about what it pulls in.
+      # go-licenses logs warnings through klog, which no flag silences; they
+      # start with W and a date, followed by an indented or path line.
+      - go tool go-licenses check --ignore seam ./... 2> >(grep -v -E '^W[0-9]{4} |^/' >&2)
+
+  build:
+    desc: Build the static binary
+    vars:
+      # A tree with changes, tracked or new files alike, gets a hash of
+      # them, so two builds of different uncommitted states differ.
+      VERSION:
+        sh: |
+          v=$(git describe --always 2>/dev/null || echo dev)
+          if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+            v="$v-dirty.$( { git diff HEAD 2>/dev/null || true; git ls-files --others --exclude-standard -z | xargs -0 -r sha256sum; } | sha256sum | cut -c1-8)"
+          fi
+          echo "$v"
+    cmds:
+      - go build -ldflags "-X main.version={{.VERSION}}" -o bin/{{.BINARY}} {{.MAIN_PKG}}
+
+  build:check:
+    desc: Verify that the static binary links
+    cmds:
+      - go build -o /dev/null {{.MAIN_PKG}}
+
+  install:
+    desc: Build and copy the binary to ~/bin
+    deps: [build]
+    cmds:
+      - install -m 0755 bin/{{.BINARY}} ~/bin/{{.BINARY}}
+
+  bench:
+    desc: Run the benchmarks
+    cmds:
+      - go test -run '^$' -bench . -benchmem ./...
+
+  check:
+    desc: The gate, also run by the pre-commit hook
+    cmds:
+      # First, as it rewrites files the others read.
+      - task: generate:check
+      - task: check:independent
+      # Last, as it reads the profile test writes.
+      - task: cov
+
+  check:independent:
+    internal: true
+    deps: [fmt:check, vet, lint, api:check, mod:check, test, build:check]

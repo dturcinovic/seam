@@ -1,0 +1,5 @@
+// Package domain holds the business types of seam: the diff model and its
+// algorithm, views and their anchors, comparisons and sources, languages,
+// hover values and limits. It imports only the standard library, without os,
+// net or log, and knows no terminal, git or language server.
+package domain

@@ -1,0 +1,368 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  # Both default to a cap and drop the rest without a word, so a run could
+  # report a tidy total while sitting on several times as many.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  default: standard
+  enable:
+    - depguard
+    - forbidigo
+    # Size and shape limits that keep ports narrow and functions small.
+    - interfacebloat
+    - ireturn
+    - gocognit
+    - nestif
+    - funlen
+    - revive
+    - unparam
+    # No package state but Module and sentinel errors, no init().
+    - gochecknoglobals
+    - gochecknoinits
+    - copyloopvar
+    - errorlint
+    - exhaustive
+    - intrange
+    - misspell
+    - modernize
+    - noctx
+    - unconvert
+    - usestdlibvars
+
+  exclusions:
+    # Generated code (counterfeiter fakes) is not edited by hand: a style
+    # finding there could only be fixed by the next `task generate` undoing it.
+    # depguard still applies, so a fake cannot pull in a forbidden layer.
+    generated: lax
+    rules:
+      # Table tests are long by nature; splitting them hides the cases.
+      - path: _test\.go
+        linters: [funlen, gochecknoglobals]
+      # The composition root hands out ports as interfaces on purpose.
+      - path: ^cmd/
+        linters: [ireturn]
+      # fx modules are the one package variable the rules allow.
+      - path: (^|/)module\.go$
+        text: "Module is a global variable"
+        linters: [gochecknoglobals]
+      # Exclusions match the identifier forbidigo quotes in its message, not
+      # free text, so a new message cannot widen them by accident.
+      # The command owns the terminal until the TUI starts.
+      - path: ^cmd/
+        text: "use of `(fmt\\.Fp?rint[a-z]*|os\\.Std(out|err))`"
+        linters: [forbidigo]
+      - path: ^cmd/seam/main\.go$
+        text: "use of `os\\.Exit`"
+        linters: [forbidigo]
+      - path: _test\.go
+        text: "use of `(panic|time\\.Now)`"
+        linters: [forbidigo]
+      - path: ^internal/supervise/
+        text: "use of `time\\.AfterFunc`"
+        linters: [forbidigo]
+      # The clock is a parameter only where state is pure: the domain and
+      # the TUI's actions.
+      - path-except: ^internal/(domain/|adapter/driving/tui/actions\.go$)
+        text: "use of `time\\.Now`"
+        linters: [forbidigo]
+
+  settings:
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^fmt\.(Print|Println|Printf|Fprint|Fprintln|Fprintf)$
+          pkg: ^fmt$
+          msg: the TUI owns the terminal; log through zap or return an error
+        - pattern: ^os\.(Stdout|Stderr)$
+          pkg: ^os$
+          msg: the TUI owns the terminal; log through zap or return an error
+        - pattern: ^os\.Exit$
+          pkg: ^os$
+          msg: only main decides the exit code
+        - pattern: ^panic$
+          msg: return an error; a panic in background work fails its supervise group
+        # Only in the domain and the TUI's actions; see the exclusions.
+        - pattern: ^time\.Now$
+          pkg: ^time$
+          msg: the time comes in as a parameter here
+        - pattern: ^time\.AfterFunc$
+          pkg: ^time$
+          msg: use supervise.Group.AfterFunc, which catches panics and is stopped with its owner
+    exhaustive:
+      # A missing case of a domain enum is a bug even behind a default.
+      default-signifies-exhaustive: false
+    interfacebloat:
+      max: 4
+    ireturn:
+      # generic: a type parameter in the result is the caller's concrete
+      # type, not an interface hiding one.
+      allow: [anon, error, empty, stdlib, generic]
+    gocognit:
+      min-complexity: 20
+    nestif:
+      min-complexity: 4
+    funlen:
+      lines: 60
+      statements: 40
+    revive:
+      rules:
+        - name: exported
+        - name: unused-parameter
+        - name: var-naming
+        - name: indent-error-flow
+        - name: early-return
+        # Tests included; generated files are excluded above.
+        - name: file-length-limit
+          arguments:
+            - max: 500
+
+    depguard:
+      # The layering from the plan. list-mode:
+      #   strict = everything denied except what allow permits
+      #   lax    = everything allowed except what deny forbids;
+      #            on overlap the longer prefix wins
+      # Every rule matching a file applies, so a lax rule cannot widen a
+      # strict one.
+      rules:
+        domain-nur-stdlib:
+          list-mode: strict
+          files:
+            - "**/internal/domain/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - seam/internal/domain
+          deny:
+            # $gostd admits the whole standard library, and some of it carries
+            # a layer along.
+            - pkg: database/sql
+              desc: the domain stores nothing
+            - pkg: net
+              desc: network access belongs in a driven adapter
+            - pkg: log
+              desc: the domain returns, it does not report
+            - pkg: os
+              desc: environment and filesystem belong in config or an adapter
+
+        # Covers the generated fakes in port/in/infakes too.
+        port-in-nur-domain:
+          list-mode: strict
+          files:
+            - "**/internal/app/port/in/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - seam/internal/domain
+            - seam/internal/app/port/in
+
+        port-out-nur-domain:
+          list-mode: strict
+          files:
+            - "**/internal/app/port/out/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - seam/internal/domain
+            - seam/internal/app/port/out
+
+        # Tests are left out: they need testify, the fakes and testsupport.
+        # module.go has a rule of its own because it needs fx.
+        usecase-nur-ports:
+          list-mode: strict
+          files:
+            - "**/internal/app/usecase/**"
+            - "!$test"
+            - "!**/internal/app/usecase/module.go"
+            - "!**/internal/app/usecase/*/module.go"
+          allow:
+            - $gostd
+            # Bounded concurrency only; it brings no layer along.
+            - golang.org/x/sync/errgroup
+            - seam/internal/domain
+            - seam/internal/app/port/in
+            - seam/internal/app/port/out
+            - seam/internal/app/usecase
+            - seam/internal/supervise
+            - seam/internal/textcell
+          deny:
+            - pkg: net
+              desc: a use case holds a port, not a connection
+            - pkg: log
+              desc: a use case returns what happened; the adapter that drives it logs
+            - pkg: os
+              desc: files, processes and environment are reached through ports
+
+        usecase-module:
+          list-mode: strict
+          files:
+            - "**/internal/app/usecase/module.go"
+            - "**/internal/app/usecase/*/module.go"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - seam/internal/domain
+            - seam/internal/app
+            - seam/internal/supervise
+
+        # Bounds of every driven adapter, its tests included and before it has
+        # a rule of its own. Which packages its code may import is its strict
+        # rule below: a new adapter gets one, naming its own library, so it
+        # cannot reach into another adapter.
+        driven-adapter:
+          list-mode: lax
+          files:
+            - "**/internal/adapter/driven/**"
+          deny:
+            - pkg: seam/internal/adapter/driving
+              desc: driven adapters are called, they do not drive
+            - pkg: seam/internal/app/usecase
+              desc: a driven adapter is called by use cases, it does not call them
+            - pkg: seam/internal/app/port/in
+              desc: a driven adapter implements outgoing ports only
+            - pkg: seam/internal/config
+              desc: an adapter gets its settings supplied by the composition root
+
+        driven-git:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/git/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - go.uber.org/zap
+            - seam/internal/domain
+            - seam/internal/app/port/out
+            - seam/internal/supervise
+            - seam/internal/adapter/driven/git
+
+        driven-chroma:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/chroma/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - go.uber.org/zap
+            - seam/internal/domain
+            - seam/internal/app/port/out
+            - seam/internal/supervise
+            - seam/internal/adapter/driven/chroma
+            - github.com/alecthomas/chroma/v2
+
+        driven-lsp:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/lsp/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - go.uber.org/zap
+            - seam/internal/domain
+            - seam/internal/app/port/out
+            - seam/internal/supervise
+            - seam/internal/adapter/driven/lsp
+
+        driven-configfile:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/configfile/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - go.uber.org/zap
+            - seam/internal/domain
+            - seam/internal/app/port/out
+            - seam/internal/supervise
+            - seam/internal/adapter/driven/configfile
+            - github.com/pelletier/go-toml/v2
+
+        driving-tui:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driving/tui/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - charm.land/bubbletea/v2
+            - charm.land/lipgloss/v2
+            - go.uber.org/zap
+            - seam/internal/domain
+            - seam/internal/app/port/in
+            - seam/internal/supervise
+            - seam/internal/textcell
+            - seam/internal/adapter/driving/tui
+
+        supervise-nur-stdlib:
+          list-mode: strict
+          files:
+            - "**/internal/supervise/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - seam/internal/supervise
+
+        textcell-nur-ansi:
+          list-mode: strict
+          files:
+            - "**/internal/textcell/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/charmbracelet/x/ansi
+            - seam/internal/textcell
+
+        ui-nur-im-tui:
+          list-mode: lax
+          files:
+            - "$all"
+            - "!**/internal/adapter/driving/tui/**"
+          deny:
+            # The v1 module paths too: they arrive transitively with x/ansi.
+            - pkg: charm.land/bubbletea
+              desc: the terminal UI lives in internal/adapter/driving/tui
+            - pkg: charm.land/lipgloss
+              desc: the terminal UI lives in internal/adapter/driving/tui
+            - pkg: github.com/charmbracelet/bubbletea
+              desc: the terminal UI lives in internal/adapter/driving/tui
+            - pkg: github.com/charmbracelet/lipgloss
+              desc: the terminal UI lives in internal/adapter/driving/tui
+
+        chroma-nur-im-adapter:
+          list-mode: lax
+          files:
+            - "$all"
+            - "!**/internal/adapter/driven/chroma/**"
+          deny:
+            - pkg: github.com/alecthomas/chroma
+              desc: highlighting is reached through the Highlighter port
+
+        querschnitt-ohne-schichten:
+          list-mode: lax
+          files:
+            - "**/internal/config/**"
+            - "**/internal/observability/**"
+          deny:
+            - pkg: seam/internal/adapter
+              desc: adapters import these packages, not the other way round
+            - pkg: seam/internal/app
+              desc: use cases import these packages, not the other way round
+
+        testsupport-nur-in-tests:
+          list-mode: lax
+          files:
+            - "$all"
+            - "!$test"
+          deny:
+            - pkg: seam/internal/testsupport
+              desc: test helpers must not end up in the binary
