@@ -16,8 +16,10 @@ import (
 	"seam/internal/app/port/out/outfakes"
 	"seam/internal/app/usecase"
 	"seam/internal/domain/change"
+	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
+	"seam/internal/domain/syntax"
 	"seam/internal/supervise"
 	"seam/internal/testsupport"
 )
@@ -231,4 +233,40 @@ func TestBlockedPortsHoldUpNoKey(t *testing.T) {
 	assert.Eventually(t, func() bool { return f.changes.ListChangesCallCount() == 2 }, testsupport.Guard, time.Millisecond,
 		"the first load and the reload")
 	t.Cleanup(func() { _ = stopGraph(app) }) // The blocked fakes are released first.
+}
+
+// TestAStuckHighlighterHoldsUpNoKey: an answer's code waits for a
+// highlighter that does not return; keys, a status change after it and q
+// go through all the same.
+func TestAStuckHighlighterHoldsUpNoKey(t *testing.T) {
+	f := newOutFakes(t)
+	started, release := make(chan struct{}), make(chan struct{})
+	f.highlight.HighlightCalls(func(_ context.Context, _ lang.Lang, text string) (syntax.Tokens, bool) {
+		// The files shown are highlighted through the same port.
+		if text == "func probe()" {
+			close(started)
+			<-release
+		}
+		return syntax.Tokens{}, true
+	})
+	signal := make(chan struct{}, 1)
+	f.events.SignalReturns(signal)
+	code := hover.Content{Blocks: []hover.Block{{Kind: hover.Code, Lang: lang.Go, Code: "func probe()"}}}
+	f.events.DrainReturnsOnCall(0, []hover.Update{{Kind: hover.HoverDone, Outcome: hover.Text, Content: code}})
+	f.events.DrainReturnsOnCall(1, []hover.Update{{Kind: hover.StatusChanged, Instance: lang.Instance{Server: "gopls", Root: "."}, Status: hover.Ready}})
+	app, ports := startGraph(t, f)
+	signal <- struct{}{}
+	<-started
+	typeKeys, wait := runTUI(t, ports, changeset(), io.Discard)
+
+	begin := time.Now()
+	signal <- struct{}{}
+	typeKeys("jj\t]\x1b[Bfnpq")
+	require.NoError(t, wait())
+
+	assert.Less(t, time.Since(begin), time.Second)
+	assert.Eventually(t, func() bool { return f.events.DrainCallCount() >= 2 }, testsupport.Guard, time.Millisecond,
+		"the status change was taken while the highlighter hangs")
+	close(release)
+	assert.NoError(t, stopGraph(app))
 }

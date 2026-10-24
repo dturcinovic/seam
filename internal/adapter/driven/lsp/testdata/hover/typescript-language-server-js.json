@@ -1,0 +1,24 @@
+{
+  "server": "typescript-language-server",
+  "version": "6.0.2+ts5.9.3",
+  "file": "lib.js",
+  "line": 2,
+  "character": 0,
+  "word": "greet",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "\n```typescript\nfunction greet(name: string): string\n```\nGreets someone.\n\n*@param* `name`"
+    },
+    "range": {
+      "start": {
+        "line": 2,
+        "character": 0
+      },
+      "end": {
+        "line": 2,
+        "character": 5
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "server": "tsgo",
+  "version": "7.0.2",
+  "file": "main.ts",
+  "line": 8,
+  "character": 10,
+  "word": "add",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "```typescript\nfunction add(a: number, b: number): number\n```\nAdds two numbers.\n\n*@param* `a` — the first, see [docs](https://example.com)\n\n*@returns* — the **sum**"
+    },
+    "range": {
+      "start": {
+        "line": 8,
+        "character": 10
+      },
+      "end": {
+        "line": 8,
+        "character": 13
+      }
+    }
+  }
+}

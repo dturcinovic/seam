@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +16,9 @@ import (
 	"seam/internal/adapter/driving/tui"
 	"seam/internal/app/port/in"
 	"seam/internal/domain/change"
+	"seam/internal/domain/hover"
+	"seam/internal/domain/lang"
+	"seam/internal/domain/syntax"
 	"seam/internal/testsupport"
 )
 
@@ -30,9 +35,13 @@ func (s *screen) Write(p []byte) (int, error) {
 }
 
 func (s *screen) shows(text string) bool {
+	return strings.Contains(s.text(), text)
+}
+
+func (s *screen) text() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return strings.Contains(s.out.String(), text)
+	return s.out.String()
 }
 
 // TestTheMouseRestingOnCodeShowsItsHover runs seam's graph with fakelsp
@@ -71,4 +80,73 @@ func TestTheMouseRestingOnCodeShowsItsHover(t *testing.T) {
 			assert.NoError(t, stop())
 		})
 	}
+}
+
+// TestAHoverShowsItsMarkdown: the answer shows with its rule across and
+// without its marks. A pipe gets no colours; TestTheCodeOfAHoverArrivesColoured
+// checks those.
+func TestAHoverShowsItsMarkdown(t *testing.T) {
+	fakelsp := buildFakelsp(t)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	repo := testsupport.NewGitRepo(t)
+	repo.Write("a.go", "package a\n")
+	repo.Git("add", ".")
+	repo.Git("commit", "-q", "-m", "first")
+	repo.Write("a.go", "package a\n\nfunc f() {}\n")
+	answer := "```go\nfunc probe()\n```\n\n---\n\nProbe **probes** `x`."
+	require.NoError(t, os.WriteFile(filepath.Join(repo.Dir, "fakelsp.script"), []byte("hover "+strconv.Quote(answer)+"\n"), 0o600))
+	var (
+		ports      tui.Ports
+		changesets in.ChangesetLoader
+	)
+	stop, _ := fakeGraph(t, repo.Dir, fakelsp, &changesets, &ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover)
+	cs, err := changesets.LoadChangeset(t.Context(), change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()})
+	require.NoError(t, err)
+	out := &screen{}
+	typeKeys, wait := runTUI(t, ports, cs, out)
+	require.Eventually(t, func() bool { return out.shows("fake") }, testsupport.Guard, 10*time.Millisecond, "the server of a.go")
+
+	typeKeys("\x1b[<35;47;2M")
+
+	require.Eventually(t, func() bool { return out.shows("probes") }, testsupport.Guard, 10*time.Millisecond)
+	typeKeys("q")
+	assert.NoError(t, wait())
+	assert.NoError(t, stop())
+	assert.True(t, out.shows("─────"), "the rule")
+	assert.False(t, out.shows("**probes**"), "no marks")
+	assert.False(t, out.shows("```"), "no fence")
+}
+
+// TestTheCodeOfAHoverArrivesColoured asks seam's graph, with fakelsp and
+// chroma, through the ports the TUI calls: the answer's Go code comes with
+// its tokens.
+func TestTheCodeOfAHoverArrivesColoured(t *testing.T) {
+	fakelsp := buildFakelsp(t)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	repo := testsupport.NewGitRepo(t)
+	repo.Write("a.go", "package a\n")
+	repo.Git("add", ".")
+	repo.Git("commit", "-q", "-m", "first")
+	answer := "```go\nfunc probe()\n```"
+	require.NoError(t, os.WriteFile(filepath.Join(repo.Dir, "fakelsp.script"), []byte("hover "+strconv.Quote(answer)+"\n"), 0o600))
+	var ports tui.Ports
+	stop, _ := fakeGraph(t, repo.Dir, fakelsp, &ports.Docs, &ports.LSP, &ports.Hover)
+	defer func() { assert.NoError(t, stop()) }()
+	_, ok := ports.Docs.Track(hover.Document{Path: "a.go", Lang: lang.Go, Version: 1, Text: "package a\n"})
+	require.True(t, ok)
+	testsupport.Collect(t, ports.LSP, func(us []hover.Update) bool {
+		return slices.ContainsFunc(us, func(u hover.Update) bool { return u.Status == hover.Ready })
+	})
+
+	require.Equal(t, hover.Sent, ports.Hover.Hover(hover.Position{Req: 1, Path: "a.go", Version: 1}))
+
+	us := testsupport.Collect(t, ports.LSP, func(us []hover.Update) bool {
+		return slices.ContainsFunc(us, func(u hover.Update) bool { return u.Kind == hover.HoverDone })
+	})
+	u := us[slices.IndexFunc(us, func(u hover.Update) bool { return u.Kind == hover.HoverDone })]
+	require.Equal(t, hover.Text, u.Outcome)
+	code := u.Content.Blocks[0]
+	assert.Equal(t, lang.Go, code.Lang)
+	require.Equal(t, 1, code.Tokens.Lines())
+	assert.Equal(t, syntax.Run{End: int32(len("func")), Kind: syntax.Keyword}, code.Tokens.Line(0)[0])
 }

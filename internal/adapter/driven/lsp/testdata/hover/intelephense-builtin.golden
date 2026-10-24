@@ -1,0 +1,15 @@
+**strlen**
+
+Get string length
+
+```php
+<?php
+function strlen(string $string): int { }
+```
+
+*@param* `string $string` The string being measured for length.
+
+*@return* `int`
+The length of the *string* on success, and 0 if the *string* is empty.
+
+*@link* <https://php.net/manual/en/function.strlen.php>

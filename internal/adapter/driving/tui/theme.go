@@ -21,6 +21,13 @@ const (
 	foldStyle
 	popupStyle
 	popupFrameStyle
+	// The styles of the popup's text; its code has one per syntax kind,
+	// see popupCodeStyle.
+	popupEmphasisStyle
+	popupStrongStyle
+	popupLinkStyle
+	popupDimStyle
+	popupCodeSpanStyle
 	// The stand-in styles dim replaced graphemes in the text above.
 	plainStandIn
 	headerStandIn
@@ -33,8 +40,9 @@ const (
 )
 
 const (
-	firstListStyle = firstScrollStyle + style(2*tones)
-	firstPaneStyle = firstListStyle + style(int(listParts)*int(listShades))
+	firstListStyle      = firstScrollStyle + style(2*tones)
+	firstPaneStyle      = firstListStyle + style(int(listParts)*int(listShades))
+	firstPopupCodeStyle = firstPaneStyle + style(int(tones)*int(roles))
 )
 
 // standIn is how a replaced grapheme shows in text of style st. The pane
@@ -49,10 +57,13 @@ func (st style) standIn() style {
 		return footerStandIn
 	case errorStyle:
 		return errorStandIn
-	case popupStyle:
+	case popupStyle, popupEmphasisStyle, popupStrongStyle, popupLinkStyle, popupDimStyle, popupCodeSpanStyle:
 		return popupStandIn
 	case separatorStyle, foldStyle, popupFrameStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, popupStandIn,
-		firstScrollStyle, firstListStyle, firstPaneStyle:
+		firstScrollStyle, firstListStyle, firstPaneStyle, firstPopupCodeStyle:
+	}
+	if st >= firstPopupCodeStyle && st < firstPopupCodeStyle+style(syntax.Kinds) {
+		return popupStandIn
 	}
 	// A path in the file list dims its stand-ins in the row's own colours.
 	if sh, ok := st.listShade(); ok {
@@ -141,13 +152,18 @@ const (
 	roles      = inlineRole + role(syntax.Kinds)
 )
 
-const styles = int(firstPaneStyle) + int(tones)*int(roles)
+const styles = int(firstPopupCodeStyle) + int(syntax.Kinds)
 
 // A style must fit its type; more kinds or tones fail the build here.
 const _ = uint8(styles - 1)
 
 func paneStyle(t tone, r role) style {
 	return firstPaneStyle + style(int(t)*int(roles)+int(r))
+}
+
+// popupCodeStyle is code of kind k in the popup.
+func popupCodeStyle(k syntax.Kind) style {
+	return firstPopupCodeStyle + style(k)
 }
 
 // textStyle is text of kind k in tone t, in a changed stretch if inline.
@@ -178,6 +194,7 @@ const (
 	headerBg         = "#303030"
 	thumbBg          = "#4a4a4a"
 	popupBg          = "#21252b"
+	codeSpanBg       = "#2c313a"
 	errorFg          = "#ff6b6b"
 	// The file list's selection, folders, gutter and zero counts.
 	selectedBg = "#2e436e"
@@ -224,6 +241,18 @@ func newTheme() *theme {
 	return &t
 }
 
+// addPopupStyles adds the styles of the popup's text on its background.
+func addPopupStyles(all map[style]lipgloss.Style, popup lipgloss.Style) {
+	all[popupEmphasisStyle] = popup.Italic(true)
+	all[popupStrongStyle] = popup.Bold(true)
+	all[popupLinkStyle] = popup.Foreground(lipgloss.Color(changedFg)).Underline(true)
+	all[popupDimStyle] = popup.Foreground(lipgloss.Color(dimFg))
+	all[popupCodeSpanStyle] = popup.Background(lipgloss.Color(codeSpanBg))
+	for k, fg := range kindColours() {
+		all[popupCodeStyle(syntax.Kind(k))] = popup.Foreground(lipgloss.Color(fg))
+	}
+}
+
 func lipglossStyles() map[style]lipgloss.Style {
 	base := lipgloss.NewStyle()
 	dim := base.Foreground(lipgloss.Color(dimFg))
@@ -244,6 +273,7 @@ func lipglossStyles() map[style]lipgloss.Style {
 		popupFrameStyle: popup.Foreground(lipgloss.Color(dimFg)),
 		popupStandIn:    popup.Faint(true),
 	}
+	addPopupStyles(all, popup)
 	shades := [listShades]lipgloss.Style{
 		plainShade:    base,
 		selectedShade: base.Background(lipgloss.Color(selectedBg)),

@@ -19,7 +19,7 @@ var Module = fx.Module("usecase",
 	fx.Provide(
 		fx.Annotate(newChangesets, fx.As(new(in.ChangesetLoader)), fx.As(new(in.ChangesetReloader))),
 		fx.Annotate(newFileDiffs, fx.As(new(in.FileDiffLoader))),
-		fx.Annotate(NewHovers, fx.As(new(in.Hoverer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
+		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 	),
 )
 
@@ -56,4 +56,10 @@ func runWorker(lc fx.Lifecycle, w interface {
 		}
 		return w.Stop(ctx)
 	}))
+}
+
+func newHovers(lc fx.Lifecycle, d out.DocumentSync, r out.HoverRequester, e out.ServerEvents, h out.Highlighter, panics supervise.PanicFunc) *Hovers {
+	hs := NewHovers(d, r, e, h, panics)
+	runWorker(lc, hs)
+	return hs
 }

@@ -1,0 +1,7 @@
+```go
+field X int // size=8, offset=0
+```
+
+---
+
+`(main.Point).X`[ on pkg.go.dev] <https://pkg.go.dev/example.com/sample#Point.X>

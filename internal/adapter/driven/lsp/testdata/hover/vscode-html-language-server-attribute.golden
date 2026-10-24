@@ -1,0 +1,3 @@
+A space-separated list of the classes of the element. Classes allows CSS and JavaScript to select and access specific elements via the [class selectors] <https://developer.mozilla.org/docs/Web/CSS/Class_selectors> or functions like the method `Document.getElementsByClassName()` <https://developer.mozilla.org/docs/Web/API/Document/getElementsByClassName>.
+
+[MDN Reference] <https://developer.mozilla.org/docs/Web/HTML/Reference/Global_attributes/class>

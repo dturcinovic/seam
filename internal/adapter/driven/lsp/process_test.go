@@ -118,7 +118,7 @@ func TestALateAnswerThroughARealPipe(t *testing.T) {
 	require.Equal(t, hover.Sent, pool.Request(hover.Position{Req: 1, Path: "p/a.go", Version: 2, Line: 2, Byte: 5}))
 	got := results(testsupport.Collect(t, pool, hasResult))
 
-	assert.Equal(t, []hover.Update{{Kind: hover.HoverDone, Req: 1, Version: 2, Outcome: hover.Text, Text: "func F()"}}, got)
+	assert.Equal(t, []hover.Update{{Kind: hover.HoverDone, Req: 1, Version: 2, Outcome: hover.Text, Content: paragraph("func F()")}}, got)
 	stopPool(t, pool)
 	log := fakelspLog(t, pool, "p")
 	assert.Equal(t, []string{

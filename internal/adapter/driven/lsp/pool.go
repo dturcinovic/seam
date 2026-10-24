@@ -228,7 +228,7 @@ func (p *Pool) clientLocked(inst lang.Instance, in *instance) *client {
 	p.evictLocked(inst)
 	s := in.server
 	s.Command = program
-	c := newClient(clientConfig{inst: inst, server: s, repoRoot: p.root, docs: in.docs, starter: p.starter, log: p.log, panics: p.panics})
+	c := newClient(clientConfig{inst: inst, server: s, repoRoot: p.root, languages: p.table, docs: in.docs, starter: p.starter, log: p.log, panics: p.panics})
 	c.sink = p.of(c)
 	in.client = c
 	p.clients[c] = struct{}{}

@@ -107,7 +107,7 @@ func TestALateAnswerSetsTheSignal(t *testing.T) {
 		require.Equal(t, hover.Sent, pool.Request(hover.Position{Req: 1, Path: "a.go", Version: 1}))
 		<-pool.Signal()
 
-		assert.Equal(t, []hover.Update{{Kind: hover.HoverDone, Req: 1, Version: 1, Outcome: hover.Text, Text: "func F()"}}, results(pool.Drain()))
+		assert.Equal(t, []hover.Update{{Kind: hover.HoverDone, Req: 1, Version: 1, Outcome: hover.Text, Content: paragraph("func F()")}}, results(pool.Drain()))
 		stopPool(t, pool)
 	})
 }

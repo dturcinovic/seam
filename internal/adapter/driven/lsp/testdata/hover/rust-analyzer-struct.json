@@ -1,0 +1,24 @@
+{
+  "server": "rust-analyzer",
+  "version": "1.99.1",
+  "file": "src/main.rs",
+  "line": 13,
+  "character": 12,
+  "word": "Point",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "\n```rust\nsample\n```\n\n```rust\nstruct Point {\n    x: i32,\n    y: i32,\n}\n```\n\n---\n\nA place on the plane.\n\n# Examples\n\n```rust\nlet p = Point { x: 1, y: 2 };\n```"
+    },
+    "range": {
+      "start": {
+        "line": 13,
+        "character": 12
+      },
+      "end": {
+        "line": 13,
+        "character": 17
+      }
+    }
+  }
+}

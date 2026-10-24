@@ -1,0 +1,24 @@
+{
+  "server": "typescript-language-server",
+  "version": "6.0.2+ts5.9.3",
+  "file": "app.tsx",
+  "line": 3,
+  "character": 19,
+  "word": "Hello",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "\n```typescript\nfunction Hello(props: {\n    name: string;\n}): any\n```\n"
+    },
+    "range": {
+      "start": {
+        "line": 3,
+        "character": 19
+      },
+      "end": {
+        "line": 3,
+        "character": 24
+      }
+    }
+  }
+}

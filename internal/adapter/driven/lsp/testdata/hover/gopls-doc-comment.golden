@@ -1,0 +1,25 @@
+```go
+func Scale(p Point, k int) Point
+```
+
+---
+
+Scale multiplies p by k.
+
+# Use
+
+For example:
+
+```
+q := Scale(p, 2)
+fmt.Println(q)
+```
+
+It holds that:
+
+• X grows by k
+• Y grows by k
+
+---
+
+`main.Scale`[ on pkg.go.dev] <https://pkg.go.dev/example.com/sample#Scale>

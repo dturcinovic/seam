@@ -1,0 +1,11 @@
+```go
+func strings.ToUpper(s string) string
+```
+
+---
+
+ToUpper returns s with all Unicode letters mapped to their upper case.
+
+---
+
+`strings.ToUpper`[ on pkg.go.dev] <https://pkg.go.dev/strings#ToUpper>

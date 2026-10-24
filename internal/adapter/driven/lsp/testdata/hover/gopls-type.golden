@@ -1,0 +1,15 @@
+```go
+type Point struct {
+	X, Y int
+}
+```
+
+---
+
+Point is a place on the plane, with `X` and `Y` in pixels.
+
+See [strings.Builder] <file:///usr/local/go/src/strings/builder.go#17,6> and <https://go.dev/ref/spec> for more.
+
+---
+
+`main.Point`[ on pkg.go.dev] <https://pkg.go.dev/example.com/sample#Point>

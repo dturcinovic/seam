@@ -1,0 +1,24 @@
+{
+  "server": "gopls",
+  "version": "v0.23.0",
+  "file": "main.go",
+  "line": 16,
+  "character": 24,
+  "word": "ToUpper",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "```go\nfunc strings.ToUpper(s string) string\n```\n\n---\n\nToUpper returns s with all Unicode letters mapped to their upper case.\n\n\n---\n\n[`strings.ToUpper` on pkg.go.dev](https://pkg.go.dev/strings#ToUpper)"
+    },
+    "range": {
+      "start": {
+        "line": 16,
+        "character": 24
+      },
+      "end": {
+        "line": 16,
+        "character": 31
+      }
+    }
+  }
+}

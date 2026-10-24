@@ -86,7 +86,7 @@ type UpdateKind int
 const (
 	// StatusChanged sets Instance and Status.
 	StatusChanged UpdateKind = iota + 1
-	// HoverDone sets Req, Version, Outcome and, for Text, Text.
+	// HoverDone sets Req, Version, Outcome and, for Text, Content.
 	HoverDone
 )
 
@@ -100,6 +100,7 @@ type Update struct {
 	Req     ReqID
 	Version DocVersion
 	Outcome Outcome
-	// Text is the answer as Markdown.
-	Text string
+	// Content is the answer, for Text; its code comes coloured where the
+	// viewer can colour it.
+	Content Content
 }

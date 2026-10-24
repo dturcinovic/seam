@@ -42,7 +42,7 @@ func hoverUntil(t *testing.T, pool *Pool, pos hover.Position, within time.Durati
 		}
 		for _, u := range results(testsupport.Collect(t, pool, hasResult)) {
 			if u.Outcome == hover.Text {
-				return u.Text
+				return shownContent(u.Content)
 			}
 		}
 		time.Sleep(200 * time.Millisecond)

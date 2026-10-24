@@ -1,0 +1,24 @@
+{
+  "server": "gopls",
+  "version": "v0.23.0",
+  "file": "main.go",
+  "line": 33,
+  "character": 8,
+  "word": "Scale",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "```go\nfunc Scale(p Point, k int) Point\n```\n\n---\n\nScale multiplies p by k.\n\n### Use\n\nFor example:\n\n\tq := Scale(p, 2)\n\tfmt.Println(q)\n\nIt holds that:\n\n  - X grows by k\n  - Y grows by k\n\n\n---\n\n[`main.Scale` on pkg.go.dev](https://pkg.go.dev/example.com/sample#Scale)"
+    },
+    "range": {
+      "start": {
+        "line": 33,
+        "character": 8
+      },
+      "end": {
+        "line": 33,
+        "character": 13
+      }
+    }
+  }
+}

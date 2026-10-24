@@ -147,24 +147,32 @@ func seek(s string, points []filediff.Checkpoint, skip int, m textcell.Method) t
 	return cells
 }
 
-// cellStyle picks the style of each cell: fixed, or in a pane's tone with
-// the inline spans stronger and coloured by the syntax runs. Spans and runs
-// are ordered and walked along with the cells, so it is used for one walk
-// only.
+// cellStyle picks the style of each cell: fixed, or by the styled runs
+// with fixed past them, or in a pane's tone with the inline spans stronger
+// and coloured by the syntax runs. Spans and runs are ordered and walked
+// along with the cells, so it is used for one walk only.
 type cellStyle struct {
-	fixed style
-	pane  bool
-	tone  tone
-	spans []diff.Span
-	runs  []syntax.Run
+	fixed  style
+	runs   []styledRun
+	pane   bool
+	tone   tone
+	spans  []diff.Span
+	syntax []syntax.Run
 }
 
 func (cs *cellStyle) of(c textcell.Cell) style {
 	if !cs.pane {
-		if c.Replaced {
-			return cs.fixed.standIn()
+		for len(cs.runs) > 0 && cs.runs[0].End <= c.Start {
+			cs.runs = cs.runs[1:]
 		}
-		return cs.fixed
+		st := cs.fixed
+		if len(cs.runs) > 0 {
+			st = cs.runs[0].St
+		}
+		if c.Replaced {
+			return st.standIn()
+		}
+		return st
 	}
 	for len(cs.spans) > 0 && cs.spans[0].End <= c.Start {
 		cs.spans = cs.spans[1:]
@@ -184,13 +192,13 @@ func (cs *cellStyle) of(c textcell.Cell) style {
 // kind is the syntax kind of c. The runs follow each other from the line's
 // start, so the first one left holds the cell.
 func (cs *cellStyle) kind(c textcell.Cell) syntax.Kind {
-	for len(cs.runs) > 0 && int(cs.runs[0].End) <= c.Start {
-		cs.runs = cs.runs[1:]
+	for len(cs.syntax) > 0 && int(cs.syntax[0].End) <= c.Start {
+		cs.syntax = cs.syntax[1:]
 	}
-	if len(cs.runs) == 0 {
+	if len(cs.syntax) == 0 {
 		return syntax.Plain
 	}
-	return cs.runs[0].Kind
+	return cs.syntax[0].Kind
 }
 
 // textWidth is the columns s takes on one line, as line draws it.

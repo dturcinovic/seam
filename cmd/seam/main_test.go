@@ -8,10 +8,13 @@ import (
 	"go.uber.org/goleak"
 )
 
-// The session's logger starts lumberjack's goroutine; why it is exempt is in
-// the TestMain of internal/observability.
+// The session's logger starts lumberjack's goroutine, chroma regexp2's
+// clock; why they are exempt is in the TestMain of internal/observability
+// and internal/adapter/driven/chroma.
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m, goleak.IgnoreTopFunction("gopkg.in/natefinch/lumberjack%2ev2.(*Logger).millRun"))
+	goleak.VerifyTestMain(m,
+		goleak.IgnoreTopFunction("gopkg.in/natefinch/lumberjack%2ev2.(*Logger).millRun"),
+		goleak.IgnoreAnyFunction("github.com/dlclark/regexp2/v2.runClock"))
 }
 
 func runSeam(t *testing.T, args ...string) (code int, stdout, stderr string) {

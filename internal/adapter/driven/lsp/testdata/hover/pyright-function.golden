@@ -1,0 +1,12 @@
+```python
+(function) def add(
+    a: int,
+    b: int
+) -> int
+```
+
+---
+
+Add two numbers.
+
+Returns the *sum* of `a` and `b`.

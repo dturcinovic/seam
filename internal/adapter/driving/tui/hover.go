@@ -135,7 +135,7 @@ func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 		}
 		h.Inflight = 0
 		if u.Outcome == hover.Text {
-			h.Popup = s.openPopup(u.Text, h.X, h.Y)
+			h.Popup = s.openPopup(u.Content, h.X, h.Y)
 		}
 	}
 	return false

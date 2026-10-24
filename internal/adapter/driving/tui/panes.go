@@ -81,7 +81,7 @@ func writePane(ln *line, p pane, sl sideLine, skip int) {
 	ln.spaces(1, gutter)
 	ln.text(sl.mark, gutter)
 	ln.spaces(1, gutter)
-	ln.window(sl.text, sl.points, skip, cellStyle{pane: true, tone: sl.tone, spans: sl.spans, runs: sl.runs})
+	ln.window(sl.text, sl.points, skip, cellStyle{pane: true, tone: sl.tone, spans: sl.spans, syntax: sl.runs})
 	ln.spaces(ln.free, textStyle(sl.tone, syntax.Plain, false))
 	ln.free = rest
 }

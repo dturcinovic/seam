@@ -1,0 +1,5 @@
+If the a element has an href attribute, then it represents a hyperlink (a hypertext anchor) labeled by its contents.
+
+Baseline icon *Widely available across major browsers (Baseline since 2015)*
+
+[MDN Reference] <https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/a>

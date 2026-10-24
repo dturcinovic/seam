@@ -1,0 +1,24 @@
+{
+  "server": "rust-analyzer",
+  "version": "1.99.1",
+  "file": "src/main.rs",
+  "line": 15,
+  "character": 4,
+  "word": "println",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "\n```rust\nstd::macros\n```\n\n```rust\nmacro_rules! println // matched arm #1\n```\n\n---\n\nPrints to the standard output, with a newline.\n\nOn all platforms, the newline is the LINE FEED character (`\\n`/`U+000A`) alone\n(no additional CARRIAGE RETURN (`\\r`/`U+000D`)).\n\nThis macro uses the same syntax as [`format`](https://doc.rust-lang.org/stable/alloc/macros/macro.format.html), but writes to the standard output instead.\nSee [`std::fmt`] for more information.\n\nThe `println!` macro will lock the standard output on each call. If you call\n`println!` within a hot loop, this behavior may be the bottleneck of the loop.\nTo avoid this, lock stdout with [`io::stdout().lock()`](https://doc.rust-lang.org/stable/std/io/stdio/struct.Stdout.html):\n\n```rust\nuse std::io::{stdout, Write};\n\nlet mut lock = stdout().lock();\nwriteln!(lock, \"hello world\").unwrap();\n```\n\nUse `println!` only for the primary output of your program. Use\n[`eprintln!`] instead to print error and progress messages.\n\nSee the formatting documentation in [`std::fmt`](https://doc.rust-lang.org/stable/alloc/fmt/index.html)\nfor details of the macro argument syntax.\n\n# Panics\n\nPanics if writing to [`io::stdout`] fails.\n\nWriting to non-blocking stdout can cause an error, which will lead\nthis macro to panic.\n\n# Examples\n\n```rust\nprintln!(); // prints just a newline\nprintln!(\"hello there!\");\nprintln!(\"format {} arguments\", \"some\");\nlet local_variable = \"some\";\nprintln!(\"format {local_variable} arguments\");\n```\n\n[`std::fmt`]: https://doc.rust-lang.org/stable/alloc/fmt/index.html\n[`eprintln!`]: https://doc.rust-lang.org/stable/std/macros/macro.eprintln.html\n[`io::stdout`]: https://doc.rust-lang.org/stable/std/io/stdio/fn.stdout.html"
+    },
+    "range": {
+      "start": {
+        "line": 15,
+        "character": 4
+      },
+      "end": {
+        "line": 15,
+        "character": 11
+      }
+    }
+  }
+}

@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"seam/internal/domain/hover"
+	"seam/internal/domain/lang"
 )
 
 // readLoop reads until the connection ends. It returns on EOF or when the
@@ -67,7 +68,7 @@ func (c *client) answered(m message) {
 	case pendingInit:
 		c.initialized(m)
 	case pendingHover:
-		c.sink.result(hoverResult(p, m))
+		c.sink.result(hoverResult(p, m, c.languages))
 	case pendingShutdown:
 		close(c.shutdownDone)
 	}
@@ -91,18 +92,18 @@ func (c *client) initialized(m message) {
 	}
 }
 
-func hoverResult(p *pending, m message) hover.Update {
+func hoverResult(p *pending, m message, languages lang.Table) hover.Update {
 	u := hover.Update{Kind: hover.HoverDone, Req: p.req, Version: p.version, Outcome: hover.Error}
 	if m.Error != nil {
 		return u
 	}
-	text, err := hoverText(m.Result)
+	c, err := hoverContent(m.Result, languages)
 	switch {
 	case err != nil:
-	case text == "":
+	case len(c.Blocks) == 0:
 		u.Outcome = hover.Empty
 	default:
-		u.Outcome, u.Text = hover.Text, text
+		u.Outcome, u.Content = hover.Text, c
 	}
 	return u
 }

@@ -1,0 +1,24 @@
+{
+  "server": "gopls",
+  "version": "v0.23.0",
+  "file": "main.go",
+  "line": 15,
+  "character": 6,
+  "word": "Point",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "```go\ntype Point struct {\n\tX, Y int\n}\n```\n\n---\n\nPoint is a place on the plane, with \\`X\\` and \\`Y\\` in pixels.\n\nSee [strings.Builder](file:///usr/local/go/src/strings/builder.go#17,6) and [https://go.dev/ref/spec](https://go.dev/ref/spec) for more.\n\n\n---\n\n[`main.Point` on pkg.go.dev](https://pkg.go.dev/example.com/sample#Point)"
+    },
+    "range": {
+      "start": {
+        "line": 15,
+        "character": 6
+      },
+      "end": {
+        "line": 15,
+        "character": 11
+      }
+    }
+  }
+}

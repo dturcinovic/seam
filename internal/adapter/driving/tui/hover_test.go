@@ -75,7 +75,7 @@ func answer(m model, us ...hover.Update) model {
 }
 
 func text(req hover.ReqID, s string) hover.Update {
-	return hover.Update{Kind: hover.HoverDone, Req: req, Version: 1, Outcome: hover.Text, Text: s}
+	return hover.Update{Kind: hover.HoverDone, Req: req, Version: 1, Outcome: hover.Text, Content: code(s)}
 }
 
 func TestTheMouseAsksOnceItRests(t *testing.T) {
@@ -140,7 +140,7 @@ func TestOnlyTheAnswerWaitedForOpensThePopup(t *testing.T) {
 	}{
 		{"its answer", text(1, "func fmt.Println"), true},
 		{"another request's", text(2, "func fmt.Println"), false},
-		{"for another version", hover.Update{Kind: hover.HoverDone, Req: 1, Version: 2, Outcome: hover.Text, Text: "x"}, false},
+		{"for another version", hover.Update{Kind: hover.HoverDone, Req: 1, Version: 2, Outcome: hover.Text, Content: code("x")}, false},
 		{"empty", hover.Update{Kind: hover.HoverDone, Req: 1, Version: 1, Outcome: hover.Empty}, false},
 		{"timed out", hover.Update{Kind: hover.HoverDone, Req: 1, Version: 1, Outcome: hover.TimedOut}, false},
 	}

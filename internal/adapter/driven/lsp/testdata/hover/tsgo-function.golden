@@ -1,0 +1,9 @@
+```typescript
+function add(a: number, b: number): number
+```
+
+Adds two numbers.
+
+*@param* `a` — the first, see [docs] <https://example.com>
+
+*@returns* — the **sum**

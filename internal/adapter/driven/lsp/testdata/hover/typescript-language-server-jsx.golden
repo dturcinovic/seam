@@ -1,0 +1,5 @@
+```typescript
+function Item({ label }: {
+    label: any;
+}): any
+```

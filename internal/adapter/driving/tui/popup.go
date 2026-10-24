@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"seam/internal/domain/hover"
 	"seam/internal/textcell"
 )
 
@@ -16,15 +17,14 @@ const (
 // popupFrame is the frame's columns, or lines, on both sides together.
 const popupFrame = 2
 
-// popupTab is how many blanks a tab takes: the popup's lines start
-// anywhere, so tab stops would not line up.
+// popupTab is how many blanks a tab takes, see lineBuilder.
 const popupTab = "    "
 
 // popup is the answer of a hover on screen: its text wrapped to the box at
 // X, Y of W by H cells, frame included, scrolled by Scroll lines.
 type popup struct {
 	Open       bool
-	Lines      []string
+	Lines      []popupLine
 	X, Y, W, H int
 	Scroll     int
 }
@@ -41,16 +41,18 @@ func (p *popup) scrollBy(n int) {
 	p.Scroll = min(max(p.Scroll+n, 0), max(len(p.Lines)-p.shown(), 0))
 }
 
-// openPopup lays text out for the mouse at x, y: below its line, or above
+// openPopup lays c out for the mouse at x, y: below its line, or above
 // if there is no room below, from its column, or further left if the box
 // would reach past the edge. Without text or room it stays closed.
-func (s *state) openPopup(text string, x, y int) popup {
+func (s *state) openPopup(c hover.Content, x, y int) popup {
 	l := s.Layout
 	inner := min(popupMaxWidth, l.Width) - popupFrame
-	text = strings.ReplaceAll(text, "\r\n", "\n")
-	lines, widest := wrapText(strings.TrimRight(text, "\n"), inner, s.Cells)
+	if inner < 1 {
+		return popup{}
+	}
+	lines, widest := popupText(c, inner, s.Cells)
 	top, bottom := bodyTop, bodyTop+l.shown()
-	if inner < 1 || widest == 0 {
+	if widest == 0 {
 		return popup{}
 	}
 	h := min(len(lines)+popupFrame, max(l.Height*popupMaxPercent/100, popupFrame+1), bottom-top)
@@ -70,24 +72,6 @@ func (s *state) openPopup(text string, x, y int) popup {
 	return p
 }
 
-// wrapText breaks text into lines of at most width columns, at grapheme
-// boundaries, and returns them with the widest's columns.
-func wrapText(text string, width int, m textcell.Method) (lines []string, widest int) {
-	for line := range strings.SplitSeq(strings.ReplaceAll(text, "\t", popupTab), "\n") {
-		start, startCol := 0, 0
-		cells := textcell.New(line, m)
-		for c, ok := cells.Next(); ok; c, ok = cells.Next() {
-			if c.Col+c.Width-startCol > width && c.Start > start {
-				lines = append(lines, line[start:c.Start])
-				start, startCol = c.Start, c.Col
-			}
-			widest = max(widest, min(c.Col+c.Width-startCol, width))
-		}
-		lines = append(lines, line[start:])
-	}
-	return lines, widest
-}
-
 // writePopupLine writes line i of p's box, counted from its top: the frame
 // or a line of text.
 func writePopupLine(b *strings.Builder, p popup, th *theme, m textcell.Method, i int) {
@@ -105,11 +89,17 @@ func writePopupLine(b *strings.Builder, p popup, th *theme, m textcell.Method, i
 		return
 	}
 	ln.text("│", popupFrameStyle)
-	text := ""
+	var text popupLine
 	if j := p.Scroll + i - 1; j < len(p.Lines) {
 		text = p.Lines[j]
 	}
-	writeCut(&ln, text, p.W-popupFrame, popupStyle, false)
+	rest := ln.narrow(p.W - popupFrame)
+	if text.Rule {
+		ln.text(strings.Repeat("─", ln.free), popupFrameStyle)
+	}
+	ln.window(text.Text, nil, 0, cellStyle{fixed: popupStyle, runs: text.Runs})
+	ln.spaces(ln.free, popupStyle)
+	ln.free = rest
 	ln.text("│", popupFrameStyle)
 	ln.end(popupFrameStyle)
 }

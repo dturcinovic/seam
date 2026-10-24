@@ -1,0 +1,24 @@
+{
+  "server": "gopls",
+  "version": "v0.23.0",
+  "file": "main.go",
+  "line": 11,
+  "character": 1,
+  "word": "X",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "```go\nfield X int // size=8, offset=0\n```\n\n---\n\n[`(main.Point).X` on pkg.go.dev](https://pkg.go.dev/example.com/sample#Point.X)"
+    },
+    "range": {
+      "start": {
+        "line": 11,
+        "character": 1
+      },
+      "end": {
+        "line": 11,
+        "character": 2
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+```rust
+sample
+```
+
+```rust
+struct Point {
+    x: i32,
+    y: i32,
+}
+```
+
+---
+
+A place on the plane.
+
+# Examples
+
+```rust
+let p = Point { x: 1, y: 2 };
+```

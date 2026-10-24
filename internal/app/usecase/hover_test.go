@@ -1,6 +1,7 @@
 package usecase_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -15,21 +16,27 @@ import (
 )
 
 type hoverFakes struct {
-	docs      *outfakes.FakeDocumentSync
-	requester *outfakes.FakeHoverRequester
-	events    *outfakes.FakeServerEvents
+	docs        *outfakes.FakeDocumentSync
+	requester   *outfakes.FakeHoverRequester
+	events      *outfakes.FakeServerEvents
+	highlighter *outfakes.FakeHighlighter
 	// signal is the events' signal, which a test sets after it gave Drain
 	// something to return.
 	signal chan struct{}
 }
 
+// newHovers starts the use case over fakes; it stops when the test ends.
+// panics records the panics of its goroutines.
 func newHovers(t *testing.T) (*usecase.Hovers, hoverFakes) {
 	t.Helper()
-	f := hoverFakes{&outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{}, make(chan struct{}, 1)}
+	f := hoverFakes{&outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{}, &outfakes.FakeHighlighter{}, make(chan struct{}, 1)}
 	f.events.SignalReturns(f.signal)
 	f.docs.SyncReturns(gopls(), true)
 	f.requester.RequestReturns(hover.Sent)
-	return usecase.NewHovers(f.docs, f.requester, f.events), f
+	h := usecase.NewHovers(f.docs, f.requester, f.events, f.highlighter, nil)
+	require.NoError(t, h.Start())
+	t.Cleanup(func() { assert.NoError(t, h.Stop(context.Background())) })
+	return h, f
 }
 
 // report has the servers report us.
@@ -46,7 +53,8 @@ func goDoc(path string, v hover.DocVersion) hover.Document {
 }
 
 func done(req hover.ReqID) hover.Update {
-	return hover.Update{Kind: hover.HoverDone, Req: req, Version: 1, Outcome: hover.Text, Text: "func a()"}
+	text := []hover.Span{{Text: "func a()"}}
+	return hover.Update{Kind: hover.HoverDone, Req: req, Version: 1, Outcome: hover.Text, Content: hover.Content{Blocks: []hover.Block{{Kind: hover.Paragraph, Spans: text}}}}
 }
 
 func TestTrackOpensTheDocumentWithItsServer(t *testing.T) {

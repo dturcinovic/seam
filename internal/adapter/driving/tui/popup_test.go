@@ -9,8 +9,23 @@ import (
 
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/hover"
 	"seam/internal/textcell"
 )
+
+// code is an answer of one block of code, as the adapter gives it.
+func code(s string) hover.Content {
+	return hover.Content{Blocks: []hover.Block{{Kind: hover.Code, Code: strings.Trim(s, "\n")}}}
+}
+
+// texts are the texts of p's lines.
+func texts(p popup) []string {
+	var ts []string
+	for _, l := range p.Lines {
+		ts = append(ts, l.Text)
+	}
+	return ts
+}
 
 func screen(t *testing.T, width int) *state {
 	t.Helper()
@@ -23,16 +38,18 @@ func screen(t *testing.T, width int) *state {
 func TestThePopupSitsBelowTheMouse(t *testing.T) {
 	s := screen(t, 80)
 
-	p := s.openPopup("func f()\n", 10, 5)
+	p := s.openPopup(code("func f()\n"), 10, 5)
 
-	assert.Equal(t, popup{Open: true, Lines: []string{"func f()"}, X: 10, Y: 6, W: 10, H: 3}, p)
+	assert.Equal(t, []string{"func f()"}, texts(p))
+	p.Lines = nil
+	assert.Equal(t, popup{Open: true, X: 10, Y: 6, W: 10, H: 3}, p)
 }
 
 func TestThePopupGoesAboveWithoutRoomBelow(t *testing.T) {
 	s := screen(t, 80)
 	last := bodyTop + s.Layout.shown() - 1
 
-	p := s.openPopup("a\nb", 10, last)
+	p := s.openPopup(code("a\nb"), 10, last)
 
 	assert.Equal(t, last-4, p.Y)
 	assert.Equal(t, 4, p.H)
@@ -41,15 +58,15 @@ func TestThePopupGoesAboveWithoutRoomBelow(t *testing.T) {
 func TestThePopupStaysOnTheScreen(t *testing.T) {
 	s := screen(t, 80)
 
-	p := s.openPopup(strings.Repeat("word ", 40)+"\n"+strings.Repeat("line\n", 40), 75, 3)
+	p := s.openPopup(code(strings.Repeat("word ", 40)+"\n"+strings.Repeat("line\n", 40)), 75, 3)
 
 	assert.Equal(t, 0, p.X, "as wide as allowed, so from the left edge")
 	assert.Equal(t, popupMaxWidth, p.W)
 	assert.Equal(t, 24*popupMaxPercent/100, p.H)
-	for _, l := range p.Lines {
+	for _, l := range texts(p) {
 		assert.LessOrEqual(t, textWidth(l, s.Cells), p.W-popupFrame, l)
 	}
-	narrow := screen(t, 30).openPopup("func fmt.Println(a ...any) (n int, err error)", 20, 3)
+	narrow := screen(t, 30).openPopup(code("func fmt.Println(a ...any) (n int, err error)"), 20, 3)
 	assert.Equal(t, 30, narrow.W)
 	assert.Equal(t, 0, narrow.X)
 }
@@ -57,14 +74,14 @@ func TestThePopupStaysOnTheScreen(t *testing.T) {
 func TestNothingToShowOpensNoPopup(t *testing.T) {
 	s := screen(t, 80)
 
-	assert.False(t, s.openPopup("\n\n", 10, 5).Open)
-	assert.False(t, screen(t, 2).openPopup("x", 0, 5).Open, "no room for the frame")
+	assert.False(t, s.openPopup(code("\n\n"), 10, 5).Open)
+	assert.False(t, screen(t, 2).openPopup(code("x"), 0, 5).Open, "no room for the frame")
 }
 
-func TestTextIsWrappedAtGraphemes(t *testing.T) {
-	lines, widest := wrapText("日本語のテキスト\tx\n\nab", 5, textcell.Graphemes)
+func TestCodeIsWrappedAtGraphemes(t *testing.T) {
+	lines, widest := popupText(code("日本語のテキスト\tx\n\nab"), 5, textcell.Graphemes)
 
-	assert.Equal(t, []string{"日本", "語の", "テキ", "スト ", "   x", "", "ab"}, lines)
+	assert.Equal(t, []string{"日本", "語の", "テキ", "スト ", "   x", "", "ab"}, texts(popup{Lines: lines}))
 	assert.Equal(t, 5, widest)
 }
 
@@ -81,7 +98,7 @@ func TestThePopupCoversItsCellsOnly(t *testing.T) {
 			s.toggleMode()
 			s.Cells = m.method
 			before := plainLines(s)
-			s.Hover.Popup = s.openPopup("func fmt.Println", x, bodyTop)
+			s.Hover.Popup = s.openPopup(code("func fmt.Println"), x, bodyTop)
 			require.True(t, s.Hover.Popup.Open)
 			p := s.Hover.Popup
 
@@ -111,7 +128,7 @@ func ansiCutLeft(s string, n int, m textcell.Method) string {
 
 func TestAPopupTextReachesTheTerminalOnlyAsText(t *testing.T) {
 	s := screen(t, 80)
-	s.Hover.Popup = s.openPopup("type T"+evil, 10, 5)
+	s.Hover.Popup = s.openPopup(code("type T"+evil), 10, 5)
 	require.True(t, s.Hover.Popup.Open)
 
 	for _, m := range methods {
@@ -119,10 +136,4 @@ func TestAPopupTextReachesTheTerminalOnlyAsText(t *testing.T) {
 		noControls(t, render(s, &theme{}))
 		noControls(t, withoutTheme(render(s, newTheme())))
 	}
-}
-
-func TestCarriageReturnsLeaveNoStandIns(t *testing.T) {
-	p := screen(t, 80).openPopup("Doc line\r\nmore\r\n", 10, 5)
-
-	assert.Equal(t, []string{"Doc line", "more"}, p.Lines)
 }

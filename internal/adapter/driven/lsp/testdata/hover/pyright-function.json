@@ -1,0 +1,24 @@
+{
+  "server": "pyright",
+  "version": "1.1.414",
+  "file": "main.py",
+  "line": 11,
+  "character": 6,
+  "word": "add",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "```python\n(function) def add(\n    a: int,\n    b: int\n) -> int\n```\n---\nAdd two numbers.\n\nReturns the \\*sum\\* of `a` and `b`."
+    },
+    "range": {
+      "start": {
+        "line": 11,
+        "character": 6
+      },
+      "end": {
+        "line": 11,
+        "character": 9
+      }
+    }
+  }
+}

@@ -183,10 +183,7 @@ func character(text string, n, b int, encoding string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	b = min(max(b, 0), len(line))
-	for b > 0 && b < len(line) && !utf8.RuneStart(line[b]) {
-		b--
-	}
+	b = runeStart(line, min(max(b, 0), len(line)))
 	if encoding == "utf-8" {
 		return b, true
 	}
@@ -195,6 +192,14 @@ func character(text string, n, b int, encoding string) (int, bool) {
 		units += utf16.RuneLen(r)
 	}
 	return units, true
+}
+
+// runeStart is b, or before it the start of the character b is within.
+func runeStart(s string, b int) int {
+	for b > 0 && b < len(s) && !utf8.RuneStart(s[b]) {
+		b--
+	}
+	return b
 }
 
 // lineOf returns line n of text without its line break.
@@ -210,61 +215,4 @@ func lineOf(text string, n int) (string, bool) {
 	}
 	line, _, _ := strings.Cut(text, "\n")
 	return strings.TrimSuffix(line, "\r"), true
-}
-
-// hoverText is the Markdown of a hover result; empty for none. The result
-// is null, or holds a MarkupContent, a MarkedString, or a list of them.
-func hoverText(result jsontext.Value) (string, error) {
-	if len(result) == 0 || string(result) == "null" {
-		return "", nil
-	}
-	var h struct {
-		Contents jsontext.Value `json:"contents"`
-	}
-	if err := json.Unmarshal(result, &h); err != nil {
-		return "", fmt.Errorf("hover result: %w", err)
-	}
-	return contents(h.Contents)
-}
-
-func contents(v jsontext.Value) (string, error) {
-	// An if chain rather than a switch: the other kinds hold no text, and
-	// listing all of them for exhaustive would say nothing.
-	if v.Kind() == '"' {
-		var s string
-		err := json.Unmarshal(v, &s)
-		return strings.TrimSpace(s), err
-	}
-	if v.Kind() == '[' {
-		var parts []jsontext.Value
-		if err := json.Unmarshal(v, &parts); err != nil {
-			return "", err
-		}
-		var texts []string
-		for _, p := range parts {
-			t, err := contents(p)
-			if err != nil {
-				return "", err
-			}
-			if t != "" {
-				texts = append(texts, t)
-			}
-		}
-		return strings.Join(texts, "\n\n"), nil
-	}
-	if v.Kind() == '{' {
-		var o struct {
-			Language string `json:"language"`
-			Value    string `json:"value"`
-		}
-		if err := json.Unmarshal(v, &o); err != nil {
-			return "", err
-		}
-		// A MarkedString with a language is code; a MarkupContent has a kind.
-		if o.Language != "" {
-			return "```" + o.Language + "\n" + strings.TrimSpace(o.Value) + "\n```", nil
-		}
-		return strings.TrimSpace(o.Value), nil
-	}
-	return "", nil
 }

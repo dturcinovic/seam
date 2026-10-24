@@ -88,6 +88,26 @@ func (w *worker[R, U]) submit(r R) {
 	notify(w.wake)
 }
 
+// drop forgets the waiting request and cancels the running job where
+// match says so; neither publishes anything.
+func (w *worker[R, U]) drop(match func(R) bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.waiting != nil && match(*w.waiting) {
+		w.waiting = nil
+	}
+	if w.running != nil && match(*w.running) {
+		w.cancel()
+	}
+}
+
+// publish hands on an update that needs no job.
+func (w *worker[R, U]) publish(u U) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.publishLocked(u)
+}
+
 func (w *worker[R, U]) loop(ctx context.Context) {
 	for {
 		select {

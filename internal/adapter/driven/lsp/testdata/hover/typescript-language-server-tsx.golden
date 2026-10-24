@@ -1,0 +1,5 @@
+```typescript
+function Hello(props: {
+    name: string;
+}): any
+```

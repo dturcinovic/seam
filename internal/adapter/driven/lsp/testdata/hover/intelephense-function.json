@@ -1,0 +1,24 @@
+{
+  "server": "intelephense",
+  "version": "1.18.5",
+  "file": "index.php",
+  "line": 7,
+  "character": 5,
+  "word": "add",
+  "result": {
+    "contents": {
+      "kind": "markdown",
+      "value": "__add__\n\nAdds two numbers.\n\n```php\n<?php\nfunction add(int $a, int $b): int { }\n```\n\n_@param_ `int $a` the first\n\n_@param_ `int $b`\n\n_@return_ `int` the sum"
+    },
+    "range": {
+      "start": {
+        "line": 7,
+        "character": 5
+      },
+      "end": {
+        "line": 7,
+        "character": 8
+      }
+    }
+  }
+}

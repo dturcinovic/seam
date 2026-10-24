@@ -12,8 +12,53 @@ const MaxLine = 64 << 10
     text is likely generated or minified, where an answer helps little and
     finding the grapheme and the identifier costs on every move.
 
+const MaxText = 32 << 10
+    MaxText is the most of an answer's text, in bytes, that is read: past it the
+    rest is cut, which keeps the work per answer small.
+
+
+VARIABLES
+
+var ErrColourerFailed = errors.New("hover colourer failed")
+    ErrColourerFailed is why answers with code come uncoloured once colouring
+    them has failed.
+
 
 TYPES
+
+type Block struct {
+	Kind   BlockKind
+	Spans  []Span
+	Lang   lang.Lang
+	Code   string
+	Tokens syntax.Tokens
+}
+    Block is a part of an answer.
+
+type BlockKind uint8
+    BlockKind tells which fields of a Block are set.
+
+const (
+	// Paragraph sets Spans: text that flows to the width it is shown in.
+	Paragraph BlockKind = iota + 1
+	// Heading sets Spans, like Paragraph.
+	Heading
+	// Code sets Code, its language Lang if known, and, once coloured,
+	// Tokens; its lines are kept as they are.
+	Code
+	// Rule is a line across, between parts of the answer.
+	Rule
+)
+type Content struct {
+	Blocks []Block
+	Cut    bool
+}
+    Content is an answer as blocks to show one after the other. Cut says the
+    answer was longer than MaxText and lost its end.
+
+func (c Content) HasCode() bool
+    HasCode says that some block is code in a known language, which a
+    highlighter can colour.
 
 type DocVersion uint64
     DocVersion counts the texts a document has had in a session. It rises
@@ -69,6 +114,29 @@ const (
 )
     The states of a server instance; see the plan's state machine.
 
+type Span struct {
+	Kind SpanKind
+	Text string
+}
+    Span is a stretch of a paragraph. A newline in Text breaks the line there;
+    elsewhere a paragraph breaks where it fits.
+
+type SpanKind uint8
+    SpanKind is how a stretch of a paragraph stands out. Where one is nested in
+    another, the later kind shows: code within a link's text stays code.
+
+const (
+	Plain SpanKind = iota
+	Emphasis
+	Strong
+	// Link is the text of a link, URL its target.
+	Link
+	URL
+	// InlineCode is code within the text.
+	InlineCode
+)
+    The kinds of span; Plain is text that does not stand out.
+
 type Submit int
     Submit is how a hover request was taken.
 
@@ -95,8 +163,9 @@ type Update struct {
 	Req     ReqID
 	Version DocVersion
 	Outcome Outcome
-	// Text is the answer as Markdown.
-	Text string
+	// Content is the answer, for Text; its code comes coloured where the
+	// viewer can colour it.
+	Content Content
 }
     Update is news from the language servers.
 
@@ -106,6 +175,6 @@ type UpdateKind int
 const (
 	// StatusChanged sets Instance and Status.
 	StatusChanged UpdateKind = iota + 1
-	// HoverDone sets Req, Version, Outcome and, for Text, Text.
+	// HoverDone sets Req, Version, Outcome and, for Text, Content.
 	HoverDone
 )

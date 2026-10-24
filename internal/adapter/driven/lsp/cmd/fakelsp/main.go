@@ -14,7 +14,8 @@
 //
 //	silent               answer nothing, initialize included
 //	encoding utf-8       choose utf-8 positions
-//	hover <text>         answer hovers with text (default: an empty result)
+//	hover <text>         answer hovers with text (default: an empty result);
+//	                     a text in double quotes is a Go string literal
 //	hover-delay <dur>    wait that long before each hover answer
 //	no-shutdown          leave shutdown unanswered and ignore exit
 //	stop-reading         after initialize, read nothing more
@@ -92,6 +93,12 @@ func parse(text string) (script, error) {
 			s.encoding = arg
 		case "hover":
 			s.hover = arg
+			if strings.HasPrefix(arg, `"`) {
+				var err error
+				if s.hover, err = strconv.Unquote(arg); err != nil {
+					return s, err
+				}
+			}
 		case "hover-delay":
 			d, err := time.ParseDuration(arg)
 			if err != nil {
