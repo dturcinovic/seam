@@ -1,0 +1,43 @@
+package view
+
+// Pos is where a view stands. AnchorRow is the row the view keeps across
+// a change of view; Scroll is the index of the top line. Switch derives
+// Scroll from the anchor, Navigate the anchor from Scroll. The scroll
+// position alone would not do: a row the hunk view folds away would be lost
+// on the way from the full view and back.
+type Pos struct {
+	AnchorRow, Scroll int
+}
+
+// Switch places a view whose lines changed, after a change of mode or
+// context: the anchor stays, and the top line becomes the one that holds it,
+// within the bounds of the lines.
+func Switch(lines []Line, pos Pos, height int) Pos {
+	pos.Scroll = clampScroll(lines, LineForRow(lines, pos.AnchorRow), height)
+	return pos
+}
+
+// Navigate moves the top line to scroll, within the bounds of the lines, and
+// anchors the view at the row of the new top line; pos must be placed on
+// these lines. The anchor stays when the view did not move, as at the end of
+// the file, or when a fold at the top holds it: the screen shows the same
+// place, so the place must not change.
+func Navigate(lines []Line, pos Pos, scroll, height int) Pos {
+	if len(lines) == 0 {
+		return Pos{AnchorRow: pos.AnchorRow}
+	}
+	scroll = clampScroll(lines, scroll, height)
+	moved := scroll != pos.Scroll
+	pos.Scroll = scroll
+	if top := lines[scroll]; moved && (!top.Fold || !top.Contains(pos.AnchorRow)) {
+		pos.AnchorRow = RowAt(lines, scroll)
+	}
+	return pos
+}
+
+// clampScroll keeps the last page full: the top line stops where the last
+// line reaches the bottom of height lines. Only Scroll is bounded, never the
+// anchor, so that a view that is shorter for a while gives the place back.
+func clampScroll(lines []Line, scroll, height int) int {
+	return max(min(scroll, len(lines)-max(height, 1)), 0)
+}

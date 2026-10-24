@@ -1,0 +1,67 @@
+package view // import "seam/internal/domain/view"
+
+Package view lays out the rows of a file diff as the lines of a view,
+the full file or the changed blocks with context and folds, and keeps a view's
+place across a change of view through its anchor row. It knows nothing of the
+terminal: no widths, colours or keys.
+
+FUNCTIONS
+
+func LineForRow(lines []Line, row int) int
+    LineForRow is the index of the line that shows or folds row. A row past the
+    end gives the last line, and no lines give 0.
+
+func RowAt(lines []Line, i int) int
+    RowAt is the row of line i, the first one for a fold; i must index lines.
+
+
+TYPES
+
+type Line struct {
+	Rows diff.RowRange
+	Fold bool
+}
+    Line is one line of a view: a single row, or with Fold a range of unchanged
+    rows shown as one line.
+
+func Lines(d diff.FileDiff, m Mode, context int) []Line
+    Lines lays out d in mode m, in Hunks with context rows around each change.
+    The lines cover every row once and in order.
+
+func (l Line) Contains(row int) bool
+    Contains reports whether the line shows or folds row.
+
+type Mode int
+    Mode says which rows a view shows.
+
+const (
+
+	// Hunks shows the changed blocks with rows of context and folds the rest.
+	Hunks Mode
+	// Full shows every row.
+	Full
+)
+    The modes of a view. The zero value is not set and shows every row,
+    as hiding nothing is the safe choice.
+
+type Pos struct {
+	AnchorRow, Scroll int
+}
+    Pos is where a view stands. AnchorRow is the row the view keeps across a
+    change of view; Scroll is the index of the top line. Switch derives Scroll
+    from the anchor, Navigate the anchor from Scroll. The scroll position alone
+    would not do: a row the hunk view folds away would be lost on the way from
+    the full view and back.
+
+func Navigate(lines []Line, pos Pos, scroll, height int) Pos
+    Navigate moves the top line to scroll, within the bounds of the lines, and
+    anchors the view at the row of the new top line; pos must be placed on these
+    lines. The anchor stays when the view did not move, as at the end of the
+    file, or when a fold at the top holds it: the screen shows the same place,
+    so the place must not change.
+
+func Switch(lines []Line, pos Pos, height int) Pos
+    Switch places a view whose lines changed, after a change of mode or context:
+    the anchor stays, and the top line becomes the one that holds it, within the
+    bounds of the lines.
+
