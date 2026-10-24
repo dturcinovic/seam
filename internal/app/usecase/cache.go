@@ -29,47 +29,79 @@ type cached struct {
 // cache keeps the most recently used file diffs within its bounds. Only the
 // worker uses it, so it has no lock.
 type cache struct {
-	maxEntries int
-	maxBytes   int64
-	bytes      int64
-	order      *list.List // of *cached, most recent first
-	index      map[change.ChangedFile]*list.Element
+	entries *lru[change.ChangedFile, *cached]
 }
 
 func newCache(maxEntries int, maxBytes int64) *cache {
-	return &cache{maxEntries: maxEntries, maxBytes: maxBytes, order: list.New(), index: make(map[change.ChangedFile]*list.Element)}
+	return &cache{entries: newLRU[change.ChangedFile, *cached](maxEntries, maxBytes)}
 }
 
-func (c *cache) get(f change.ChangedFile) (*cached, bool) {
-	e, ok := c.index[f]
+func (c *cache) get(f change.ChangedFile) (*cached, bool) { return c.entries.get(f) }
+
+// put stores e. An entry larger than the whole budget is not kept: it would
+// evict everything else and itself.
+func (c *cache) put(e *cached) {
+	if e.size > c.entries.maxBytes {
+		c.entries.remove(e.snapshot.File)
+		return
+	}
+	c.entries.put(e.snapshot.File, e, e.size)
+}
+
+func (c *cache) remove(f change.ChangedFile) { c.entries.remove(f) }
+
+// lru keeps values by key within a count and a sum of their sizes, the
+// least recently used going first. It has no lock; its owner has one or
+// is a single goroutine.
+type lru[K comparable, V any] struct {
+	maxEntries int
+	maxBytes   int64
+	bytes      int64
+	order      *list.List // of *lruEntry, most recent first
+	index      map[K]*list.Element
+}
+
+type lruEntry[K comparable, V any] struct {
+	key   K
+	value V
+	size  int64
+}
+
+func newLRU[K comparable, V any](maxEntries int, maxBytes int64) *lru[K, V] {
+	return &lru[K, V]{maxEntries: maxEntries, maxBytes: maxBytes, order: list.New(), index: make(map[K]*list.Element)}
+}
+
+// get returns the value of k and makes it the most recent.
+func (c *lru[K, V]) get(k K) (V, bool) {
+	e, ok := c.index[k]
 	if !ok {
-		return nil, false
+		var zero V
+		return zero, false
 	}
 	c.order.MoveToFront(e)
-	return e.Value.(*cached), true
+	return e.Value.(*lruEntry[K, V]).value, true
 }
 
-// put stores e and evicts the least recently used until both bounds hold.
-// An entry larger than the whole budget is not kept: it would evict
-// everything else and itself.
-func (c *cache) put(e *cached) {
-	c.remove(e.snapshot.File)
-	if e.size > c.maxBytes {
-		return
+// put stores v as the most recent and returns the keys it pushes out. The
+// newest stays even beyond the bounds.
+func (c *lru[K, V]) put(k K, v V, size int64) (evicted []K) {
+	c.remove(k)
+	c.index[k] = c.order.PushFront(&lruEntry[K, V]{key: k, value: v, size: size})
+	c.bytes += size
+	for c.order.Len() > 1 && (c.order.Len() > c.maxEntries || c.bytes > c.maxBytes) {
+		oldest := c.order.Back().Value.(*lruEntry[K, V]).key
+		c.remove(oldest)
+		evicted = append(evicted, oldest)
 	}
-	c.index[e.snapshot.File] = c.order.PushFront(e)
-	c.bytes += e.size
-	for c.order.Len() > c.maxEntries || c.bytes > c.maxBytes {
-		c.remove(c.order.Back().Value.(*cached).snapshot.File)
-	}
+	return evicted
 }
 
-func (c *cache) remove(f change.ChangedFile) {
-	e, ok := c.index[f]
+func (c *lru[K, V]) remove(k K) {
+	e, ok := c.index[k]
 	if !ok {
 		return
 	}
-	c.bytes -= e.Value.(*cached).size
+	c.bytes -= e.Value.(*lruEntry[K, V]).size
 	c.order.Remove(e)
-	delete(c.index, f)
+	delete(c.index, k)
 }

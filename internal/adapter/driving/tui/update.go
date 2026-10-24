@@ -27,12 +27,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 	case tea.MouseClickMsg:
 		m.onClick(msg)
 	case fileDiffsReady:
-		for _, u := range m.files.Drain() {
-			m.s.apply(u)
+		for _, u := range m.p.Files.Drain() {
+			if m.s.apply(u) {
+				m.track()
+			}
+		}
+	case lspUpdated:
+		for _, u := range m.p.LSP.Drain() {
+			m.s.LSP.update(u)
 		}
 	case changesetReady:
-		for _, u := range m.reload.Drain() {
+		for _, u := range m.p.Reload.Drain() {
+			before := m.s.Files
 			m.load(m.s.reloaded(u))
+			for _, path := range gone(before, m.s.Files) {
+				m.p.Docs.Untrack(path)
+			}
 		}
 	}
 	return m, nil
@@ -50,7 +60,7 @@ func (m model) onKey(key string) (model, tea.Cmd) {
 	case "q", "esc", "ctrl+c":
 		return m, tea.Quit
 	case "r":
-		m.reload.Reload(s.reload())
+		m.p.Reload.Reload(s.reload())
 	case "n":
 		s.nextChange()
 	case "p":

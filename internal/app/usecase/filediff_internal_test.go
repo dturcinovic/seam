@@ -62,17 +62,17 @@ func TestTheCacheKeepsItsBounds(t *testing.T) {
 			for i := range 100 {
 				u := f.load(t.Context(), request(t, fmt.Sprintf("f%d.go", i)))
 				require.NoError(t, u.Err)
-				assert.LessOrEqual(t, f.cache.order.Len(), cacheEntries)
-				assert.LessOrEqual(t, f.cache.bytes, tt.maxBytes)
+				assert.LessOrEqual(t, f.cache.entries.order.Len(), cacheEntries)
+				assert.LessOrEqual(t, f.cache.entries.bytes, tt.maxBytes)
 			}
-			assert.Positive(t, f.cache.order.Len())
+			assert.Positive(t, f.cache.entries.order.Len())
 			var sum int64
-			for e := f.cache.order.Front(); e != nil; e = e.Next() {
-				s := e.Value.(*cached).snapshot
+			for e := f.cache.entries.order.Front(); e != nil; e = e.Next() {
+				s := e.Value.(*lruEntry[change.ChangedFile, *cached]).value.snapshot
 				sum += s.Diff.ApproxBytes() + s.Columns.ApproxBytes() + s.Highlights.ApproxBytes()
 			}
-			assert.Equal(t, sum, f.cache.bytes, "the count matches ApproxBytes")
-			assert.Positive(t, f.cache.order.Front().Value.(*cached).snapshot.Highlights.ApproxBytes(), "tokens among them")
+			assert.Equal(t, sum, f.cache.entries.bytes, "the count matches ApproxBytes")
+			assert.Positive(t, f.cache.entries.order.Front().Value.(*lruEntry[change.ChangedFile, *cached]).value.snapshot.Highlights.ApproxBytes(), "tokens among them")
 		})
 	}
 }
@@ -85,7 +85,7 @@ func TestAnEntryOverTheBudgetIsNotKept(t *testing.T) {
 
 	require.NoError(t, u.Err)
 	assert.NotEmpty(t, u.Snapshot.Diff.Rows, "it is still delivered")
-	assert.Zero(t, f.cache.order.Len())
+	assert.Zero(t, f.cache.entries.order.Len())
 }
 
 func TestARanOutDiffSaysSo(t *testing.T) {
@@ -109,5 +109,5 @@ func TestAStaleEntryIsDropped(t *testing.T) {
 
 	require.ErrorIs(t, f.load(t.Context(), r).Err, change.ErrNotRegular)
 
-	assert.Zero(t, f.cache.order.Len(), "not kept as the most recently used")
+	assert.Zero(t, f.cache.entries.order.Len(), "not kept as the most recently used")
 }

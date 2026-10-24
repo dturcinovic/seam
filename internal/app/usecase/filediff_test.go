@@ -16,6 +16,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/testsupport"
@@ -171,7 +172,11 @@ func TestLoadReadsEachSideFromItsSource(t *testing.T) {
 			require.NoError(t, u.Err)
 			assert.Equal(t, []string{"x|x", "y|z"}, rendered(u.Snapshot))
 			assert.Equal(t, file, u.Snapshot.File)
-			assert.Equal(t, filediff.Version(1), u.Snapshot.Version)
+			if tt.wantWorktree == 1 {
+				assert.Equal(t, hover.Document{Path: "a.go", Lang: lang.Go, Version: 1, Text: "x\nz\n"}, u.Snapshot.RightDoc)
+			} else {
+				assert.Zero(t, u.Snapshot.RightDoc, "hovers only over the worktree")
+			}
 			assert.Empty(t, u.Snapshot.Notices)
 			assert.Equal(t, tt.wantWorktree, f.worktree.ReadWorktreeCallCount())
 			_, oldID, max := f.blobs.ReadBlobArgsForCall(0)
@@ -198,7 +203,7 @@ func TestMissingSidesAreEmpty(t *testing.T) {
 	assert.Equal(t, []string{"|y"}, rendered(u.Snapshot))
 	u = loadOne(t, uc, c, 2, deleted, false)
 	assert.Equal(t, []string{"x|"}, rendered(u.Snapshot))
-	assert.Zero(t, u.Snapshot.Version, "no text on the right")
+	assert.Zero(t, u.Snapshot.RightDoc, "no text on the right")
 	assert.Equal(t, 1, f.worktree.ReadWorktreeCallCount(), "a deleted file is not read")
 }
 
@@ -213,7 +218,7 @@ func TestAnUntrackedFileIsReadFromTheWorktree(t *testing.T) {
 
 	require.NoError(t, u.Err)
 	assert.Equal(t, []string{"|n"}, rendered(u.Snapshot))
-	assert.Equal(t, filediff.Version(1), u.Snapshot.Version)
+	assert.Equal(t, hover.DocVersion(1), u.Snapshot.RightDoc.Version)
 	assert.Zero(t, f.blobs.ReadBlobCallCount(), "no old side")
 	f.edit("new.go", "m\n", true)
 	assert.Equal(t, []string{"|m"}, rendered(loadOne(t, uc, c, 2, untracked, false).Snapshot), "its stamp is checked")
@@ -222,18 +227,24 @@ func TestAnUntrackedFileIsReadFromTheWorktree(t *testing.T) {
 func TestAVersionNeverGoesBack(t *testing.T) {
 	uc, f := newFileDiffs(t)
 	start(t, uc)
-	staged := f.modified(t, "a.go", "x\n", "X\n")
-	restaged := staged
-	restaged.NewID = id(t, "a.go", 'm')
-	f.repo.blobs[restaged.NewID] = "Y\n"
-	c := comparison(t, mustSource(t, "a"), change.Index())
+	first := f.modified(t, "a.go", "x\n", "X\n")
+	// A reload counts the lines anew, which makes another key.
+	second := first
+	second.Counts = change.LineCounts{Known: true, Added: 1, Deleted: 1}
+	c := worktreeComparison(t)
 
-	assert.Equal(t, filediff.Version(1), loadOne(t, uc, c, 1, staged, false).Snapshot.Version)
-	assert.Equal(t, filediff.Version(2), loadOne(t, uc, c, 2, restaged, false).Snapshot.Version)
-	// Staging X again brings back the first key, which is still cached.
-	u := loadOne(t, uc, c, 3, staged, false)
-	assert.Equal(t, 4, f.blobs.ReadBlobCallCount(), "the third load is a hit")
-	assert.Equal(t, filediff.Version(3), u.Snapshot.Version)
+	assert.Equal(t, hover.DocVersion(1), loadOne(t, uc, c, 1, first, false).Snapshot.RightDoc.Version)
+	stamp := f.repo.stamps["a.go"]
+	f.edit("a.go", "Y\n", true)
+	assert.Equal(t, hover.DocVersion(2), loadOne(t, uc, c, 2, second, false).Snapshot.RightDoc.Version)
+	// Back to the first text and stamp: the first key, still cached, is a hit.
+	f.edit("a.go", "X\n", false)
+	f.repo.mu.Lock()
+	f.repo.stamps["a.go"] = stamp
+	f.repo.mu.Unlock()
+	u := loadOne(t, uc, c, 3, first, false)
+	assert.Equal(t, 2, f.worktree.ReadWorktreeCallCount(), "the third load is a hit")
+	assert.Equal(t, hover.DocVersion(3), u.Snapshot.RightDoc.Version)
 }
 
 func TestTooLargeAndBinarySidesBecomeNotices(t *testing.T) {
@@ -251,10 +262,10 @@ func TestTooLargeAndBinarySidesBecomeNotices(t *testing.T) {
 		{Kind: filediff.Binary, Side: filediff.NewSide},
 	}, u.Snapshot.Notices)
 	assert.Empty(t, u.Snapshot.Diff.Rows)
-	assert.Zero(t, u.Snapshot.Version)
+	assert.Zero(t, u.Snapshot.RightDoc)
 }
 
-func TestTextThatIsNotShownHasNoVersion(t *testing.T) {
+func TestTextThatIsNotShownHasNoDocument(t *testing.T) {
 	uc, f := newFileDiffs(t)
 	start(t, uc)
 	file := f.modified(t, "a.go", "bin\x00ary", "y\n")
@@ -262,7 +273,7 @@ func TestTextThatIsNotShownHasNoVersion(t *testing.T) {
 	u := loadOne(t, uc, worktreeComparison(t), 1, file, false)
 
 	assert.Equal(t, []filediff.Notice{{Kind: filediff.Binary, Side: filediff.OldSide}}, u.Snapshot.Notices)
-	assert.Zero(t, u.Snapshot.Version)
+	assert.Zero(t, u.Snapshot.RightDoc)
 }
 
 func TestATooLargeWorktreeFileStaysCached(t *testing.T) {
@@ -308,7 +319,7 @@ func TestTheCacheChecksTheWorktreeStamp(t *testing.T) {
 	u = loadOne(t, uc, c, 3, file, false)
 	assert.Equal(t, 2, f.worktree.ReadWorktreeCallCount(), "a new stamp loads again")
 	assert.Equal(t, []string{"x|z"}, rendered(u.Snapshot))
-	assert.Equal(t, filediff.Version(2), u.Snapshot.Version)
+	assert.Equal(t, hover.DocVersion(2), u.Snapshot.RightDoc.Version)
 }
 
 func TestFreshSkipsTheCacheAndVersionsFollowTheText(t *testing.T) {
@@ -324,8 +335,8 @@ func TestFreshSkipsTheCacheAndVersionsFollowTheText(t *testing.T) {
 
 	u = loadOne(t, uc, c, 3, file, true)
 	assert.Equal(t, []string{"x|z"}, rendered(u.Snapshot), "Fresh reads the new text")
-	assert.Equal(t, filediff.Version(2), u.Snapshot.Version)
+	assert.Equal(t, hover.DocVersion(2), u.Snapshot.RightDoc.Version)
 
 	u = loadOne(t, uc, c, 4, file, true)
-	assert.Equal(t, filediff.Version(2), u.Snapshot.Version, "the same text keeps its version")
+	assert.Equal(t, hover.DocVersion(2), u.Snapshot.RightDoc.Version, "the same text keeps its version")
 }

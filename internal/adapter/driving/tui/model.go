@@ -3,7 +3,6 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/app/port/in"
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
 )
@@ -13,21 +12,21 @@ import (
 type (
 	fileDiffsReady struct{}
 	changesetReady struct{}
+	lspUpdated     struct{}
 )
 
 // model is the Bubble Tea model: the state, the ports Update calls and the
 // theme View draws with.
 type model struct {
-	s      state
-	files  in.FileDiffLoader
-	reload in.ChangesetReloader
-	theme  *theme
+	s     state
+	p     Ports
+	theme *theme
 }
 
 // newModel shows cs and asks for its first file at once, as Init cannot
 // change the model; the answer arrives through the bridge.
-func newModel(cs change.Changeset, files in.FileDiffLoader, reload in.ChangesetReloader) model {
-	m := model{s: newState(cs), files: files, reload: reload, theme: newTheme()}
+func newModel(cs change.Changeset, p Ports) model {
+	m := model{s: newState(cs), p: p, theme: newTheme()}
 	m.load(m.s.open(0, false))
 	return m
 }
@@ -38,6 +37,6 @@ func (model) Init() tea.Cmd { return nil }
 // load passes a request an action made on to the port.
 func (m model) load(r filediff.Request, ok bool) {
 	if ok {
-		m.files.Load(r)
+		m.p.Files.Load(r)
 	}
 }

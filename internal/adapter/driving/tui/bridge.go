@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/app/port/in"
 	"seam/internal/supervise"
 )
 
@@ -32,11 +31,14 @@ func newBridge(panics supervise.PanicFunc) *bridge {
 // start forwards the signals of the ports to send, which is the program's
 // Send: it blocks until the program takes the message, and returns at once
 // once the program has ended.
-func (b *bridge) start(send func(tea.Msg), files in.FileDiffLoader, reload in.ChangesetReloader) error {
-	if err := b.watch("file diffs", files.Signal(), send, fileDiffsReady{}); err != nil {
+func (b *bridge) start(send func(tea.Msg), p Ports) error {
+	if err := b.watch("file diffs", p.Files.Signal(), send, fileDiffsReady{}); err != nil {
 		return err
 	}
-	return b.watch("changeset", reload.Signal(), send, changesetReady{})
+	if err := b.watch("changeset", p.Reload.Signal(), send, changesetReady{}); err != nil {
+		return err
+	}
+	return b.watch("lsp", p.LSP.Signal(), send, lspUpdated{})
 }
 
 // stop ends the goroutines; after the program has ended none is held up in

@@ -16,6 +16,8 @@ import (
 type Ports struct {
 	Files  in.FileDiffLoader
 	Reload in.ChangesetReloader
+	Docs   in.DocumentTracker
+	LSP    in.LSPUpdates
 }
 
 // IO is where the program reads keys and writes the screen; nil means the
@@ -43,9 +45,9 @@ func Run(ctx context.Context, cs change.Changeset, p Ports, panics supervise.Pan
 	if term.Width > 0 {
 		opts = append(opts, tea.WithWindowSize(term.Width, term.Height))
 	}
-	prog := tea.NewProgram(newModel(cs, p.Files, p.Reload), opts...)
+	prog := tea.NewProgram(newModel(cs, p), opts...)
 	b := newBridge(panics)
-	if err := b.start(prog.Send, p.Files, p.Reload); err != nil {
+	if err := b.start(prog.Send, p); err != nil {
 		// The program never ran, so nothing holds up the watcher started.
 		return errors.Join(err, b.stop())
 	}

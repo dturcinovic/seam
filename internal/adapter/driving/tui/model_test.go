@@ -18,12 +18,20 @@ func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m)
 }
 
+// fakePorts are fakes of every port the TUI calls.
+func fakePorts() Ports {
+	return Ports{
+		Files: &infakes.FakeFileDiffLoader{}, Reload: &infakes.FakeChangesetReloader{},
+		Docs: &infakes.FakeDocumentTracker{}, LSP: &infakes.FakeLSPUpdates{},
+	}
+}
+
 func startModel(t *testing.T, paths ...string) (model, *infakes.FakeFileDiffLoader, *infakes.FakeChangesetReloader) {
 	t.Helper()
-	fl, rl := &infakes.FakeFileDiffLoader{}, &infakes.FakeChangesetReloader{}
-	m := newModel(change.Changeset{Files: files(paths...)}, fl, rl)
+	p := fakePorts()
+	m := newModel(change.Changeset{Files: files(paths...)}, p)
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	return next.(model), fl, rl
+	return next.(model), p.Files.(*infakes.FakeFileDiffLoader), p.Reload.(*infakes.FakeChangesetReloader)
 }
 
 func key(m model, k tea.KeyPressMsg) (model, tea.Cmd) {

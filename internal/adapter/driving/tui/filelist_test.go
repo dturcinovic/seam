@@ -254,7 +254,7 @@ func TestBracketsJumpBetweenFolders(t *testing.T) {
 
 func TestTheFocusedListTakesItsKeys(t *testing.T) {
 	fl, rl := &infakes.FakeFileDiffLoader{}, &infakes.FakeChangesetReloader{}
-	m := model{s: *listed(t, 5), files: fl, reload: rl}
+	m := model{s: *listed(t, 5), p: Ports{Files: fl, Reload: rl}}
 	press := func(k tea.KeyPressMsg) (cmd tea.Cmd) {
 		m, cmd = key(m, k)
 		return cmd
@@ -285,7 +285,7 @@ func TestTheFocusedListTakesItsKeys(t *testing.T) {
 
 func TestTheMouseOverTheList(t *testing.T) {
 	fl := &infakes.FakeFileDiffLoader{}
-	m := model{s: *listed(t, 30), files: fl}
+	m := model{s: *listed(t, 30), p: Ports{Files: fl}}
 	mouse := func(msg tea.Msg) { m, _ = send(m, msg) }
 
 	mouse(tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: 2, Y: bodyTop})

@@ -4,15 +4,15 @@ import (
 	"context"
 
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/syntax"
 )
 
-// highlightSide finds the tokens of one side's text, of lines lines, and
+// highlightSide finds the tokens of one side's text in l, of lines lines, and
 // notes in s where its colours stop short; late says the budget ran out.
 // Each side has its own budget, so the new side, the one worked on, never
 // goes without for the old one's.
-func (f *FileDiffs) highlightSide(ctx context.Context, s *filediff.Snapshot, side filediff.Which, path, text string, lines int) (t syntax.Tokens, late bool, err error) {
-	l := f.languages.Detect(path, text)
+func (f *FileDiffs) highlightSide(ctx context.Context, s *filediff.Snapshot, side filediff.Which, l lang.Lang, text string, lines int) (t syntax.Tokens, late bool, err error) {
 	if l == "" || lines == 0 {
 		return syntax.Tokens{}, false, nil
 	}

@@ -19,6 +19,7 @@ var Module = fx.Module("usecase",
 	fx.Provide(
 		fx.Annotate(newChangesets, fx.As(new(in.ChangesetLoader)), fx.As(new(in.ChangesetReloader))),
 		fx.Annotate(newFileDiffs, fx.As(new(in.FileDiffLoader))),
+		fx.Annotate(NewHovers, fx.As(new(in.Hoverer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 	),
 )
 

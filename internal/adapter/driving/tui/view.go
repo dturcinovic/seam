@@ -54,7 +54,23 @@ func render(s *state, th *theme) string {
 		writeScrollbar(&b, s, th, m, start <= i && i < end)
 	}
 	b.WriteByte('\n')
-	text, st := footer(s)
-	textLine(text, st, l.Width)
+	writeFooter(&b, s, th)
 	return b.String()
+}
+
+// writeFooter writes the footer's text with the language server's status
+// at the right, which the text makes room for.
+func writeFooter(b *strings.Builder, s *state, th *theme) {
+	text, st := footer(s)
+	ln := newLine(b, th, s.Cells, s.Layout.Width)
+	status := lspText(s)
+	if status == "" {
+		ln.text(text, st)
+		ln.end(st)
+		return
+	}
+	status = " " + status + " "
+	writeCut(&ln, text, ln.free-textWidth(status, s.Cells), st, false)
+	ln.text(status, footerStyle)
+	ln.end(footerStyle)
 }

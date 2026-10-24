@@ -33,6 +33,9 @@ type outFakes struct {
 	worktree  *outfakes.FakeWorktreeReader
 	stats     *outfakes.FakeWorktreeStatter
 	highlight *outfakes.FakeHighlighter
+	docs      *outfakes.FakeDocumentSync
+	requester *outfakes.FakeHoverRequester
+	events    *outfakes.FakeServerEvents
 }
 
 func newOutFakes(t *testing.T) outFakes {
@@ -40,8 +43,9 @@ func newOutFakes(t *testing.T) outFakes {
 	f := outFakes{
 		&outfakes.FakeRevisionResolver{}, &outfakes.FakeChangeLister{}, &outfakes.FakeUntrackedLister{},
 		&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{},
-		&outfakes.FakeHighlighter{},
+		&outfakes.FakeHighlighter{}, &outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{},
 	}
+	f.events.SignalReturns(make(chan struct{}))
 	head, err := change.ParseObjectID("0123456789abcdef0123456789abcdef01234567")
 	require.NoError(t, err)
 	f.revisions.ResolveCommitReturns(head, nil)
@@ -65,12 +69,15 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.WorktreeReader { return f.worktree },
 			func() out.WorktreeStatter { return f.stats },
 			func() out.Highlighter { return f.highlight },
+			func() out.DocumentSync { return f.docs },
+			func() out.HoverRequester { return f.requester },
+			func() out.ServerEvents { return f.events },
 			func() supervise.PanicFunc { return nil },
 		),
 		fx.Supply(limits.DefaultFileSize, lang.Defaults()),
 		usecase.Module,
 		fx.NopLogger,
-		fx.Populate(&ports.Files, &ports.Reload, &loader),
+		fx.Populate(&ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &loader),
 	)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))

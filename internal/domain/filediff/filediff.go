@@ -5,6 +5,7 @@ import (
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
+	"seam/internal/domain/hover"
 	"seam/internal/domain/syntax"
 )
 
@@ -33,20 +34,17 @@ func (r Request) ReadsWorktree() bool {
 	return r.Comparison.Right.Kind() == change.KindWorktree && r.File.NewPath != ""
 }
 
-// Version counts the contents the right side has had in a session. It rises
-// exactly when the text changes; zero means the right side has no text to
-// show.
-type Version uint64
-
 // Snapshot is the loaded diff of a file. Notices say what it leaves out; a
 // side that is too large or binary leaves the diff empty. Columns index the
-// long lines of the diff's sides, Highlights give their syntax.
+// long lines of the diff's sides, Highlights give their syntax. RightDoc is
+// the right side for the language server: set only when it is shown as text
+// and read from the worktree, as only there do hovers match the code.
 type Snapshot struct {
 	File       change.ChangedFile
 	Diff       diff.FileDiff
 	Columns    Columns
 	Highlights Highlights
-	Version    Version
+	RightDoc   hover.Document
 	Notices    []Notice
 }
 

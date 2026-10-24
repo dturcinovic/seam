@@ -19,8 +19,12 @@ func TestTheGraphProvidesEveryIncomingPort(t *testing.T) {
 		loader   in.ChangesetLoader
 		reloader in.ChangesetReloader
 		files    in.FileDiffLoader
+		hoverer  in.Hoverer
+		docs     in.DocumentTracker
+		updates  in.LSPUpdates
 	)
-	opts := append(options(config.Config{}, nil, t.TempDir(), lang.Defaults()), fx.Populate(&loader, &reloader, &files))
+	opts := append(options(config.Config{}, nil, t.TempDir(), lang.Defaults()),
+		fx.Populate(&loader, &reloader, &files, &hoverer, &docs, &updates))
 
 	require.NoError(t, fx.ValidateApp(opts...))
 }

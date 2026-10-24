@@ -1,0 +1,147 @@
+package main
+
+import (
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
+
+	"seam/internal/app/port/in"
+	"seam/internal/config"
+	"seam/internal/domain/change"
+	"seam/internal/domain/filediff"
+	"seam/internal/domain/hover"
+	"seam/internal/domain/lang"
+	"seam/internal/observability"
+	"seam/internal/testsupport"
+)
+
+// TestTheGraphStopsInTimeWithAStubbornServer runs the session's graph with
+// git and a language server that neither reads nor answers shutdown: the
+// stop takes the servers' share of the budget and leaves git enough to end
+// cat-file.
+func TestTheGraphStopsInTimeWithAStubbornServer(t *testing.T) {
+	// Built here, as from inside the test's repository go knows no module.
+	fakelsp := buildFakelsp(t)
+	inRepo(t)
+	root, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("a.go", []byte("package a\n"), 0o600))
+	require.NoError(t, os.WriteFile("fakelsp.script", []byte("stop-reading\nno-shutdown\n"), 0o600))
+	table, err := lang.NewTable([]lang.Language{{Lang: lang.Go, Extensions: []string{".go"}, Server: "fake"}},
+		[]lang.Server{{Name: "fake", Command: fakelsp}})
+	require.NoError(t, err)
+	cfg := config.Config{Dir: root, LogFile: filepath.Join(t.TempDir(), "seam.log"), Verbose: true}
+	logger, err := observability.NewLogger(cfg)
+	require.NoError(t, err)
+	defer func() { assert.NoError(t, logger.Close()) }()
+	var (
+		changesets in.ChangesetLoader
+		files      in.FileDiffLoader
+		docs       in.DocumentTracker
+		updates    in.LSPUpdates
+	)
+	app := fx.New(append(options(cfg, logger, root, table), fx.Populate(&docs, &updates, &files, &changesets))...)
+	require.NoError(t, app.Err())
+	require.NoError(t, app.Start(t.Context()))
+	stopped := false
+	t.Cleanup(func() {
+		// A test failed before its own stop; the servers must not outlive it.
+		if !stopped {
+			_ = stopGraph(app)
+		}
+	})
+
+	c := change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()}
+	cs, err := changesets.LoadChangeset(t.Context(), c)
+	require.NoError(t, err)
+	file := fileAt(t, cs, "committed.txt")
+	files.Load(filediff.Request{Gen: 1, Comparison: cs.Comparison, File: file})
+	require.NoError(t, testsupport.Collect(t, files, func(u []filediff.Update) bool { return len(u) > 0 })[0].Err, "cat-file runs")
+	files.Load(filediff.Request{Gen: 2, Comparison: cs.Comparison, File: fileAt(t, cs, "a.go")})
+	shown := testsupport.Collect(t, files, func(u []filediff.Update) bool { return len(u) > 0 })[0]
+	_, ok := docs.Track(shown.Snapshot.RightDoc)
+	require.True(t, ok)
+	testsupport.Collect(t, updates, func(u []hover.Update) bool {
+		return len(u) > 0 && u[len(u)-1].Status == hover.Ready
+	})
+
+	require.ElementsMatch(t, []string{"git", "fakelsp"}, children(t))
+
+	begin := time.Now()
+	stopped = true
+	require.NoError(t, stopGraph(app))
+
+	assert.Less(t, time.Since(begin), stopBudget)
+	assert.Empty(t, children(t), "cat-file and the server have ended")
+	assert.Equal(t, []string{"lsp", "git"}, stopOrder(t, cfg.LogFile), "git stops last")
+}
+
+// stopOrder is the adapters of the stop hooks as fx logged running them;
+// the use cases' workers stop in the order their ports were asked for.
+func stopOrder(t *testing.T, log string) []string {
+	t.Helper()
+	data, err := os.ReadFile(log)
+	require.NoError(t, err)
+	var order []string
+	for line := range strings.Lines(string(data)) {
+		if !strings.Contains(line, `"msg":"OnStop hook executing"`) {
+			continue
+		}
+		_, caller, _ := strings.Cut(line, `"caller":"seam/internal/`)
+		pkg, _, _ := strings.Cut(caller, ".")
+		if strings.HasPrefix(pkg, "adapter/") {
+			order = append(order, path.Base(pkg))
+		}
+	}
+	return order
+}
+
+func fileAt(t *testing.T, cs change.Changeset, path string) change.ChangedFile {
+	t.Helper()
+	i := slices.IndexFunc(cs.Files, func(f change.ChangedFile) bool { return f.Path() == path })
+	require.GreaterOrEqual(t, i, 0, "%s is not in the changeset", path)
+	return cs.Files[i]
+}
+
+// buildFakelsp builds the adapter's test server for this test.
+func buildFakelsp(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "fakelsp")
+	out, err := exec.CommandContext(t.Context(), "go", "build", "-o", path, "seam/internal/adapter/driven/lsp/cmd/fakelsp").CombinedOutput()
+	require.NoError(t, err, string(out))
+	return path
+}
+
+// children are the commands of the test's child processes that still run.
+func children(t *testing.T) []string {
+	t.Helper()
+	self := strconv.Itoa(os.Getpid())
+	stats, err := filepath.Glob("/proc/[0-9]*/stat")
+	require.NoError(t, err)
+	var running []string
+	for _, p := range stats {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue // ended meanwhile
+		}
+		// The command is in parentheses and may hold blanks; the fields
+		// after it are state and parent.
+		s := string(data)
+		end := strings.LastIndexByte(s, ')')
+		fields := strings.Fields(s[end+1:])
+		if len(fields) > 1 && fields[1] == self && fields[0] != "Z" {
+			running = append(running, s[strings.IndexByte(s, '(')+1:end])
+		}
+	}
+	return running
+}

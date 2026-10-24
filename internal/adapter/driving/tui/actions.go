@@ -5,6 +5,7 @@ import (
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/view"
 	"seam/internal/textcell"
 )
@@ -38,6 +39,7 @@ func (s *state) open(i int, fresh bool) (r filediff.Request, ok bool) {
 // unload shows no file until the next one arrives.
 func (s *state) unload() {
 	s.Snapshot, s.Loaded = filediff.Snapshot{}, false
+	s.LSP.Shown = lang.Instance{}
 	s.Pos, s.HScroll = view.Pos{}, 0
 	s.place(s.Layout.Width, s.Layout.Height)
 	s.show(nil)
@@ -53,17 +55,18 @@ func (s *state) step(n int) (filediff.Request, bool) {
 }
 
 // apply shows u if it answers the last request; a late answer for a file
-// left since is dropped.
-func (s *state) apply(u filediff.Update) {
+// left since is dropped. shown reports a new snapshot on screen.
+func (s *state) apply(u filediff.Update) (shown bool) {
 	if u.Gen != s.LoadGen {
-		return
+		return false
 	}
 	if u.Err != nil {
 		s.Err = u.Err
-		return
+		return false
 	}
 	s.Snapshot, s.Loaded, s.Err = u.Snapshot, true, nil
 	s.relayout()
+	return true
 }
 
 // reload returns the generation of a new reload of the changeset.

@@ -10,6 +10,7 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/filediff"
+	"seam/internal/domain/hover"
 	"seam/internal/domain/lang"
 	"seam/internal/domain/limits"
 	"seam/internal/supervise"
@@ -44,7 +45,7 @@ type FileDiffs struct {
 // version is the last text of a path's right side, by checksum, so a
 // reload can tell whether the text changed even after the cache dropped it.
 type version struct {
-	n   filediff.Version
+	n   hover.DocVersion
 	sum uint64
 }
 
@@ -106,8 +107,8 @@ func (f *FileDiffs) fromCache(ctx context.Context, r filediff.Request) (filediff
 	s := e.snapshot
 	// The path may have had other text since, under another key: its
 	// version must not go back.
-	if s.Version != 0 {
-		s.Version = f.version(r.File.NewPath, e.sum)
+	if s.RightDoc.Path != "" {
+		s.RightDoc.Version = f.version(r.File.NewPath, e.sum)
 	}
 	return s, true
 }
@@ -137,7 +138,7 @@ func (f *FileDiffs) compute(ctx context.Context, r filediff.Request) (*cached, e
 	}
 	e := &cached{stamp: stamp}
 	if len(s.Notices) == 0 {
-		if err := f.showText(ctx, &s, e, old, new); err != nil {
+		if err := f.showText(ctx, &s, e, r.ReadsWorktree(), old, new); err != nil {
 			return nil, err
 		}
 	}
@@ -146,8 +147,9 @@ func (f *FileDiffs) compute(ctx context.Context, r filediff.Request) (*cached, e
 }
 
 // showText puts the diff of both sides' text into s with the column index of
-// its long lines and their tokens, and gives the right side its version.
-func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cached, old, new string) error {
+// its long lines and their tokens, and the right side's document if it is
+// the worktree's.
+func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cached, worktree bool, old, new string) error {
 	d, err := f.diff(ctx, old, new)
 	if err != nil {
 		return err
@@ -158,19 +160,19 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	if s.Columns, err = indexColumns(ctx, d); err != nil {
 		return err
 	}
+	newLang := f.languages.Detect(s.File.NewPath, new)
 	var oldLate, newLate bool
-	if s.Highlights.Old, oldLate, err = f.highlightSide(ctx, s, filediff.OldSide, s.File.OldPath, old, len(d.Old.Lines)); err != nil {
+	if s.Highlights.Old, oldLate, err = f.highlightSide(ctx, s, filediff.OldSide, f.languages.Detect(s.File.OldPath, old), old, len(d.Old.Lines)); err != nil {
 		return err
 	}
-	if s.Highlights.New, newLate, err = f.highlightSide(ctx, s, filediff.NewSide, s.File.NewPath, new, len(d.New.Lines)); err != nil {
+	if s.Highlights.New, newLate, err = f.highlightSide(ctx, s, filediff.NewSide, newLang, new, len(d.New.Lines)); err != nil {
 		return err
 	}
 	e.late = oldLate || newLate
 	s.Diff = d
-	// Only text that is shown gets a version.
-	if s.File.NewPath != "" {
+	if worktree {
 		e.sum = maphash.String(f.seed, new)
-		s.Version = f.version(s.File.NewPath, e.sum)
+		s.RightDoc = hover.Document{Path: s.File.NewPath, Lang: newLang, Version: f.version(s.File.NewPath, e.sum), Text: new}
 	}
 	return nil
 }
@@ -226,7 +228,7 @@ func asText(side filediff.Which, data []byte, err error) (string, *filediff.Noti
 
 // version returns the path's version for the text with checksum sum,
 // raising it if the text differs from the last one shown.
-func (f *FileDiffs) version(path string, sum uint64) filediff.Version {
+func (f *FileDiffs) version(path string, sum uint64) hover.DocVersion {
 	v, ok := f.versions[path]
 	if !ok || v.sum != sum {
 		v = version{n: v.n + 1, sum: sum}

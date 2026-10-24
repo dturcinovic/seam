@@ -30,6 +30,8 @@ type state struct {
 	Err error
 
 	List fileList
+	// LSP is the language server of the file shown, for the footer.
+	LSP lspState
 
 	Mode    view.Mode
 	Pos     view.Pos
