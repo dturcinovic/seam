@@ -13,6 +13,8 @@ type Flags struct {
 
 // Config is the resolved configuration of one session.
 type Config struct {
+	// Dir is the working directory; the repository is found from it.
+	Dir string
 	// LogFile is the zap log, rotated in place.
 	LogFile string
 	// Verbose raises the log level to debug. It does not mirror the log on
@@ -27,7 +29,12 @@ func Load(f Flags) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return Config{}, fmt.Errorf("working directory: %w", err)
+	}
 	return Config{
+		Dir:     dir,
 		LogFile: filepath.Join(state, "seam", "seam.log"),
 		Verbose: f.Verbose,
 	}, nil

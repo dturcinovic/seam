@@ -1,0 +1,114 @@
+package change
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"time"
+)
+
+// Status is how a file changed between the two sides.
+type Status int
+
+// The statuses git reports, plus Untracked for files git does not know. The
+// zero value is no valid status. Unmerged is a path with a conflict; which
+// content it has depends on the side.
+const (
+	_ Status = iota
+	Added
+	Deleted
+	Modified
+	Renamed
+	Copied
+	TypeChanged
+	Unmerged
+	Untracked
+)
+
+// String is git's one-letter code for the status, "?" for untracked.
+func (s Status) String() string {
+	switch s {
+	case Added:
+		return "A"
+	case Deleted:
+		return "D"
+	case Modified:
+		return "M"
+	case Renamed:
+		return "R"
+	case Copied:
+		return "C"
+	case TypeChanged:
+		return "T"
+	case Unmerged:
+		return "U"
+	case Untracked:
+		return "?"
+	}
+	return "-"
+}
+
+// Mode is a git file mode such as 0o100644. Zero means the side is missing.
+type Mode uint32
+
+// ChangedFile is one file that differs between the sides. Paths are relative
+// to the repository root and may hold any byte but NUL. A side that does not
+// exist has an empty path, a zero mode and a zero ID; for the worktree side
+// the ID may be zero or stale, so the file itself is what counts.
+type ChangedFile struct {
+	Status           Status
+	OldPath, NewPath string
+	OldMode, NewMode Mode
+	OldID, NewID     ObjectID
+}
+
+// Path is the path to show for the file: the new one unless it was deleted.
+func (f ChangedFile) Path() string {
+	if f.NewPath != "" {
+		return f.NewPath
+	}
+	return f.OldPath
+}
+
+// Changeset is a resolved comparison with the files that differ, ordered by
+// Path.
+type Changeset struct {
+	Comparison Comparison
+	Files      []ChangedFile
+}
+
+// Stamp identifies the state of a worktree file cheaply: if it is unchanged,
+// the content is taken to be unchanged too.
+type Stamp struct {
+	Size    int64
+	ModTime time.Time
+	Inode   uint64
+}
+
+// Errors of reading one side of a file.
+var (
+	// ErrNotExist means the path names nothing.
+	ErrNotExist = errors.New("file does not exist")
+	// ErrNotRegular means the path names a FIFO, device, socket, directory or
+	// an object that is no blob; seam reads none of them.
+	ErrNotRegular = errors.New("not a regular file")
+)
+
+// TooLargeError means a side exceeds the file size limit. Size is the size
+// known when reading stopped, which is a lower bound for a file that grew.
+type TooLargeError struct {
+	Size int64
+}
+
+// Error says how large the side is.
+func (e *TooLargeError) Error() string {
+	return fmt.Sprintf("file too large: %d bytes", e.Size)
+}
+
+// binaryProbe is how much of a file IsBinary looks at, as git does.
+const binaryProbe = 8 << 10
+
+// IsBinary reports whether data looks binary: a NUL byte in its first 8 KiB.
+func IsBinary(data []byte) bool {
+	return bytes.IndexByte(data[:min(len(data), binaryProbe)], 0) >= 0
+}

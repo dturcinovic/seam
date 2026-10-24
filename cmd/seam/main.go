@@ -34,7 +34,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	cmd.SetErr(stderr)
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		// A failed write of the last error has nowhere left to be reported.
-		_, _ = fmt.Fprintln(stderr, "seam:", err)
+		_, _ = fmt.Fprintln(stderr, "seam:", printableLines(err.Error()))
 		return 1
 	}
 	return 0
@@ -42,23 +42,32 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 func newRootCommand() *cobra.Command {
 	var flags config.Flags
+	var staged bool
 	cmd := &cobra.Command{
-		Use:     "seam",
+		Use:     "seam [<rev> [<rev>]]",
 		Short:   "Side-by-side diff viewer with type info from the language server",
 		Version: versionString(),
-		Args:    cobra.NoArgs,
+		Long: `Without arguments seam compares HEAD with the worktree, untracked files
+included. One revision replaces HEAD, two compare two commits, and --staged
+compares HEAD with the index.`,
+		Args: cobra.MaximumNArgs(2),
 		// Errors are printed once by run; usage only on --help.
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := comparison(args, staged)
+			if err != nil {
+				return err
+			}
 			cfg, err := config.Load(flags)
 			if err != nil {
 				return err
 			}
-			return session(cmd.Context(), cfg)
+			return session(cmd.Context(), cfg, c, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().BoolVarP(&flags.Verbose, "verbose", "v", false, "log at debug level")
+	cmd.Flags().BoolVar(&staged, "staged", false, "compare HEAD with the index")
 	return cmd
 }
 

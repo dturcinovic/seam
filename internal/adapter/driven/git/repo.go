@@ -1,0 +1,266 @@
+package git
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"sync"
+
+	"seam/internal/domain/change"
+	"seam/internal/supervise"
+)
+
+// Config locates the repository.
+type Config struct {
+	// Root is the top of the worktree, as FindRoot returns it.
+	Root string
+}
+
+// Repo is the git repository seam compares in. It implements the outgoing
+// ports for listing changes and reading both sides of a file.
+type Repo struct {
+	root   string
+	files  *os.Root
+	tasks  *supervise.Group
+	blobMu sync.Mutex
+	blobs  *catFile
+	closed bool
+}
+
+// ErrClosed is returned by reads after Close.
+var ErrClosed = errors.New("git: repository closed")
+
+// FindRoot returns the top of the worktree that holds dir, or an error
+// wrapping change.ErrNoRepository.
+func FindRoot(ctx context.Context, dir string) (string, error) {
+	out, err := run(ctx, dir, "rev-parse", "--show-toplevel")
+	if gitErr, ok := errors.AsType[*commandError](err); ok && gitErr.code == 128 &&
+		strings.Contains(gitErr.stderr, "not a git repository") {
+		return "", fmt.Errorf("%s: %w", dir, change.ErrNoRepository)
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(string(out), "\n"), nil
+}
+
+// Open opens the repository whose worktree starts at root. It runs no git;
+// Close releases it.
+func Open(root string, panics supervise.PanicFunc) (*Repo, error) {
+	files, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, fmt.Errorf("open worktree: %w", err)
+	}
+	return &Repo{root: root, files: files, tasks: supervise.NewGroup("git", panics, nil)}, nil
+}
+
+// Close ends the cat-file process and releases the worktree.
+func (r *Repo) Close(ctx context.Context) error {
+	r.blobMu.Lock()
+	cat := r.blobs
+	r.blobs = nil
+	// A read after Close would start a process that nothing ends.
+	r.closed = true
+	r.blobMu.Unlock()
+	var err error
+	if cat != nil {
+		err = cat.close(r.tasks)
+	}
+	return errors.Join(err, r.tasks.Stop(ctx), r.files.Close())
+}
+
+// ResolveCommit implements out.RevisionResolver.
+func (r *Repo) ResolveCommit(ctx context.Context, rev string) (change.ObjectID, error) {
+	out, err := run(ctx, r.root, "rev-parse", "--verify", "--quiet", "--end-of-options", rev+"^{commit}")
+	// With --verify --quiet, exit code 1 and nothing else means no such
+	// commit; any other failure is git's own and passes through.
+	if gitErr, ok := errors.AsType[*commandError](err); ok && gitErr.code == 1 {
+		return change.ObjectID{}, fmt.Errorf("%w %q", change.ErrUnknownRevision, rev)
+	}
+	if err != nil {
+		return change.ObjectID{}, err
+	}
+	return change.ParseObjectID(strings.TrimSuffix(string(out), "\n"))
+}
+
+// ListChanges implements out.ChangeLister. The commits of c must be resolved.
+func (r *Repo) ListChanges(ctx context.Context, c change.Comparison) ([]change.ChangedFile, error) {
+	if c.Left.ID().IsZero() {
+		return nil, fmt.Errorf("left side %s is not resolved", c.Left)
+	}
+	args := []string{"diff", "--raw", "-z", "--no-abbrev", "-M", "--no-ext-diff", "--no-color"}
+	switch c.Right.Kind() {
+	case change.KindWorktree:
+	case change.KindIndex:
+		args = append(args, "--cached")
+	case change.KindCommit:
+		if c.Right.ID().IsZero() {
+			return nil, fmt.Errorf("right side %s is not resolved", c.Right)
+		}
+	default:
+		return nil, fmt.Errorf("right side %s cannot be listed", c.Right)
+	}
+	args = append(args, c.Left.ID().String())
+	if c.Right.Kind() == change.KindCommit {
+		args = append(args, c.Right.ID().String())
+	}
+	out, err := run(ctx, r.root, append(args, "--")...)
+	if err != nil {
+		return nil, err
+	}
+	return parseRaw(out)
+}
+
+// ListUntracked implements out.UntrackedLister.
+func (r *Repo) ListUntracked(ctx context.Context) ([]string, error) {
+	out, err := run(ctx, r.root, "ls-files", "-z", "--others", "--exclude-standard")
+	if err != nil {
+		return nil, err
+	}
+	return splitNUL(out), nil
+}
+
+// command is the one way seam starts git. --no-optional-locks keeps git from
+// taking the index lock for a stat refresh, which a concurrent git command
+// of the user would trip over. LC_ALL=C keeps its messages in the one
+// language FindRoot can recognise and seam's own messages use.
+func command(ctx context.Context, dir string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-C", dir}, args...)...)
+	cmd.Env = append(os.Environ(), "LC_ALL=C")
+	return cmd
+}
+
+// commandError is a git command that ran and failed.
+type commandError struct {
+	args   []string
+	code   int
+	stderr string
+}
+
+func (e *commandError) Error() string {
+	return fmt.Sprintf("git %s: exit %d: %s", e.args[0], e.code, reason(e.stderr))
+}
+
+// reason picks the line of git's stderr that says why it failed; warnings
+// and hints may come first.
+func reason(stderr string) string {
+	lines := strings.Split(stderr, "\n")
+	for _, l := range lines {
+		for _, prefix := range []string{"fatal: ", "error: "} {
+			if msg, ok := strings.CutPrefix(l, prefix); ok {
+				return msg
+			}
+		}
+	}
+	return lines[0]
+}
+
+func run(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	cmd := command(ctx, dir, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && ctx.Err() == nil {
+		return nil, &commandError{args: args, code: exitErr.ExitCode(), stderr: strings.TrimSpace(stderr.String())}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("git %s: %w", args[0], errors.Join(ctx.Err(), err))
+	}
+	return out, nil
+}
+
+func splitNUL(b []byte) []string {
+	s := strings.TrimSuffix(string(b), "\x00")
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, "\x00")
+}
+
+// parseRaw reads `git diff --raw -z`: per file a header
+// ":oldmode newmode oldid newid status", then one path, or two for a rename
+// or copy, each NUL-terminated.
+func parseRaw(b []byte) ([]change.ChangedFile, error) {
+	fields := splitNUL(b)
+	var files []change.ChangedFile
+	for i := 0; i < len(fields); {
+		f, n, err := parseEntry(fields[i:])
+		if err != nil {
+			return nil, fmt.Errorf("diff --raw entry %q: %w", fields[i], err)
+		}
+		files = append(files, f)
+		i += n
+	}
+	return files, nil
+}
+
+func parseEntry(fields []string) (change.ChangedFile, int, error) {
+	rest, ok := strings.CutPrefix(fields[0], ":")
+	header := strings.Fields(rest)
+	if !ok || len(header) != 5 || header[4] == "" {
+		return change.ChangedFile{}, 0, errors.New("unexpected header")
+	}
+	status, paths, err := parseStatus(header[4][0])
+	if err != nil {
+		return change.ChangedFile{}, 0, err
+	}
+	if len(fields) < 1+paths {
+		return change.ChangedFile{}, 0, errors.New("path missing")
+	}
+	f := change.ChangedFile{Status: status, OldPath: fields[1], NewPath: fields[paths]}
+	if f.OldMode, err = parseMode(header[0]); err != nil {
+		return change.ChangedFile{}, 0, err
+	}
+	if f.NewMode, err = parseMode(header[1]); err != nil {
+		return change.ChangedFile{}, 0, err
+	}
+	if f.OldID, err = change.ParseObjectID(header[2]); err != nil {
+		return change.ChangedFile{}, 0, err
+	}
+	if f.NewID, err = change.ParseObjectID(header[3]); err != nil {
+		return change.ChangedFile{}, 0, err
+	}
+	// Mode 000000 marks a side that does not exist: added, deleted, or the
+	// index side of a conflict.
+	if f.OldMode == 0 {
+		f.OldPath = ""
+	}
+	if f.NewMode == 0 {
+		f.NewPath = ""
+	}
+	return f, 1 + paths, nil
+}
+
+// parseStatus maps git's status letter and says how many paths follow.
+func parseStatus(letter byte) (change.Status, int, error) {
+	switch letter {
+	case 'A':
+		return change.Added, 1, nil
+	case 'D':
+		return change.Deleted, 1, nil
+	case 'M':
+		return change.Modified, 1, nil
+	case 'T':
+		return change.TypeChanged, 1, nil
+	case 'U':
+		return change.Unmerged, 1, nil
+	case 'R':
+		return change.Renamed, 2, nil
+	case 'C':
+		return change.Copied, 2, nil
+	}
+	return 0, 0, fmt.Errorf("unknown status %q", letter)
+}
+
+func parseMode(s string) (change.Mode, error) {
+	m, err := strconv.ParseUint(s, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("mode %q: %w", s, err)
+	}
+	return change.Mode(m), nil
+}

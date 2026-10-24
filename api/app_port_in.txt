@@ -2,3 +2,15 @@ package in // import "seam/internal/app/port/in"
 
 Package in holds the incoming ports, which the TUI adapter calls and the use
 cases implement. It knows nothing but the domain.
+
+TYPES
+
+type ChangesetLoader interface {
+	// LoadChangeset resolves the comparison's commits and returns them with
+	// the changed files, untracked ones included when the right side is the
+	// worktree.
+	LoadChangeset(ctx context.Context, c change.Comparison) (change.Changeset, error)
+}
+    ChangesetLoader loads the files that differ in a comparison. It is called
+    once, before the TUI starts; an error ends seam.
+

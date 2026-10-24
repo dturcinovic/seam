@@ -1,0 +1,28 @@
+package limits // import "seam/internal/domain/limits"
+
+Package limits holds the bounds seam keeps on what it reads and keeps in memory,
+as types that check themselves. It does not enforce them; the readers and caches
+that take them do.
+
+VARIABLES
+
+var ErrInvalidFileSize = errors.New("file size limit must be positive")
+    ErrInvalidFileSize is returned for a limit that is not positive.
+
+
+TYPES
+
+type FileSize int64
+    FileSize is the most bytes one side of a file may have to be loaded.
+    The zero value is not a valid limit; use NewFileSize or DefaultFileSize.
+
+const DefaultFileSize FileSize = 8 << 20
+    DefaultFileSize is the limit when none is configured. Up to this size a file
+    gets the full treatment: diff, inline diff and highlighting.
+
+func NewFileSize(n int64) (FileSize, error)
+    NewFileSize checks n and returns it as a limit.
+
+func (s FileSize) Bytes() int64
+    Bytes is the limit as a byte count.
+

@@ -56,7 +56,7 @@ linters:
       # free text, so a new message cannot widen them by accident.
       # The command owns the terminal until the TUI starts.
       - path: ^cmd/
-        text: "use of `(fmt\\.Fp?rint[a-z]*|os\\.Std(out|err))`"
+        text: "use of `(fmt\\.Print[a-z]*|os\\.Std(out|err))`"
         linters: [forbidigo]
       - path: ^cmd/seam/main\.go$
         text: "use of `os\\.Exit`"
@@ -77,11 +77,20 @@ linters:
     forbidigo:
       analyze-types: true
       forbid:
-        - pattern: ^fmt\.(Print|Println|Printf|Fprint|Fprintln|Fprintf)$
+        # fmt.Fprint* into a pipe or buffer is fine; into the terminal it
+        # needs os.Stdout or os.Stderr, which the next rule catches.
+        - pattern: ^fmt\.(Print|Println|Printf)$
           pkg: ^fmt$
           msg: the TUI owns the terminal; log through zap or return an error
         - pattern: ^os\.(Stdout|Stderr)$
           pkg: ^os$
+          msg: the TUI owns the terminal; log through zap or return an error
+        # The other ways to the terminal: the log package and the builtins
+        # both write to stderr.
+        - pattern: ^log\.(Print|Fatal|Panic)
+          pkg: ^log$
+          msg: the TUI owns the terminal; log through zap or return an error
+        - pattern: ^(print|println)$
           msg: the TUI owns the terminal; log through zap or return an error
         - pattern: ^os\.Exit$
           pkg: ^os$

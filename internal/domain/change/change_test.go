@@ -1,0 +1,115 @@
+package change_test
+
+import (
+	"bytes"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"seam/internal/domain/change"
+)
+
+const sha1 = "0123456789abcdef0123456789abcdef01234567"
+
+func TestParseObjectID(t *testing.T) {
+	id, err := change.ParseObjectID(sha1)
+	require.NoError(t, err)
+	assert.Equal(t, sha1, id.String())
+	assert.False(t, id.IsZero())
+
+	sha256 := strings.Repeat("ab", 32)
+	id, err = change.ParseObjectID(sha256)
+	require.NoError(t, err)
+	assert.Equal(t, sha256, id.String())
+
+	id, err = change.ParseObjectID(strings.Repeat("0", 40))
+	require.NoError(t, err)
+	assert.True(t, id.IsZero(), "git's all-zero name is no object")
+
+	for _, bad := range []string{"", "abc", strings.ToUpper(sha1), "g" + sha1[1:], sha1 + "0"} {
+		_, err := change.ParseObjectID(bad)
+		assert.ErrorIs(t, err, change.ErrInvalidObjectID, "%q", bad)
+	}
+}
+
+func TestSources(t *testing.T) {
+	id, err := change.ParseObjectID(sha1)
+	require.NoError(t, err)
+
+	c := change.Commit("main~1")
+	assert.Equal(t, change.KindCommit, c.Kind())
+	assert.Equal(t, "main~1", c.Rev())
+	assert.True(t, c.ID().IsZero())
+	resolved, err := c.Resolved(id)
+	require.NoError(t, err)
+	assert.Equal(t, id, resolved.ID())
+	_, err = c.Resolved(change.ObjectID{})
+	assert.ErrorIs(t, err, change.ErrNotACommit, "the zero id names no commit")
+	_, err = change.Worktree().Resolved(id)
+	assert.ErrorIs(t, err, change.ErrNotACommit)
+	assert.Equal(t, "main~1", c.String())
+
+	assert.Equal(t, change.KindIndex, change.Index().Kind())
+	assert.Equal(t, "index", change.Index().String())
+	assert.Equal(t, change.KindWorktree, change.Worktree().Kind())
+	assert.Equal(t, "worktree", change.Worktree().String())
+	assert.Equal(t, "unset", change.Source{}.String())
+}
+
+func TestNewComparison(t *testing.T) {
+	valid := []struct{ left, right change.Source }{
+		{change.Commit("HEAD"), change.Worktree()},
+		{change.Commit("HEAD"), change.Index()},
+		{change.Commit("a"), change.Commit("b")},
+	}
+	for _, tt := range valid {
+		c, err := change.NewComparison(tt.left, tt.right)
+		require.NoError(t, err)
+		assert.Equal(t, tt.left, c.Left)
+		assert.Equal(t, tt.right, c.Right)
+	}
+
+	invalid := []struct {
+		name        string
+		left, right change.Source
+	}{
+		{"index on the left", change.Index(), change.Worktree()},
+		{"left commit without revision", change.Commit(""), change.Worktree()},
+		{"right commit without revision", change.Commit("HEAD"), change.Commit("")},
+		{"right side unset", change.Commit("HEAD"), change.Source{}},
+	}
+	for _, tt := range invalid {
+		_, err := change.NewComparison(tt.left, tt.right)
+		assert.ErrorIs(t, err, change.ErrInvalidComparison, tt.name)
+	}
+}
+
+func TestStatusString(t *testing.T) {
+	statuses := map[change.Status]string{
+		change.Added: "A", change.Deleted: "D", change.Modified: "M", change.Renamed: "R",
+		change.Copied: "C", change.TypeChanged: "T", change.Unmerged: "U", change.Untracked: "?", change.Status(0): "-",
+	}
+	for s, want := range statuses {
+		assert.Equal(t, want, s.String())
+	}
+}
+
+func TestChangedFilePath(t *testing.T) {
+	assert.Equal(t, "new", change.ChangedFile{OldPath: "old", NewPath: "new"}.Path())
+	assert.Equal(t, "gone", change.ChangedFile{OldPath: "gone"}.Path(), "a deleted file keeps its old path")
+}
+
+func TestTooLargeError(t *testing.T) {
+	assert.EqualError(t, &change.TooLargeError{Size: 42}, "file too large: 42 bytes")
+}
+
+func TestIsBinary(t *testing.T) {
+	assert.False(t, change.IsBinary(nil))
+	assert.False(t, change.IsBinary([]byte("plain text\n")))
+	assert.True(t, change.IsBinary([]byte("a\x00b")))
+
+	late := append(bytes.Repeat([]byte("x"), 8<<10), 0)
+	assert.False(t, change.IsBinary(late), "only the first 8 KiB count")
+}

@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,6 +13,8 @@ import (
 
 func TestLoad(t *testing.T) {
 	home := t.TempDir()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
 	tests := []struct {
 		name     string
 		xdgState string
@@ -31,6 +34,7 @@ func TestLoad(t *testing.T) {
 
 			assert.Equal(t, filepath.Join(tt.want, "seam.log"), cfg.LogFile)
 			assert.True(t, cfg.Verbose)
+			assert.Equal(t, wd, cfg.Dir)
 		})
 	}
 }

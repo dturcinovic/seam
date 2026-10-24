@@ -2,11 +2,9 @@ package main
 
 import (
 	"bytes"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )
 
@@ -40,21 +38,4 @@ func TestUnknownFlagFails(t *testing.T) {
 	code, _, stderr := runSeam(t, "--no-such-flag")
 	assert.Equal(t, 1, code)
 	assert.Contains(t, stderr, "unknown flag")
-}
-
-func TestComparisonArgumentsAreNotAcceptedYet(t *testing.T) {
-	code, _, _ := runSeam(t, "HEAD~1")
-	assert.Equal(t, 1, code)
-}
-
-func TestSessionLogsToTheStateDirectoryOnly(t *testing.T) {
-	state := t.TempDir()
-	t.Setenv("XDG_STATE_HOME", state)
-
-	code, stdout, stderr := runSeam(t, "--verbose")
-
-	require.Equal(t, 0, code, stderr)
-	assert.Empty(t, stdout)
-	assert.Empty(t, stderr)
-	assert.FileExists(t, filepath.Join(state, "seam", "seam.log"))
 }

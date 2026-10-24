@@ -1,0 +1,171 @@
+package change // import "seam/internal/domain/change"
+
+Package change describes what seam compares: the two sides of a comparison,
+the files that differ between them and the errors of reading a side. It runs no
+git and reads no file.
+
+VARIABLES
+
+var (
+	// ErrNotExist means the path names nothing.
+	ErrNotExist = errors.New("file does not exist")
+	// ErrNotRegular means the path names a FIFO, device, socket, directory or
+	// an object that is no blob; seam reads none of them.
+	ErrNotRegular = errors.New("not a regular file")
+)
+    Errors of reading one side of a file.
+
+var (
+	// ErrNoRepository means the directory is not inside a git worktree.
+	ErrNoRepository = errors.New("not inside a git worktree")
+	// ErrUnknownRevision means a revision names no commit.
+	ErrUnknownRevision = errors.New("unknown revision")
+)
+    Errors of finding what to compare.
+
+var ErrInvalidComparison = errors.New("invalid comparison")
+    ErrInvalidComparison is returned for a pair of sides seam cannot compare.
+
+var ErrInvalidObjectID = errors.New("invalid object id")
+    ErrInvalidObjectID is returned by ParseObjectID for anything that is not a
+    full object name.
+
+var ErrNotACommit = errors.New("only a commit source resolves to an object")
+    ErrNotACommit is returned by Resolved for a source that is no commit or an
+    id that names nothing.
+
+
+FUNCTIONS
+
+func IsBinary(data []byte) bool
+    IsBinary reports whether data looks binary: a NUL byte in its first 8 KiB.
+
+
+TYPES
+
+type ChangedFile struct {
+	Status           Status
+	OldPath, NewPath string
+	OldMode, NewMode Mode
+	OldID, NewID     ObjectID
+}
+    ChangedFile is one file that differs between the sides. Paths are relative
+    to the repository root and may hold any byte but NUL. A side that does not
+    exist has an empty path, a zero mode and a zero ID; for the worktree side
+    the ID may be zero or stale, so the file itself is what counts.
+
+func (f ChangedFile) Path() string
+    Path is the path to show for the file: the new one unless it was deleted.
+
+type Changeset struct {
+	Comparison Comparison
+	Files      []ChangedFile
+}
+    Changeset is a resolved comparison with the files that differ, ordered by
+    Path.
+
+type Comparison struct {
+	Left, Right Source
+}
+    Comparison is the pair of sides seam shows, old on the left.
+
+func NewComparison(left, right Source) (Comparison, error)
+    NewComparison checks that left is a commit and right is a commit, the index
+    or the worktree.
+
+type Mode uint32
+    Mode is a git file mode such as 0o100644. Zero means the side is missing.
+
+type ObjectID struct {
+	// Has unexported fields.
+}
+    ObjectID is a git object name in hex: 40 digits for SHA-1, 64 for SHA-256.
+    The zero value means no object, as git's all-zero name does.
+
+func ParseObjectID(s string) (ObjectID, error)
+    ParseObjectID checks s and returns it as an ObjectID. git's all-zero name
+    yields the zero ObjectID.
+
+func (id ObjectID) IsZero() bool
+    IsZero reports whether id names no object.
+
+func (id ObjectID) String() string
+    String is the id in hex, empty for the zero id.
+
+type Source struct {
+	// Has unexported fields.
+}
+    Source is one side of a comparison. A commit source starts as the revision
+    the user named and is resolved to an ObjectID before files are listed.
+
+func Commit(rev string) Source
+    Commit is the commit that rev names, not yet resolved.
+
+func Index() Source
+    Index is the staging area.
+
+func Worktree() Source
+    Worktree is the files on disk.
+
+func (s Source) ID() ObjectID
+    ID is the resolved commit; zero until Resolved or unless Kind is KindCommit.
+
+func (s Source) Kind() SourceKind
+    Kind says where the side comes from.
+
+func (s Source) Resolved(id ObjectID) (Source, error)
+    Resolved returns the commit source with its object id.
+
+func (s Source) Rev() string
+    Rev is the revision the user named; empty unless Kind is KindCommit.
+
+func (s Source) String() string
+    String names the side as the user would: the revision, index or worktree.
+
+type SourceKind int
+    SourceKind says where one side of a comparison comes from.
+
+const (
+	KindCommit SourceKind
+	KindIndex
+	KindWorktree
+)
+    The kinds of source. The zero value is no valid kind.
+
+type Stamp struct {
+	Size    int64
+	ModTime time.Time
+	Inode   uint64
+}
+    Stamp identifies the state of a worktree file cheaply: if it is unchanged,
+    the content is taken to be unchanged too.
+
+type Status int
+    Status is how a file changed between the two sides.
+
+const (
+	Added Status
+	Deleted
+	Modified
+	Renamed
+	Copied
+	TypeChanged
+	Unmerged
+	Untracked
+)
+    The statuses git reports, plus Untracked for files git does not know.
+    The zero value is no valid status. Unmerged is a path with a conflict;
+    which content it has depends on the side.
+
+func (s Status) String() string
+    String is git's one-letter code for the status, "?" for untracked.
+
+type TooLargeError struct {
+	Size int64
+}
+    TooLargeError means a side exceeds the file size limit. Size is the size
+    known when reading stopped, which is a lower bound for a file that grew.
+
+func (e *TooLargeError) Error() string
+    Error says how large the side is.
+
