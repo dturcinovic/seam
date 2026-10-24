@@ -110,7 +110,7 @@ func (l *line) window(s string, points []filediff.Checkpoint, skip int, st cellS
 			return
 		}
 		l.use(st.of(c))
-		if c.Col < skip || c.Col+c.Width > end {
+		if cut(c, skip, end) {
 			l.spaces(min(c.Col+c.Width, end)-max(c.Col, skip), l.cur)
 			continue
 		}
@@ -121,6 +121,12 @@ func (l *line) window(s string, points []filediff.Checkpoint, skip int, st cellS
 		}
 		l.free -= c.Width
 	}
+}
+
+// cut says that c reaches past column skip or end on the screen, so only
+// its columns between them show, as blanks.
+func cut(c textcell.Cell, skip, end int) bool {
+	return c.Col < skip || c.Col+c.Width > end
 }
 
 // seek walks s from the first cell that reaches past column skip, starting

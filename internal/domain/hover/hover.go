@@ -17,6 +17,11 @@ type Document struct {
 	Text    string
 }
 
+// MaxLine is the longest line, in bytes, that hovers ask about. Past it
+// the text is likely generated or minified, where an answer helps little
+// and finding the grapheme and the identifier costs on every move.
+const MaxLine = 64 << 10
+
 // ReqID names a hover request. The viewer hands out strictly increasing
 // ones before it asks, so an answer finds its request whenever it comes.
 type ReqID uint64

@@ -5,6 +5,14 @@ servers: the documents a server is told about, the position a hover asks for,
 how a request was taken, and what comes back. It speaks no protocol and starts
 no server.
 
+CONSTANTS
+
+const MaxLine = 64 << 10
+    MaxLine is the longest line, in bytes, that hovers ask about. Past it the
+    text is likely generated or minified, where an answer helps little and
+    finding the grapheme and the identifier costs on every move.
+
+
 TYPES
 
 type DocVersion uint64

@@ -186,8 +186,8 @@ func TestALongLineCostsWhatIsVisible(t *testing.T) {
 	assert.Contains(t, ansi.Strip(out), "~ xxx")
 }
 
-// TestTheColumnIndexStartsWhereTheWalkWould renders a 60 KiB line of mixed
-// widths far to the right, once from checkpoints and once walking from the
+// TestTheColumnIndexStartsWhereTheWalkWould renders a 52 KiB line of mixed
+// widths near its end, once from checkpoints and once walking from the
 // start: both show the same.
 func TestTheColumnIndexStartsWhereTheWalkWould(t *testing.T) {
 	long := strings.Repeat("ab\t日e\u0301👨\u200d👩 ", 60<<10/24)
@@ -197,11 +197,13 @@ func TestTheColumnIndexStartsWhereTheWalkWould(t *testing.T) {
 		walked := shown(t, files("min.js"), 100, 3, filediff.Snapshot{Diff: d})
 		for _, s := range []*state{indexed, walked} {
 			s.Cells = m.method
-			s.HScroll = 50001
+			s.HScroll = textWidth(long, m.method) - 40
 		}
 		require.NotEmpty(t, indexed.Snapshot.Columns.New.At(0))
+		out := render(indexed, newTheme())
+		require.Contains(t, ansi.Strip(out), "ab", "the screen shows text")
 
-		assert.Equal(t, render(walked, newTheme()), render(indexed, newTheme()), m.name)
+		assert.Equal(t, render(walked, newTheme()), out, m.name)
 	}
 }
 

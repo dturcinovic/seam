@@ -50,6 +50,13 @@ func (l layout) bodyLine(x, y int) (i int, ok bool) {
 	return l.within(x-l.List, y, l.panes())
 }
 
+// rightText is the screen columns of the right pane's text, from the
+// first after its gutter to the first past it, as writeRow lays them out.
+func (l layout) rightText() (from, to int) {
+	from = l.List + l.Left.Width + separatorWidth + l.Right.gutter()
+	return from, max(from, l.List+l.Left.Width+separatorWidth+l.Right.Width)
+}
+
 // inList says whether screen cell x, y lies in the file list's lines, its
 // separator included.
 func (l layout) inList(x, y int) bool {
