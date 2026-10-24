@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -12,10 +11,6 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/supervise"
 )
-
-// bridgeStop bounds stopping the bridge after the program ended; its
-// goroutines are not held up by then, so this is a safeguard only.
-const bridgeStop = time.Second
 
 // Ports are the incoming ports the TUI calls while it runs.
 type Ports struct {
@@ -50,15 +45,13 @@ func Run(ctx context.Context, cs change.Changeset, p Ports, panics supervise.Pan
 	}
 	prog := tea.NewProgram(newModel(cs, p.Files, p.Reload), opts...)
 	b := newBridge(panics)
-	stopCtx, cancel := context.WithTimeout(context.Background(), bridgeStop)
-	defer cancel()
 	if err := b.start(prog.Send, p.Files, p.Reload); err != nil {
 		// The program never ran, so nothing holds up the watcher started.
-		return errors.Join(err, b.stop(stopCtx))
+		return errors.Join(err, b.stop())
 	}
 	_, err := prog.Run()
 	if ctx.Err() != nil && errors.Is(err, tea.ErrProgramKilled) {
 		err = nil
 	}
-	return errors.Join(err, b.stop(stopCtx))
+	return errors.Join(err, b.stop())
 }

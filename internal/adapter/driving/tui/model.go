@@ -15,17 +15,19 @@ type (
 	changesetReady struct{}
 )
 
-// model is the Bubble Tea model: the state and the ports Update calls.
+// model is the Bubble Tea model: the state, the ports Update calls and the
+// theme View draws with.
 type model struct {
 	s      state
 	files  in.FileDiffLoader
 	reload in.ChangesetReloader
+	theme  *theme
 }
 
 // newModel shows cs and asks for its first file at once, as Init cannot
 // change the model; the answer arrives through the bridge.
 func newModel(cs change.Changeset, files in.FileDiffLoader, reload in.ChangesetReloader) model {
-	m := model{s: newState(cs), files: files, reload: reload}
+	m := model{s: newState(cs), files: files, reload: reload, theme: newTheme()}
 	m.load(m.s.open(0, false))
 	return m
 }

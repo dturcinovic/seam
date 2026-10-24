@@ -127,21 +127,34 @@ func (f *FileDiffs) compute(ctx context.Context, r filediff.Request) (*cached, e
 	}
 	e := &cached{stamp: stamp}
 	if len(s.Notices) == 0 {
-		s.Diff, err = f.diff(ctx, old, new)
-		if err != nil {
+		if err := f.showText(ctx, &s, e, old, new); err != nil {
 			return nil, err
 		}
-		if s.Diff.Simplified {
-			s.Notices = append(s.Notices, filediff.Notice{Kind: filediff.Simplified})
-		}
-		// Only text that is shown gets a version.
-		if r.File.NewPath != "" {
-			e.sum = maphash.String(f.seed, new)
-			s.Version = f.version(r.File.NewPath, e.sum)
-		}
 	}
-	e.snapshot, e.size = s, s.Diff.ApproxBytes()
+	e.snapshot, e.size = s, s.Diff.ApproxBytes()+s.Columns.ApproxBytes()
 	return e, nil
+}
+
+// showText puts the diff of both sides' text into s with the column index of
+// its long lines, and gives the right side its version.
+func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cached, old, new string) error {
+	d, err := f.diff(ctx, old, new)
+	if err != nil {
+		return err
+	}
+	if d.Simplified {
+		s.Notices = append(s.Notices, filediff.Notice{Kind: filediff.Simplified})
+	}
+	if s.Columns, err = indexColumns(ctx, d); err != nil {
+		return err
+	}
+	s.Diff = d
+	// Only text that is shown gets a version.
+	if s.File.NewPath != "" {
+		e.sum = maphash.String(f.seed, new)
+		s.Version = f.version(s.File.NewPath, e.sum)
+	}
+	return nil
 }
 
 func (f *FileDiffs) diff(ctx context.Context, old, new string) (diff.FileDiff, error) {

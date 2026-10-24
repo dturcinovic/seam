@@ -1,8 +1,9 @@
 package filediff // import "seam/internal/domain/filediff"
 
 Package filediff describes loading the diff of one file in the background:
-the request with its generation, the snapshot the UI shows and the notices that
-explain what it leaves out. It reads nothing and keeps no cache.
+the request with its generation, the snapshot the UI shows, the notices that
+explain what it leaves out and the column index of long lines. It reads nothing,
+keeps no cache and measures no text.
 
 VARIABLES
 
@@ -13,10 +14,42 @@ var ErrLoaderFailed = errors.New("file loader failed")
 
 TYPES
 
+type Checkpoint struct {
+	Byte, Col, GraphemeCol int
+}
+    Checkpoint is a grapheme boundary in a long line where counting columns can
+    start instead of at the line's beginning. Byte is its offset in the line's
+    content. Col is its column as terminals count by default, a grapheme's code
+    points each; GraphemeCol as they count in Unicode core mode, a grapheme as
+    one. The terminal decides which applies.
+
+type ColumnIndex struct {
+	Lines []LineCheckpoints
+}
+    ColumnIndex holds the checkpoints of the long lines of one side, ordered by
+    line. Lines without any start counting at their beginning.
+
+func (c ColumnIndex) At(line int) []Checkpoint
+    At returns the checkpoints of line, or nil if it has none.
+
+type Columns struct {
+	Old, New ColumnIndex
+}
+    Columns are the column indexes of both sides.
+
+func (c Columns) ApproxBytes() int64
+    ApproxBytes is roughly the memory both indexes hold.
+
 type Gen uint64
     Gen is a generation of choosing a file. The UI hands out strictly increasing
     ones and shows only the update of the newest, so a late result never covers
     the file chosen since.
+
+type LineCheckpoints struct {
+	Line   int
+	Points []Checkpoint
+}
+    LineCheckpoints are the checkpoints of one line of a side, in order.
 
 type Notice struct {
 	Kind NoticeKind
@@ -63,11 +96,13 @@ func (r Request) ReadsWorktree() bool
 type Snapshot struct {
 	File    change.ChangedFile
 	Diff    diff.FileDiff
+	Columns Columns
 	Version Version
 	Notices []Notice
 }
     Snapshot is the loaded diff of a file. Notices say what it leaves out;
-    a side that is too large or binary leaves the diff empty.
+    a side that is too large or binary leaves the diff empty. Columns index the
+    long lines of the diff's sides.
 
 type Update struct {
 	Gen      Gen

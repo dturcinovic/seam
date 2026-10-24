@@ -2,6 +2,8 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+
+	"seam/internal/textcell"
 )
 
 // Update applies a message. The port calls in it never block, so they run
@@ -11,6 +13,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.s.resize(msg.Width, msg.Height)
+	case tea.ModeReportMsg:
+		if reportsGraphemes(msg) {
+			m.s.Cells = textcell.Graphemes
+		}
 	case tea.KeyPressMsg:
 		return m.onKey(msg.String())
 	case fileDiffsReady:

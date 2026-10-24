@@ -4,13 +4,11 @@ import (
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/view"
+	"seam/internal/textcell"
 )
 
 // contextRows is how many unchanged rows the hunk view keeps around a change.
 const contextRows = 3
-
-// chrome is the lines the view spends outside the panes: header and footer.
-const chrome = 2
 
 // state is what the TUI shows, as plain data: no ports, no channels. Only
 // the actions change it.
@@ -34,15 +32,20 @@ type state struct {
 	Mode    view.Mode
 	Pos     view.Pos
 	HScroll int
-	Width   int
-	Height  int
-	// Lines is Snapshot laid out in Mode, kept in step by the actions.
-	Lines []view.Line
+	// Lines is Snapshot laid out in Mode, and Layout the screen for it at
+	// the terminal's size; the actions keep both in step.
+	Lines  []view.Line
+	Layout layout
+	// Cells is how the terminal counts columns, which Bubble Tea's renderer
+	// learns from it after the start.
+	Cells textcell.Method
 }
 
 // newState holds the files of cs in the hunk view, none of them open yet.
 func newState(cs change.Changeset) state {
-	return state{Comparison: cs.Comparison, Files: cs.Files, Current: -1, Mode: view.Hunks}
+	s := state{Comparison: cs.Comparison, Files: cs.Files, Current: -1, Mode: view.Hunks}
+	s.place(0, 0)
+	return s
 }
 
 // file is the current file; ok is false when there is none.
@@ -55,5 +58,5 @@ func (s *state) file() (change.ChangedFile, bool) {
 
 // bodyHeight is how many lines of the file fit on the screen.
 func (s *state) bodyHeight() int {
-	return max(s.Height-chrome, 1)
+	return s.Layout.Body
 }

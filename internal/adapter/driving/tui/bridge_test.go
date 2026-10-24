@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
@@ -64,7 +65,7 @@ func TestTheBridgeWakesTheProgramWithoutInput(t *testing.T) {
 		synctest.Wait()
 
 		assert.Equal(t, []tea.Msg{fileDiffsReady{}, changesetReady{}}, p.received())
-		require.NoError(t, b.stop(t.Context()))
+		require.NoError(t, b.stop())
 	})
 }
 
@@ -89,6 +90,21 @@ func TestManyUpdatesFallTogetherAndNoneIsLost(t *testing.T) {
 		m := newModel(change.Changeset{}, fl, rl)
 		m.Update(msgs[0])
 		assert.Equal(t, 1, fl.DrainCallCount(), "one message drains every update")
-		require.NoError(t, b.stop(t.Context()))
+		require.NoError(t, b.stop())
+	})
+}
+
+// TestTheBridgeStopsLongAfterItStarted: its stop deadline counts from the
+// stop, not from a start long past.
+func TestTheBridgeStopsLongAfterItStarted(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		fl, rl, _, _ := signalling()
+		p := &program{busy: make(chan struct{})}
+		b := newBridge(nil)
+		require.NoError(t, b.start(p.send, fl, rl))
+
+		time.Sleep(time.Hour)
+
+		require.NoError(t, b.stop())
 	})
 }

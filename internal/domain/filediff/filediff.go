@@ -38,10 +38,12 @@ func (r Request) ReadsWorktree() bool {
 type Version uint64
 
 // Snapshot is the loaded diff of a file. Notices say what it leaves out; a
-// side that is too large or binary leaves the diff empty.
+// side that is too large or binary leaves the diff empty. Columns index the
+// long lines of the diff's sides.
 type Snapshot struct {
 	File    change.ChangedFile
 	Diff    diff.FileDiff
+	Columns Columns
 	Version Version
 	Notices []Notice
 }

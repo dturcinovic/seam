@@ -2,12 +2,17 @@ package tui
 
 import (
 	"context"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"seam/internal/app/port/in"
 	"seam/internal/supervise"
 )
+
+// bridgeStop bounds stopping the bridge, counted from the call: once the
+// program has ended its goroutines are not held up, so this is a safeguard.
+const bridgeStop = time.Second
 
 // bridge wakes the program when a port has updates: one goroutine per
 // signal sends a message for each. Only these goroutines wait on the
@@ -35,8 +40,11 @@ func (b *bridge) start(send func(tea.Msg), files in.FileDiffLoader, reload in.Ch
 }
 
 // stop ends the goroutines; after the program has ended none is held up in
-// send.
-func (b *bridge) stop(ctx context.Context) error {
+// send. It sets its own deadline, so no caller can hand it one that started
+// with the program and ran out since.
+func (b *bridge) stop() error {
+	ctx, cancel := context.WithTimeout(context.Background(), bridgeStop)
+	defer cancel()
 	return b.group.Stop(ctx)
 }
 

@@ -33,6 +33,7 @@ func (s *state) open(i int, fresh bool) (r filediff.Request, ok bool) {
 func (s *state) unload() {
 	s.Snapshot, s.Loaded, s.Lines = filediff.Snapshot{}, false, nil
 	s.Pos, s.HScroll = view.Pos{}, 0
+	s.place(s.Layout.Width, s.Layout.Height)
 }
 
 // step opens the file n places away, staying at either end of the list.
@@ -93,8 +94,13 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 
 // resize takes the new terminal size; the top line stays where it is.
 func (s *state) resize(width, height int) {
-	s.Width, s.Height = width, height
+	s.place(width, height)
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
+}
+
+// place lays out the screen for the current file.
+func (s *state) place(width, height int) {
+	s.Layout = computeLayout(width, height, s.Snapshot.Diff)
 }
 
 // toggleMode switches between the hunk and the full view at the same row.
@@ -154,5 +160,6 @@ func (s *state) scrollTo(line int) {
 // the anchor row.
 func (s *state) relayout() {
 	s.Lines = view.Lines(s.Snapshot.Diff, s.Mode, contextRows)
+	s.place(s.Layout.Width, s.Layout.Height)
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }
