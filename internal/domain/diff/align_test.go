@@ -2,8 +2,10 @@ package diff_test
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"seam/internal/domain/diff"
 )
@@ -79,9 +81,27 @@ func TestApproxBytes(t *testing.T) {
 	assert.Zero(t, diff.FileDiff{}.ApproxBytes())
 
 	d := diff.Compute(t.Context(), diff.Split("a b c\n"), diff.Split("a x c\n"))
+	require.Len(t, d.Inline, 1)
 	unmarked := d
-	unmarked.Rows = []diff.Row{{Kind: diff.Change, Left: 0, Right: 0}}
+	unmarked.Inline = nil
 
 	assert.Greater(t, unmarked.ApproxBytes(), int64(len("a b c\n")*2), "the text and more")
-	assert.Equal(t, unmarked.ApproxBytes()+2*16, d.ApproxBytes(), "a span is two ints")
+	entry := int64(unsafe.Sizeof(diff.InlineSpans{}) + 2*unsafe.Sizeof(diff.Span{}))
+	assert.Equal(t, unmarked.ApproxBytes()+entry, d.ApproxBytes(), "one entry with a span a side")
+}
+
+func TestInlineAt(t *testing.T) {
+	d := diff.Compute(t.Context(), diff.Split("same\na b c\nkeep\nd e f\n"), diff.Split("same\na x c\nkeep\nd e g\n"))
+	require.Len(t, d.Inline, 2)
+
+	for _, row := range []int{0, 2} {
+		left, right := d.InlineAt(row)
+		assert.Nil(t, left, "row %d has no marks", row)
+		assert.Nil(t, right, "row %d has no marks", row)
+	}
+	left, right := d.InlineAt(3)
+	assert.Equal(t, []diff.Span{{Start: 4, End: 5}}, left)
+	assert.Equal(t, []diff.Span{{Start: 4, End: 5}}, right)
+	left, _ = d.InlineAt(9)
+	assert.Nil(t, left, "past the end")
 }

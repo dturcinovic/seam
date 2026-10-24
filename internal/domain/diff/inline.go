@@ -2,6 +2,7 @@ package diff
 
 import (
 	"context"
+	"slices"
 	"unicode"
 	"unicode/utf8"
 )
@@ -16,21 +17,26 @@ type Span struct {
 // beyond it the token search costs more than the marks are worth.
 const maxInlineLine = 4 << 10
 
-// markInline marks the changed words of the Change rows; Delete and Insert
-// rows are marked whole anyway. complete is false if ctx ended first and
-// left the rest unmarked.
-func markInline(ctx context.Context, rows []Row, old, new Side) (complete bool) {
+// markInline marks the changed words of the Change rows, in row order;
+// Delete and Insert rows are marked whole anyway. complete is false if ctx
+// ended first and left the rest unmarked.
+func markInline(ctx context.Context, rows []Row, old, new Side) (marks []InlineSpans, complete bool) {
+	complete = true
 	for i, r := range rows {
 		if r.Kind != Change {
 			continue
 		}
 		left, right, ok := inline(ctx, old.Lines[r.Left], new.Lines[r.Right])
 		if !ok {
-			return false
+			complete = false
+			break
 		}
-		rows[i].LeftInline, rows[i].RightInline = left, right
+		if left != nil || right != nil {
+			marks = append(marks, InlineSpans{Row: i, Left: left, Right: right})
+		}
 	}
-	return true
+	// Exact, as the diff keeps them: append leaves up to half again spare.
+	return slices.Clone(marks), complete
 }
 
 // inline returns the spans of the tokens that differ between two lines. It

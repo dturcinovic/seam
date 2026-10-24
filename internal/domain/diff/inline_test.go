@@ -43,7 +43,8 @@ func inlineOf(t *testing.T, old, new string) (left, right string) {
 	d := diff.Compute(t.Context(), diff.Split(old), diff.Split(new))
 	require.Len(t, d.Rows, 1)
 	r := d.Rows[0]
-	return bracket(d.Old.Lines[r.Left], r.LeftInline), bracket(d.New.Lines[r.Right], r.RightInline)
+	l, rt := d.InlineAt(0)
+	return bracket(d.Old.Lines[r.Left], l), bracket(d.New.Lines[r.Right], rt)
 }
 
 func TestInline(t *testing.T) {
@@ -105,8 +106,7 @@ func TestInlineStopsWithTheContext(t *testing.T) {
 	d := diff.Compute(ctx, diff.Split("x y\n"), diff.Split("x z\n"))
 
 	require.Equal(t, diff.Change, d.Rows[0].Kind)
-	assert.Nil(t, d.Rows[0].LeftInline)
-	assert.Nil(t, d.Rows[0].RightInline)
+	assert.Empty(t, d.Inline)
 	assert.True(t, d.Simplified, "unmarked words are reported")
 }
 
@@ -148,14 +148,14 @@ func checkSpans(t *rapid.T, content string, spans []diff.Span) {
 	}
 }
 
-func checkInline(t *rapid.T, old, new string, r diff.Row) {
-	checkSpans(t, old, r.LeftInline)
-	checkSpans(t, new, r.RightInline)
-	if r.LeftInline == nil && r.RightInline == nil {
+func checkInline(t *rapid.T, old, new string, left, right []diff.Span) {
+	checkSpans(t, old, left)
+	checkSpans(t, new, right)
+	if left == nil && right == nil {
 		return
 	}
-	outLeft, inLeft := pieces(old, r.LeftInline)
-	outRight, inRight := pieces(new, r.RightInline)
+	outLeft, inLeft := pieces(old, left)
+	outRight, inRight := pieces(new, right)
 	require.Equal(t, strings.Join(outLeft, ""), strings.Join(outRight, ""), "outside the spans both sides agree")
 	changed := len(strings.Join(inLeft, "")) + len(strings.Join(inRight, ""))
 	require.LessOrEqual(t, changed*5, (len(old)+len(new))*3, "at most 60 % marked")
@@ -174,9 +174,11 @@ func TestInlineSpansAreExactAndWhole(t *testing.T) {
 		old := strings.Join(rapid.SliceOfN(line, 0, 4).Draw(t, "old"), "")
 		new := strings.Join(rapid.SliceOfN(line, 0, 4).Draw(t, "new"), "")
 		d := diff.Compute(ctx, diff.Split(old), diff.Split(new))
-		for _, r := range d.Rows {
+		checkValid(t, d)
+		for i, r := range d.Rows {
 			if r.Kind == diff.Change {
-				checkInline(t, diff.Content(d.Old.Lines[r.Left]), diff.Content(d.New.Lines[r.Right]), r)
+				left, right := d.InlineAt(i)
+				checkInline(t, diff.Content(d.Old.Lines[r.Left]), diff.Content(d.New.Lines[r.Right]), left, right)
 			}
 		}
 	})

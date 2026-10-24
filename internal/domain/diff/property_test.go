@@ -50,10 +50,6 @@ func checkValid(t require.TestingT, d diff.FileDiff) {
 			require.Equal(t, nextRight, r.Right, "row %d: new lines appear once, in order", i)
 			nextRight++
 		}
-		if r.Kind != diff.Change {
-			require.Nil(t, r.LeftInline, "row %d: only a change marks words", i)
-			require.Nil(t, r.RightInline, "row %d: only a change marks words", i)
-		}
 		switch r.Kind {
 		case diff.Equal:
 			require.Equal(t, d.Old.Lines[r.Left], d.New.Lines[r.Right], "row %d: equal rows hold equal lines", i)
@@ -83,6 +79,16 @@ func checkValid(t require.TestingT, d diff.FileDiff) {
 		want = append(want, diff.RowRange{Start: start, End: i})
 	}
 	require.Equal(t, want, d.Changes)
+
+	// Only marked Change rows have spans, each once, in row order.
+	last := -1
+	for _, s := range d.Inline {
+		require.Greater(t, s.Row, last, "inline spans are ordered by row")
+		require.Less(t, s.Row, len(d.Rows), "inline spans name a row")
+		require.Equal(t, diff.Change, d.Rows[s.Row].Kind, "row %d: only a change marks words", s.Row)
+		require.False(t, s.Left == nil && s.Right == nil, "row %d: an entry marks something", s.Row)
+		last = s.Row
+	}
 }
 
 func equalRows(d diff.FileDiff) int {

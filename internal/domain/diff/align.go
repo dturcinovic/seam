@@ -1,7 +1,9 @@
 package diff
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"unsafe"
 )
 
@@ -22,12 +24,18 @@ const (
 )
 
 // Row is one line of the side-by-side view. Left and Right index into the
-// old and new lines; -1 means the side has no line in this row. A Change row
-// may mark the words that differ in LeftInline and RightInline.
+// old and new lines; -1 means the side has no line in this row.
 type Row struct {
-	Kind                    RowKind
-	Left, Right             int
-	LeftInline, RightInline []Span
+	Kind        RowKind
+	Left, Right int
+}
+
+// InlineSpans marks the words that differ in the two lines of a Change row.
+// They live beside the rows, not in them: most rows have none, and a cache
+// holds every row of every file it keeps.
+type InlineSpans struct {
+	Row         int
+	Left, Right []Span
 }
 
 // RowRange is the rows from Start up to but not including End.
@@ -36,14 +44,24 @@ type RowRange struct {
 }
 
 // FileDiff is two versions of a file aligned as rows. Changes lists the
-// blocks of rows that differ, in order. Simplified reports that the time ran
-// out: the diff is valid, but its blocks may be larger than needed and words
-// left unmarked.
+// blocks of rows that differ, in order. Inline holds one entry per marked
+// Change row, ordered by Row, which InlineAt relies on. Simplified reports that the time ran out: the diff is valid, but its
+// blocks may be larger than needed and words left unmarked.
 type FileDiff struct {
 	Old, New   Side
 	Rows       []Row
 	Changes    []RowRange
+	Inline     []InlineSpans
 	Simplified bool
+}
+
+// InlineAt returns the marked words of a row; none for a row without marks.
+func (d FileDiff) InlineAt(row int) (left, right []Span) {
+	i, ok := slices.BinarySearchFunc(d.Inline, row, func(s InlineSpans, row int) int { return cmp.Compare(s.Row, row) })
+	if !ok {
+		return nil, nil
+	}
+	return d.Inline[i].Left, d.Inline[i].Right
 }
 
 // ApproxBytes is roughly the memory the diff holds: the lines with their
@@ -51,8 +69,9 @@ type FileDiff struct {
 func (d FileDiff) ApproxBytes() int64 {
 	n := sideBytes(d.Old) + sideBytes(d.New)
 	n += int64(cap(d.Rows)) * int64(unsafe.Sizeof(Row{}))
-	for _, r := range d.Rows {
-		n += int64(cap(r.LeftInline)+cap(r.RightInline)) * int64(unsafe.Sizeof(Span{}))
+	n += int64(cap(d.Inline)) * int64(unsafe.Sizeof(InlineSpans{}))
+	for _, s := range d.Inline {
+		n += int64(cap(s.Left)+cap(s.Right)) * int64(unsafe.Sizeof(Span{}))
 	}
 	return n + int64(cap(d.Changes))*int64(unsafe.Sizeof(RowRange{}))
 }
@@ -71,8 +90,8 @@ func Compute(ctx context.Context, old, new Side) FileDiff {
 	a, b := intern(old.Lines, new.Lines)
 	matches, complete := commonSubsequence(ctx, a, b)
 	rows, changes := align(matches, len(a), len(b))
-	marked := markInline(ctx, rows, old, new)
-	return FileDiff{Old: old, New: new, Rows: rows, Changes: changes, Simplified: !complete || !marked}
+	inline, marked := markInline(ctx, rows, old, new)
+	return FileDiff{Old: old, New: new, Rows: rows, Changes: changes, Inline: inline, Simplified: !complete || !marked}
 }
 
 // intern maps each distinct old line or token to a number, so the search
