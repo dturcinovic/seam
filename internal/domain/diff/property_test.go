@@ -50,6 +50,10 @@ func checkValid(t require.TestingT, d diff.FileDiff) {
 			require.Equal(t, nextRight, r.Right, "row %d: new lines appear once, in order", i)
 			nextRight++
 		}
+		if r.Kind != diff.Change {
+			require.Nil(t, r.LeftInline, "row %d: only a change marks words", i)
+			require.Nil(t, r.RightInline, "row %d: only a change marks words", i)
+		}
 		switch r.Kind {
 		case diff.Equal:
 			require.Equal(t, d.Old.Lines[r.Left], d.New.Lines[r.Right], "row %d: equal rows hold equal lines", i)
@@ -183,6 +187,24 @@ func TestNoCommonLineIsExactWithoutSearch(t *testing.T) {
 
 	assert.False(t, d.Simplified, "a cancelled context must not matter when there is nothing to search")
 	assert.Equal(t, []diff.RowRange{{Start: 0, End: 100000}}, d.Changes)
+}
+
+// BenchmarkComputeCodeLines changes one identifier in every tenth line of
+// code, the common case for the word marks; BenchmarkCompute10kLines
+// replaces whole lines, which the 60 % rule leaves unmarked.
+func BenchmarkComputeCodeLines(b *testing.B) {
+	var old, new diff.Side
+	for i := range 10000 {
+		line := fmt.Sprintf("\tif err := s.store.Put(ctx, key%d, value); err != nil { return err }\n", i)
+		old.Lines = append(old.Lines, line)
+		if i%10 == 0 {
+			line = fmt.Sprintf("\tif err := s.cache.Put(ctx, key%d, value); err != nil { return err }\n", i)
+		}
+		new.Lines = append(new.Lines, line)
+	}
+	for b.Loop() {
+		diff.Compute(b.Context(), old, new)
+	}
 }
 
 func BenchmarkCompute10kLines(b *testing.B) {

@@ -5,12 +5,12 @@ import (
 	"slices"
 )
 
-// match pairs an old line with an equal new line.
+// match pairs an old element, a line or a token, with an equal new one.
 type match struct {
 	old, new int
 }
 
-// myers finds a longest common subsequence of two sequences of line ids with
+// myers finds a longest common subsequence of two sequences of ids with
 // Myers' algorithm in linear space: it bisects at the middle snake of an
 // optimal path and recurses into both halves. The bisection follows
 // diff-match-patch's diff_bisect.
@@ -29,8 +29,8 @@ type myers struct {
 // further search starts; the ranges left are reported without matches, as
 // replaced blocks, and complete is false.
 func commonSubsequence(ctx context.Context, a, b []int) (matches []match, complete bool) {
-	// Without a line in common the search would spend quadratic time, or the
-	// whole budget, to find nothing; a rewritten file or a change of line
+	// Without an element in common the search would spend quadratic time, or
+	// the whole budget, to find nothing; a rewritten file or a change of line
 	// endings is exactly that.
 	if !slices.ContainsFunc(b, func(id int) bool { return id != noMatch }) {
 		return nil, true
@@ -65,7 +65,7 @@ func (m *myers) compare(a0, a1, b0, b1 int) {
 // bisect returns a point, relative to a0 and b0, on an optimal path through
 // the middle of the edit graph of a[a0:a1] against b[b0:b1], walking from
 // both ends until the paths overlap. ok is false if ctx ended first or the
-// range has no line in common.
+// range has no element in common.
 func (m *myers) bisect(a0, a1, b0, b1 int) (x, y int, ok bool) {
 	w := m.newWalk(m.a[a0:a1], m.b[b0:b1])
 	// With an odd delta the forward walk meets the backward one, otherwise
@@ -83,7 +83,7 @@ func (m *myers) bisect(a0, a1, b0, b1 int) (x, y int, ok bool) {
 			return m.split(w, x, y)
 		}
 	}
-	// The paths never met: the range has no line in common and is one
+	// The paths never met: the range has no element in common and is one
 	// replaced block.
 	return 0, 0, false
 }

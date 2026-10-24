@@ -12,6 +12,15 @@ type Side struct {
 	Lines []string
 }
 
+// Content is a line without its terminator: what is shown, and what a Span
+// counts in.
+func Content(line string) string {
+	if c, ok := strings.CutSuffix(line, "\r\n"); ok {
+		return c
+	}
+	return strings.TrimSuffix(line, "\n")
+}
+
 // Split cuts text into lines after each "\n".
 func Split(text string) Side {
 	return Side{Lines: slices.Collect(strings.Lines(text))}

@@ -2,8 +2,16 @@ package diff // import "seam/internal/domain/diff"
 
 Package diff compares two versions of a file line by line and aligns them side
 by side: equal lines pair up, a block of changed lines pairs up as far as both
-sides reach, and the rest of the block stands alone. It knows nothing of git,
-colours or the terminal.
+sides reach, and the rest of the block stands alone. Within a pair of changed
+lines it marks the words that differ. It knows nothing of git, colours or the
+terminal.
+
+FUNCTIONS
+
+func Content(line string) string
+    Content is a line without its terminator: what is shown, and what a Span
+    counts in.
+
 
 TYPES
 
@@ -15,18 +23,21 @@ type FileDiff struct {
 }
     FileDiff is two versions of a file aligned as rows. Changes lists the blocks
     of rows that differ, in order. Simplified reports that the time ran out:
-    the diff is valid but its blocks may be larger than needed.
+    the diff is valid, but its blocks may be larger than needed and words left
+    unmarked.
 
 func Compute(ctx context.Context, old, new Side) FileDiff
     Compute aligns old and new. When ctx ends, it stops searching and returns
     the rest of the files as changed blocks rather than fail.
 
 type Row struct {
-	Kind        RowKind
-	Left, Right int
+	Kind                    RowKind
+	Left, Right             int
+	LeftInline, RightInline []Span
 }
     Row is one line of the side-by-side view. Left and Right index into the old
-    and new lines; -1 means the side has no line in this row.
+    and new lines; -1 means the side has no line in this row. A Change row may
+    mark the words that differ in LeftInline and RightInline.
 
 type RowKind int
     RowKind says how the lines of a row relate.
@@ -58,4 +69,10 @@ type Side struct {
 
 func Split(text string) Side
     Split cuts text into lines after each "\n".
+
+type Span struct {
+	Start, End int
+}
+    Span is the bytes of a line's Content from Start up to but not including
+    End.
 

@@ -19,10 +19,12 @@ const (
 )
 
 // Row is one line of the side-by-side view. Left and Right index into the
-// old and new lines; -1 means the side has no line in this row.
+// old and new lines; -1 means the side has no line in this row. A Change row
+// may mark the words that differ in LeftInline and RightInline.
 type Row struct {
-	Kind        RowKind
-	Left, Right int
+	Kind                    RowKind
+	Left, Right             int
+	LeftInline, RightInline []Span
 }
 
 // RowRange is the rows from Start up to but not including End.
@@ -32,7 +34,8 @@ type RowRange struct {
 
 // FileDiff is two versions of a file aligned as rows. Changes lists the
 // blocks of rows that differ, in order. Simplified reports that the time ran
-// out: the diff is valid but its blocks may be larger than needed.
+// out: the diff is valid, but its blocks may be larger than needed and words
+// left unmarked.
 type FileDiff struct {
 	Old, New   Side
 	Rows       []Row
@@ -46,12 +49,13 @@ func Compute(ctx context.Context, old, new Side) FileDiff {
 	a, b := intern(old.Lines, new.Lines)
 	matches, complete := commonSubsequence(ctx, a, b)
 	rows, changes := align(matches, len(a), len(b))
-	return FileDiff{Old: old, New: new, Rows: rows, Changes: changes, Simplified: !complete}
+	marked := markInline(ctx, rows, old, new)
+	return FileDiff{Old: old, New: new, Rows: rows, Changes: changes, Simplified: !complete || !marked}
 }
 
-// intern maps each distinct old line to a number, so the search compares
-// ints. A new line that is not among the old ones can match nothing and gets
-// noMatch.
+// intern maps each distinct old line or token to a number, so the search
+// compares ints. A new one that is not among the old can match nothing and
+// gets noMatch.
 func intern(old, new []string) (a, b []int) {
 	ids := make(map[string]int, len(old))
 	a, b = make([]int, len(old)), make([]int, len(new))
@@ -73,7 +77,7 @@ func intern(old, new []string) (a, b []int) {
 	return a, b
 }
 
-// noMatch is the id of a new line that occurs nowhere in the old file.
+// noMatch is the id of a new line or token that occurs nowhere in the old.
 const noMatch = -1
 
 // align turns the matched pairs into rows. Between two matches lies a

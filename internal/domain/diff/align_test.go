@@ -1,7 +1,6 @@
 package diff_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +15,7 @@ func render(d diff.FileDiff) []string {
 		if i < 0 {
 			return ""
 		}
-		return strings.TrimRight(lines[i], "\r\n")
+		return diff.Content(lines[i])
 	}
 	marks := map[diff.RowKind]string{diff.Equal: "=", diff.Change: "~", diff.Delete: "-", diff.Insert: "+"}
 	var out []string
@@ -61,6 +60,13 @@ func TestChangesAreTheBlocks(t *testing.T) {
 	d := diff.Compute(t.Context(), diff.Split("a\nx\nb\ny\nz\nc\n"), diff.Split("a\nb\nY\nc\nw\n"))
 
 	assert.Equal(t, []diff.RowRange{{Start: 1, End: 2}, {Start: 3, End: 5}, {Start: 6, End: 7}}, d.Changes)
+}
+
+func TestContent(t *testing.T) {
+	assert.Equal(t, "a", diff.Content("a\r\n"))
+	assert.Equal(t, "a", diff.Content("a\n"))
+	assert.Equal(t, "a", diff.Content("a"))
+	assert.Equal(t, "a\r", diff.Content("a\r"), "a lone CR is content")
 }
 
 func TestSplit(t *testing.T) {
