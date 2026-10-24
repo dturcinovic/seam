@@ -5,6 +5,8 @@ import (
 	"seam/internal/domain/lang"
 )
 
+//counterfeiter:generate . Hoverer
+
 // Hoverer asks the language server about a position. Neither call blocks;
 // the answer comes through LSPUpdates.
 type Hoverer interface {

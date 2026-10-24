@@ -77,7 +77,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 		fx.Supply(limits.DefaultFileSize, lang.Defaults()),
 		usecase.Module,
 		fx.NopLogger,
-		fx.Populate(&ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &loader),
+		fx.Populate(&ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &loader),
 	)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))
@@ -94,15 +94,16 @@ func changeset() change.Changeset {
 	return change.Changeset{Comparison: change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()}, Files: files}
 }
 
-// runTUI starts the TUI and returns a function that types keys and one that
-// waits for it to end, failing after testsupport.Guard.
-func runTUI(t *testing.T, ports tui.Ports) (typeKeys func(string), wait func() error) {
+// runTUI starts the TUI on cs, writing to out, and returns a function that
+// types keys and one that waits for it to end, failing after
+// testsupport.Guard.
+func runTUI(t *testing.T, ports tui.Ports, cs change.Changeset, out io.Writer) (typeKeys func(string), wait func() error) {
 	t.Helper()
 	keys, w := io.Pipe()
 	t.Cleanup(func() { _ = w.Close() }) // Closing a pipe end does not fail.
 	done := make(chan error, 1)
 	go func() {
-		done <- tui.Run(context.Background(), changeset(), ports, nil, tui.IO{In: keys, Out: io.Discard, Width: 80, Height: 24})
+		done <- tui.Run(context.Background(), cs, ports, nil, tui.IO{In: keys, Out: out, Width: 80, Height: 24})
 	}()
 	typeKeys = func(s string) {
 		_, err := io.WriteString(w, s)
@@ -136,7 +137,7 @@ func TestQuitWhileACooperatingLoadRuns(t *testing.T) {
 	f := newOutFakes(t)
 	started := blockUntilCancelled(f)
 	app, ports := startGraph(t, f)
-	typeKeys, wait := runTUI(t, ports)
+	typeKeys, wait := runTUI(t, ports, changeset(), io.Discard)
 	<-started
 
 	begin := time.Now()
@@ -161,7 +162,7 @@ func TestQuitWhileAStuckLoadRuns(t *testing.T) {
 		return nil, nil
 	})
 	app, ports := startGraph(t, f)
-	typeKeys, wait := runTUI(t, ports)
+	typeKeys, wait := runTUI(t, ports, changeset(), io.Discard)
 	<-started
 
 	typeKeys("q")
@@ -218,7 +219,7 @@ func TestBlockedPortsHoldUpNoKey(t *testing.T) {
 		return nil, nil
 	})
 	app, ports := startGraph(t, f)
-	typeKeys, wait := runTUI(t, ports)
+	typeKeys, wait := runTUI(t, ports, changeset(), io.Discard)
 
 	begin := time.Now()
 	typeKeys("jj\t]r\x1b[Bfnpq")

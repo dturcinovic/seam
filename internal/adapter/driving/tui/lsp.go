@@ -59,6 +59,17 @@ func (l *lspState) update(u hover.Update) {
 	l.Status[u.Instance] = u.Status
 }
 
+// hoverable says that a server may answer hovers over the file shown: one
+// serves it, and is neither missing nor failed.
+func (s *state) hoverable() bool {
+	l := &s.LSP
+	if l.Shown == (lang.Instance{}) {
+		return false
+	}
+	st := l.Status[l.Shown]
+	return st != hover.Missing && st != hover.ServerFailed
+}
+
 // lspText is the footer's word on the server of the file shown, as
 // "gopls starting…", or "no LSP for .go" when it is not installed; empty
 // when no server is meant to serve the file.

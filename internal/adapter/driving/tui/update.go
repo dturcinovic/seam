@@ -8,8 +8,18 @@ import (
 
 // Update applies a message. The port calls in it never block, so they run
 // here directly rather than as commands, which Bubble Tea would not wait for
-// on exit.
+// on exit. Whatever moves the text under the mouse closes the popup, which
+// was about the text that was there.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // tea.Model prescribes it
+	before := m.s.screenKey()
+	m, cmd := m.update(msg)
+	if m.s.screenKey() != before {
+		m.dropHover()
+	}
+	return m, cmd
+}
+
+func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.s.resize(msg.Width, msg.Height)
@@ -18,14 +28,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 			m.s.useCells(textcell.Graphemes)
 		}
 	case tea.KeyPressMsg:
-		if m.s.List.Focus && m.onListKey(msg.String()) {
-			return m, nil
-		}
-		return m.onKey(msg.String())
+		return m.onKeyPress(msg.String())
 	case tea.MouseWheelMsg:
 		m.onWheel(msg)
 	case tea.MouseClickMsg:
 		m.onClick(msg)
+	case tea.MouseMotionMsg:
+		return m, m.onMotion(msg.X, msg.Y)
+	case hoverDue:
+		m.ask(msg.Seq)
 	case fileDiffsReady:
 		for _, u := range m.p.Files.Drain() {
 			if m.s.apply(u) {
@@ -35,6 +46,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 	case lspUpdated:
 		for _, u := range m.p.LSP.Drain() {
 			m.s.LSP.update(u)
+			if m.s.hoverUpdate(u) {
+				m.ask(m.s.Hover.Seq)
+			}
 		}
 	case changesetReady:
 		for _, u := range m.p.Reload.Drain() {
@@ -46,6 +60,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 		}
 	}
 	return m, nil
+}
+
+// onKeyPress takes a key; Esc closes an open popup rather than quit.
+func (m model) onKeyPress(key string) (model, tea.Cmd) {
+	if m.s.Hover.Popup.Open && key == "esc" {
+		m.dropHover()
+		return m, nil
+	}
+	if m.s.List.Focus && m.onListKey(key) {
+		return m, nil
+	}
+	return m.onKey(key)
 }
 
 // onKey maps a key, as Bubble Tea names it, to its action. Esc quits as long
@@ -153,7 +179,8 @@ func (mo motion) steps(n, height int) int {
 // onClick opens the file clicked in the list; a click in the panes takes
 // the focus from the list and unfolds a fold. Only the left button counts.
 func (m *model) onClick(c tea.MouseClickMsg) {
-	if c.Button != tea.MouseLeft {
+	// A click on the popup is not for what lies under it.
+	if c.Button != tea.MouseLeft || m.s.Hover.Popup.contains(c.X, c.Y) {
 		return
 	}
 	if m.s.Layout.inList(c.X, c.Y) {
@@ -170,6 +197,15 @@ func (m *model) onClick(c tea.MouseClickMsg) {
 // it, else the panes. Shift turns it sideways, as do the wheel's own
 // sideways buttons, which some terminals send for Shift or a touchpad.
 func (m *model) onWheel(w tea.MouseWheelMsg) {
+	if p := &m.s.Hover.Popup; p.contains(w.X, w.Y) && len(p.Lines) > p.shown() {
+		if w.Button == tea.MouseWheelUp {
+			p.scrollBy(-wheelLines)
+		}
+		if w.Button == tea.MouseWheelDown {
+			p.scrollBy(wheelLines)
+		}
+		return
+	}
 	s, b, shift := &m.s, w.Button, w.Mod.Contains(tea.ModShift)
 	if s.Layout.inList(w.X, w.Y) {
 		// The list does not scroll sideways.

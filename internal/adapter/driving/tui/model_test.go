@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 func fakePorts() Ports {
 	return Ports{
 		Files: &infakes.FakeFileDiffLoader{}, Reload: &infakes.FakeChangesetReloader{},
-		Docs: &infakes.FakeDocumentTracker{}, LSP: &infakes.FakeLSPUpdates{},
+		Docs: &infakes.FakeDocumentTracker{}, LSP: &infakes.FakeLSPUpdates{}, Hover: &infakes.FakeHoverer{},
 	}
 }
 

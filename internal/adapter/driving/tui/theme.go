@@ -19,11 +19,14 @@ const (
 	errorStyle
 	separatorStyle
 	foldStyle
+	popupStyle
+	popupFrameStyle
 	// The stand-in styles dim replaced graphemes in the text above.
 	plainStandIn
 	headerStandIn
 	footerStandIn
 	errorStandIn
+	popupStandIn
 	// The scrollbar styles come in one pair per tone, see scrollStyle; the
 	// file list's follow, see listStyle.
 	firstScrollStyle
@@ -46,7 +49,10 @@ func (st style) standIn() style {
 		return footerStandIn
 	case errorStyle:
 		return errorStandIn
-	case separatorStyle, foldStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, firstScrollStyle, firstListStyle, firstPaneStyle:
+	case popupStyle:
+		return popupStandIn
+	case separatorStyle, foldStyle, popupFrameStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, popupStandIn,
+		firstScrollStyle, firstListStyle, firstPaneStyle:
 	}
 	// A path in the file list dims its stand-ins in the row's own colours.
 	if sh, ok := st.listShade(); ok {
@@ -171,6 +177,7 @@ const (
 	dimFg            = "#7a7a7a"
 	headerBg         = "#303030"
 	thumbBg          = "#4a4a4a"
+	popupBg          = "#21252b"
 	errorFg          = "#ff6b6b"
 	// The file list's selection, folders, gutter and zero counts.
 	selectedBg = "#2e436e"
@@ -222,16 +229,20 @@ func lipglossStyles() map[style]lipgloss.Style {
 	dim := base.Foreground(lipgloss.Color(dimFg))
 	header := base.Bold(true).Background(lipgloss.Color(headerBg))
 	errorText := base.Foreground(lipgloss.Color(errorFg))
+	popup := base.Background(lipgloss.Color(popupBg))
 	all := map[style]lipgloss.Style{
-		headerStyle:    header,
-		footerStyle:    dim,
-		errorStyle:     errorText,
-		separatorStyle: dim,
-		foldStyle:      dim.Faint(true),
-		plainStandIn:   base.Faint(true),
-		headerStandIn:  header.Faint(true),
-		footerStandIn:  dim.Faint(true),
-		errorStandIn:   errorText.Faint(true),
+		headerStyle:     header,
+		footerStyle:     dim,
+		errorStyle:      errorText,
+		separatorStyle:  dim,
+		foldStyle:       dim.Faint(true),
+		plainStandIn:    base.Faint(true),
+		headerStandIn:   header.Faint(true),
+		footerStandIn:   dim.Faint(true),
+		errorStandIn:    errorText.Faint(true),
+		popupStyle:      popup,
+		popupFrameStyle: popup.Foreground(lipgloss.Color(dimFg)),
+		popupStandIn:    popup.Faint(true),
 	}
 	shades := [listShades]lipgloss.Style{
 		plainShade:    base,

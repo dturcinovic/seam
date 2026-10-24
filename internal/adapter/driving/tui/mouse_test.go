@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"seam/internal/domain/hover"
+	"seam/internal/domain/lang"
 	"seam/internal/domain/view"
 )
 
@@ -133,8 +135,15 @@ func TestOnlyTheLeftButtonUnfolds(t *testing.T) {
 	}
 }
 
-func TestTheViewCatchesClicksAndTheWheel(t *testing.T) {
+func TestTheViewCatchesEveryMoveOnlyForHovers(t *testing.T) {
 	m := model{s: *loaded(t), theme: &theme{}}
+	assert.Equal(t, tea.MouseModeCellMotion, m.View().MouseMode, "no server for the file")
 
-	assert.Equal(t, tea.MouseModeCellMotion, m.View().MouseMode)
+	m.s.LSP.Shown = lang.Instance{Server: "gopls"}
+	assert.Equal(t, tea.MouseModeAllMotion, m.View().MouseMode, "hovers follow the mouse without a button")
+
+	for _, st := range []hover.ServerStatus{hover.Missing, hover.ServerFailed} {
+		m.s.LSP.update(hover.Update{Kind: hover.StatusChanged, Instance: m.s.LSP.Shown, Status: st})
+		assert.Equal(t, tea.MouseModeCellMotion, m.View().MouseMode, st)
+	}
 }

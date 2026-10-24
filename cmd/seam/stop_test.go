@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,29 +38,13 @@ func TestTheGraphStopsInTimeWithAStubbornServer(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile("a.go", []byte("package a\n"), 0o600))
 	require.NoError(t, os.WriteFile("fakelsp.script", []byte("stop-reading\nno-shutdown\n"), 0o600))
-	table, err := lang.NewTable([]lang.Language{{Lang: lang.Go, Extensions: []string{".go"}, Server: "fake"}},
-		[]lang.Server{{Name: "fake", Command: fakelsp}})
-	require.NoError(t, err)
-	cfg := config.Config{Dir: root, LogFile: filepath.Join(t.TempDir(), "seam.log"), Verbose: true}
-	logger, err := observability.NewLogger(cfg)
-	require.NoError(t, err)
-	defer func() { assert.NoError(t, logger.Close()) }()
 	var (
 		changesets in.ChangesetLoader
 		files      in.FileDiffLoader
 		docs       in.DocumentTracker
 		updates    in.LSPUpdates
 	)
-	app := fx.New(append(options(cfg, logger, root, table), fx.Populate(&docs, &updates, &files, &changesets))...)
-	require.NoError(t, app.Err())
-	require.NoError(t, app.Start(t.Context()))
-	stopped := false
-	t.Cleanup(func() {
-		// A test failed before its own stop; the servers must not outlive it.
-		if !stopped {
-			_ = stopGraph(app)
-		}
-	})
+	stop, log := fakeGraph(t, root, fakelsp, &docs, &updates, &files, &changesets)
 
 	c := change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()}
 	cs, err := changesets.LoadChangeset(t.Context(), c)
@@ -78,12 +63,11 @@ func TestTheGraphStopsInTimeWithAStubbornServer(t *testing.T) {
 	require.ElementsMatch(t, []string{"git", "fakelsp"}, children(t))
 
 	begin := time.Now()
-	stopped = true
-	require.NoError(t, stopGraph(app))
+	require.NoError(t, stop())
 
 	assert.Less(t, time.Since(begin), stopBudget)
 	assert.Empty(t, children(t), "cat-file and the server have ended")
-	assert.Equal(t, []string{"lsp", "git"}, stopOrder(t, cfg.LogFile), "git stops last")
+	assert.Equal(t, []string{"lsp", "git"}, stopOrder(t, log), "git stops last")
 }
 
 // stopOrder is the adapters of the stop hooks as fx logged running them;
@@ -104,6 +88,31 @@ func stopOrder(t *testing.T, log string) []string {
 		}
 	}
 	return order
+}
+
+// fakeGraph starts seam's graph on root, fakelsp serving Go, and fills
+// targets from it. stop stops it; the test's end does, if a failure came
+// first, as the servers must not outlive it. log is the debug log.
+func fakeGraph(t *testing.T, root, fakelsp string, targets ...any) (stop func() error, log string) {
+	t.Helper()
+	table, err := lang.NewTable([]lang.Language{{Lang: lang.Go, Extensions: []string{".go"}, Server: "fake"}},
+		[]lang.Server{{Name: "fake", Command: fakelsp}})
+	require.NoError(t, err)
+	cfg := config.Config{Dir: root, LogFile: filepath.Join(t.TempDir(), "seam.log"), Verbose: true}
+	logger, err := observability.NewLogger(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, logger.Close()) })
+	app := fx.New(append(options(cfg, logger, root, table), fx.Populate(targets...))...)
+	require.NoError(t, app.Err())
+	require.NoError(t, app.Start(t.Context()))
+	var once sync.Once
+	var stopErr error
+	stop = func() error {
+		once.Do(func() { stopErr = stopGraph(app) })
+		return stopErr
+	}
+	t.Cleanup(func() { _ = stop() })
+	return stop, cfg.LogFile
 }
 
 func fileAt(t *testing.T, cs change.Changeset, path string) change.ChangedFile {

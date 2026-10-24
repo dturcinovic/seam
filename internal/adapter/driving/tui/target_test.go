@@ -43,7 +43,7 @@ func screenHits(t *testing.T, s *state, screen []string, i int, line string) int
 	hits := 0
 	for x := from; x < to; x++ {
 		shownThere := renderedAt(screen[bodyTop+i], x, s.Cells)
-		got, ok := s.targetAt(x, bodyTop+i)
+		got, ok := s.targetAt(x, bodyTop+i, hoverTarget{Line: -1})
 		if !ok {
 			assert.Equal(t, " ", shownThere, "line %d column %d", i, x)
 			continue
@@ -114,7 +114,7 @@ func TestATargetHasItsIdentifier(t *testing.T) {
 		{16, "café_1"}, {21, "café_1"}, {22, ","}, {24, "$v"}, {26, ")"},
 	}
 	for _, tt := range tests {
-		got, ok := s.targetAt(from+tt.col, bodyTop)
+		got, ok := s.targetAt(from+tt.col, bodyTop, hoverTarget{Line: -1})
 		require.True(t, ok, tt.col)
 		assert.Equal(t, tt.want, line[got.Word.Start:got.Word.End], "column %d", tt.col)
 	}
@@ -128,7 +128,7 @@ func TestNoTargetOutsideTheRightSidesText(t *testing.T) {
 	require.True(t, s.Lines[fold].Fold)
 	changed := 4
 	require.Equal(t, diff.Change, s.Snapshot.Diff.Rows[s.Lines[changed].Rows.Start].Kind)
-	_, ok := s.targetAt(from, bodyTop+changed)
+	_, ok := s.targetAt(from, bodyTop+changed, hoverTarget{Line: -1})
 	require.True(t, ok, "the first column of the text")
 
 	for _, c := range []struct {
@@ -144,7 +144,7 @@ func TestNoTargetOutsideTheRightSidesText(t *testing.T) {
 		{"the scrollbar", s.Layout.Width - 1, bodyTop + changed},
 		{"the footer", from, s.Layout.Height - 1},
 	} {
-		_, ok := s.targetAt(c.x, c.y)
+		_, ok := s.targetAt(c.x, c.y, hoverTarget{Line: -1})
 		assert.False(t, ok, c.name)
 	}
 }
@@ -165,7 +165,7 @@ func TestNoTargetWhereTheServerHasNothingToSay(t *testing.T) {
 		s := shown(t, files("a.go"), 80, 5, tt.snap(filediff.Snapshot{Diff: d}))
 		from, _ := s.Layout.rightText()
 
-		_, ok := s.targetAt(from, bodyTop+tt.line)
+		_, ok := s.targetAt(from, bodyTop+tt.line, hoverTarget{Line: -1})
 
 		assert.False(t, ok, tt.name)
 	}

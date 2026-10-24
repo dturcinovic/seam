@@ -52,7 +52,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, stdout
 		panics     supervise.PanicFunc
 	)
 	app := fx.New(append(options(cfg, logger, root, languages),
-		fx.Populate(&changesets, &ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &panics))...)
+		fx.Populate(&changesets, &ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &panics))...)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}

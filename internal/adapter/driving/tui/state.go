@@ -32,6 +32,8 @@ type state struct {
 	List fileList
 	// LSP is the language server of the file shown, for the footer.
 	LSP lspState
+	// Hover is what the mouse rests on and the popup with its answer.
+	Hover hoverState
 
 	Mode    view.Mode
 	Pos     view.Pos
