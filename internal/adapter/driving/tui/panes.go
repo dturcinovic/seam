@@ -33,9 +33,11 @@ func writeRow(b *strings.Builder, s *state, th *theme, l view.Line) {
 		return
 	}
 	left, right := sides(s.Snapshot, l.Rows.Start)
-	writePane(&ln, s.Layout.Left, left, s.HScroll)
+	writePane(&ln, s.Layout.Left, left, s.HScroll, caret{})
 	ln.text("│", separatorStyle)
-	writePane(&ln, s.Layout.Right, right, s.HScroll)
+	c := s.Caret
+	c.On = c.On && c.Row == l.Rows.Start
+	writePane(&ln, s.Layout.Right, right, s.HScroll, c)
 	ln.end(plain)
 }
 
@@ -67,9 +69,10 @@ func sides(snap filediff.Snapshot, i int) (left, right sideLine) {
 }
 
 // writePane writes one side of a row into its pane: the gutter with line
-// number and mark, then the text from column skip on. Nothing spills over
-// into the next pane, however narrow.
-func writePane(ln *line, p pane, sl sideLine, skip int) {
+// number and mark, then the text from column skip on, with the caret if
+// it is on this line. Nothing spills over into the next pane, however
+// narrow.
+func writePane(ln *line, p pane, sl sideLine, skip int, c caret) {
 	rest := ln.narrow(p.Width)
 	gutter := paneStyle(sl.tone, gutterRole)
 	ln.spaces(1, gutter)
@@ -81,7 +84,7 @@ func writePane(ln *line, p pane, sl sideLine, skip int) {
 	ln.spaces(1, gutter)
 	ln.text(sl.mark, gutter)
 	ln.spaces(1, gutter)
-	ln.window(sl.text, sl.points, skip, cellStyle{pane: true, tone: sl.tone, spans: sl.spans, syntax: sl.runs})
+	ln.window(sl.text, sl.points, skip, cellStyle{pane: true, tone: sl.tone, spans: sl.spans, syntax: sl.runs, caret: c})
 	ln.spaces(ln.free, textStyle(sl.tone, syntax.Plain, false))
 	ln.free = rest
 }

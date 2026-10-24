@@ -41,6 +41,7 @@ func (s *state) unload() {
 	s.Snapshot, s.Loaded = filediff.Snapshot{}, false
 	s.LSP.Shown = lang.Instance{}
 	s.Pos, s.HScroll = view.Pos{}, 0
+	s.Caret = caret{}
 	s.place(s.Layout.Width, s.Layout.Height)
 	s.show(nil)
 }

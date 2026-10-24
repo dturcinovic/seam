@@ -72,12 +72,21 @@ func (s *state) hoverMove(x, y int) (cancel hover.ReqID, due bool) {
 		}
 		return 0, false
 	}
-	cancel = s.hoverReset()
-	h.Target, h.On, h.X, h.Y = t, ok, x, y
-	if ok {
-		h.Seq++
+	if !ok {
+		return s.hoverReset(), false
 	}
-	return cancel, ok
+	cancel, _ = s.hoverNow(t, x, y)
+	return cancel, true
+}
+
+// hoverNow rests on t at once, at screen cell x, y, as K asks without
+// waiting; seq is the tick to ask with and cancel the request to drop.
+func (s *state) hoverNow(t hoverTarget, x, y int) (cancel hover.ReqID, seq uint64) {
+	cancel = s.hoverReset()
+	h := &s.Hover
+	h.Target, h.On, h.X, h.Y = t, true, x, y
+	h.Seq++
+	return cancel, h.Seq
 }
 
 // hoverReset forgets the target and closes the popup, as when what is under
@@ -150,6 +159,24 @@ func (m *model) onMotion(x, y int) tea.Cmd {
 	}
 	seq := m.s.Hover.Seq
 	return tea.Tick(hoverDelay, func(time.Time) tea.Msg { return hoverDue{Seq: seq} })
+}
+
+// hoverAtCaret asks about the grapheme under the caret, at once; the
+// popup opens at its cell.
+func (m *model) hoverAtCaret() {
+	p, ok := m.s.spot()
+	if !ok {
+		return
+	}
+	x, y, ok := m.s.caretCell(p)
+	if !ok {
+		return
+	}
+	if t, ok := targetOn(m.s.Snapshot.Diff.Rows[m.s.Caret.Row].Right, p.text, p.c, hoverTarget{}); ok {
+		cancel, seq := m.s.hoverNow(t, x, y)
+		m.cancel(cancel)
+		m.ask(seq)
+	}
 }
 
 // ask asks about the target of tick seq, if the mouse still rests on it.

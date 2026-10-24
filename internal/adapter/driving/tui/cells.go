@@ -133,18 +133,29 @@ func cut(c textcell.Cell, skip, end int) bool {
 // at the last checkpoint at or before it. It is the one way to find a column
 // in a line, so whatever looks one up agrees with what is drawn there.
 func seek(s string, points []filediff.Checkpoint, skip int, m textcell.Method) textcell.Cells {
-	col := func(p filediff.Checkpoint) int {
-		if m == textcell.Graphemes {
-			return p.GraphemeCol
-		}
-		return p.Col
-	}
 	cells := textcell.New(s, m)
-	if i := sort.Search(len(points), func(i int) bool { return col(points[i]) > skip }); i > 0 {
-		cells = textcell.Resume(s, points[i-1].Byte, col(points[i-1]), m)
+	if i := sort.Search(len(points), func(i int) bool { return pointCol(points[i], m) > skip }); i > 0 {
+		cells = textcell.Resume(s, points[i-1].Byte, pointCol(points[i-1], m), m)
 	}
 	cells.Skip(skip)
 	return cells
+}
+
+// seekByte walks s from the last checkpoint at or before byte b, which
+// starts a grapheme, so the grapheme holding b comes after.
+func seekByte(s string, points []filediff.Checkpoint, b int, m textcell.Method) textcell.Cells {
+	if i := sort.Search(len(points), func(i int) bool { return points[i].Byte > b }); i > 0 {
+		return textcell.Resume(s, points[i-1].Byte, pointCol(points[i-1], m), m)
+	}
+	return textcell.New(s, m)
+}
+
+// pointCol is the column of checkpoint p as m counts.
+func pointCol(p filediff.Checkpoint, m textcell.Method) int {
+	if m == textcell.Graphemes {
+		return p.GraphemeCol
+	}
+	return p.Col
 }
 
 // cellStyle picks the style of each cell: fixed, or by the styled runs
@@ -158,6 +169,8 @@ type cellStyle struct {
 	tone   tone
 	spans  []diff.Span
 	syntax []syntax.Run
+	// caret, if On, is on the grapheme that starts at its Byte.
+	caret caret
 }
 
 func (cs *cellStyle) of(c textcell.Cell) style {
@@ -173,6 +186,9 @@ func (cs *cellStyle) of(c textcell.Cell) style {
 			return st.standIn()
 		}
 		return st
+	}
+	if cs.caret.On && c.Start == cs.caret.Byte {
+		return caretStyle
 	}
 	for len(cs.spans) > 0 && cs.spans[0].End <= c.Start {
 		cs.spans = cs.spans[1:]

@@ -9,11 +9,13 @@ import (
 // Update applies a message. The port calls in it never block, so they run
 // here directly rather than as commands, which Bubble Tea would not wait for
 // on exit. Whatever moves the text under the mouse closes the popup, which
-// was about the text that was there.
+// was about the text that was there, and so does moving the caret, which
+// in turn stays on the screen when the view or the text moves under it.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // tea.Model prescribes it
-	before := m.s.screenKey()
+	before, caret := m.s.screenKey(), m.s.Caret
 	m, cmd := m.update(msg)
-	if m.s.screenKey() != before {
+	m.s.keepCaret()
+	if m.s.screenKey() != before || m.s.Caret != caret {
 		m.dropHover()
 	}
 	return m, cmd
@@ -62,7 +64,8 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 	return m, nil
 }
 
-// onKeyPress takes a key; Esc closes an open popup rather than quit.
+// onKeyPress takes a key; Esc closes an open popup, then the caret,
+// rather than quit.
 func (m model) onKeyPress(key string) (model, tea.Cmd) {
 	if m.s.Hover.Popup.Open && key == "esc" {
 		m.dropHover()
@@ -71,7 +74,39 @@ func (m model) onKeyPress(key string) (model, tea.Cmd) {
 	if m.s.List.Focus && m.onListKey(key) {
 		return m, nil
 	}
+	if m.s.Caret.On && m.onCaretKey(key) {
+		return m, nil
+	}
 	return m.onKey(key)
+}
+
+// onCaretKey maps a key to its action while the caret is on; ok is false
+// for the keys it leaves to onKey.
+func (m *model) onCaretKey(key string) (ok bool) {
+	s := &m.s
+	switch key {
+	case "i", "esc":
+		s.Caret = caret{}
+	case "j", "down":
+		s.caretUpDown(1)
+	case "k", "up":
+		s.caretUpDown(-1)
+	case "h", "left":
+		s.caretSideways(-1)
+	case "l", "right":
+		s.caretSideways(1)
+	case "w":
+		s.wordForward()
+	case "b":
+		s.wordBack()
+	case "e":
+		s.wordEnd()
+	case "K":
+		m.hoverAtCaret()
+	default:
+		return false
+	}
+	return true
 }
 
 // onKey maps a key, as Bubble Tea names it, to its action. Esc quits as long
@@ -103,6 +138,8 @@ func (m model) onKey(key string) (model, tea.Cmd) {
 		s.shiftH(1)
 	case "b":
 		s.toggleList()
+	case "i":
+		s.startCaret()
 	}
 	return m, nil
 }

@@ -8,11 +8,12 @@ import (
 	"seam/internal/domain/view"
 )
 
-// keys is the footer's reminder of the keys, and listKeys of those the file
-// list takes while it has the focus.
+// keys is the footer's reminder of the keys, listKeys of those the file
+// list takes while it has the focus, and caretKeys of those of the caret.
 const (
-	keys     = "q quit  r reload  f full/hunks  n/p change  tab/shift+tab file  j/k scroll  h/l sideways  b files"
-	listKeys = "enter open  esc back  j/k move  [/] folder  g/G first/last  b close  q quit"
+	keys      = "q quit  r reload  f full/hunks  n/p change  tab/shift+tab file  j/k scroll  h/l sideways  b files  i caret"
+	listKeys  = "enter open  esc back  j/k move  [/] folder  g/G first/last  b close  q quit"
+	caretKeys = "K hover  h/j/k/l move  w/b/e word  i/esc leave  n/p change  tab/shift+tab file  q quit"
 )
 
 // shownText is how a path or part of one shows: textcell replaces all it
@@ -62,6 +63,9 @@ func footer(s *state) (string, style) {
 	}
 	if s.List.Focus {
 		return listKeys, footerStyle
+	}
+	if s.Caret.On {
+		return caretKeys, footerStyle
 	}
 	return keys, footerStyle
 }

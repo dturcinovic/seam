@@ -28,6 +28,8 @@ const (
 	popupLinkStyle
 	popupDimStyle
 	popupCodeSpanStyle
+	// caretStyle is the grapheme under the caret, in any tone.
+	caretStyle
 	// The stand-in styles dim replaced graphemes in the text above.
 	plainStandIn
 	headerStandIn
@@ -59,7 +61,7 @@ func (st style) standIn() style {
 		return errorStandIn
 	case popupStyle, popupEmphasisStyle, popupStrongStyle, popupLinkStyle, popupDimStyle, popupCodeSpanStyle:
 		return popupStandIn
-	case separatorStyle, foldStyle, popupFrameStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, popupStandIn,
+	case separatorStyle, foldStyle, popupFrameStyle, caretStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, popupStandIn,
 		firstScrollStyle, firstListStyle, firstPaneStyle, firstPopupCodeStyle:
 	}
 	if st >= firstPopupCodeStyle && st < firstPopupCodeStyle+style(syntax.Kinds) {
@@ -272,6 +274,7 @@ func lipglossStyles() map[style]lipgloss.Style {
 		popupStyle:      popup,
 		popupFrameStyle: popup.Foreground(lipgloss.Color(dimFg)),
 		popupStandIn:    popup.Faint(true),
+		caretStyle:      base.Reverse(true),
 	}
 	addPopupStyles(all, popup)
 	shades := [listShades]lipgloss.Style{
