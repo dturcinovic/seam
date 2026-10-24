@@ -24,8 +24,11 @@ const (
 	headerStandIn
 	footerStandIn
 	errorStandIn
-	firstPaneStyle
+	// The scrollbar styles come in one pair per mark, see scrollStyle.
+	firstScrollStyle
 )
+
+const firstPaneStyle = firstScrollStyle + style(2*tones)
 
 // standIn is how a replaced grapheme shows in text of style st. The pane
 // styles have their own, see standInRole.
@@ -39,7 +42,17 @@ func (st style) standIn() style {
 		return footerStandIn
 	case errorStyle:
 		return errorStandIn
-	case separatorStyle, foldStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, firstPaneStyle:
+	case separatorStyle, foldStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, firstScrollStyle, firstPaneStyle:
+	}
+	return st
+}
+
+// scrollStyle is a scrollbar cell marked in tone t, on the thumb if
+// onThumb; equalTone marks nothing.
+func scrollStyle(t tone, onThumb bool) style {
+	st := firstScrollStyle + style(2*t)
+	if onThumb {
+		st++
 	}
 	return st
 }
@@ -108,7 +121,12 @@ const (
 	absentBg         = "#262626"
 	dimFg            = "#7a7a7a"
 	headerBg         = "#303030"
+	thumbBg          = "#4a4a4a"
 	errorFg          = "#ff6b6b"
+	// The marks of the scrollbar, bright enough to find on the thumb.
+	deletedFg  = "#e06c75"
+	insertedFg = "#98c379"
+	changedFg  = "#61afef"
 )
 
 // kindColours are the foregrounds of the syntax kinds, readable on every
@@ -159,6 +177,12 @@ func lipglossStyles() map[style]lipgloss.Style {
 		headerStandIn:  header.Faint(true),
 		footerStandIn:  dim.Faint(true),
 		errorStandIn:   errorText.Faint(true),
+	}
+	marks := [tones]string{deletedTone: deletedFg, insertedTone: insertedFg, changedTone: changedFg}
+	for t, fg := range marks {
+		track := base.Foreground(lipgloss.Color(fg))
+		all[scrollStyle(tone(t), false)] = track
+		all[scrollStyle(tone(t), true)] = track.Background(lipgloss.Color(thumbBg))
 	}
 	// An empty colour is none: equal lines keep the terminal's background.
 	backgrounds := [tones][2]string{

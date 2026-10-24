@@ -14,6 +14,7 @@ const sgrPerLine = 256
 func (m model) View() tea.View {
 	v := tea.NewView(render(&m.s, m.theme))
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }
 
@@ -23,29 +24,34 @@ func render(s *state, th *theme) string {
 	var b strings.Builder
 	l := s.Layout
 	b.Grow((l.Width*4 + sgrPerLine) * (l.Body + chrome))
-	textLine := func(text string, st style) {
-		ln := newLine(&b, th, s.Cells, l.Width)
+	textLine := func(text string, st style, width int) {
+		ln := newLine(&b, th, s.Cells, width)
 		ln.text(text, st)
 		ln.end(st)
 	}
-	textLine(header(s), headerStyle)
+	textLine(header(s), headerStyle, l.Width)
 	if l.Height == 1 {
 		return b.String()
 	}
-	// Below three lines no line of the file fits; the screen gets no more
-	// lines than it has.
-	for i := range min(l.Body, max(l.Height-chrome, 0)) {
+	start, end := thumb(len(s.Lines), s.Pos.Scroll, l.Body)
+	for i := range l.shown() {
 		b.WriteByte('\n')
 		switch j := s.Pos.Scroll + i; {
 		case j < len(s.Lines):
 			writeRow(&b, s, th, s.Lines[j])
 		case i == 0:
-			textLine(placeholder(s), plain)
+			textLine(placeholder(s), plain, l.panes())
 		default:
-			textLine("", plain)
+			textLine("", plain, l.panes())
 		}
+		m := equalTone
+		if i < len(s.Marks) {
+			m = s.Marks[i]
+		}
+		writeScrollbar(&b, s, th, m, start <= i && i < end)
 	}
 	b.WriteByte('\n')
-	textLine(footer(s))
+	text, st := footer(s)
+	textLine(text, st, l.Width)
 	return b.String()
 }

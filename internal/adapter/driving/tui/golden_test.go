@@ -36,6 +36,10 @@ func fixtures(t *testing.T) []fixture {
 	hunks := shown(t, files("cmd/main.go", "b.go"), 100, 16, filediff.Snapshot{Diff: code})
 	full := shown(t, files("cmd/main.go", "b.go"), 100, 28, filediff.Snapshot{Diff: code})
 	full.toggleMode()
+	// Longer than the screen: the thumb shows, and the marks share cells.
+	scrolled := shown(t, files("cmd/main.go", "b.go"), 100, 8, filediff.Snapshot{Diff: code})
+	scrolled.toggleMode()
+	scrolled.scrollTo(12)
 
 	text := diff.Compute(t.Context(),
 		diff.Split("cafe\nfamily 👨\u200d👩\u200d👧 x\n日本語のテキスト\na\tb\n日\tb\n👨\u200d👩\u200d👧\tb\n"),
@@ -49,7 +53,7 @@ func fixtures(t *testing.T) []fixture {
 			unicode = append(unicode, fixture{fmt.Sprintf("unicode-%s-scroll%d", m.name, scroll), s})
 		}
 	}
-	return append([]fixture{{"hunks", hunks}, {"full", full}}, unicode...)
+	return append([]fixture{{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}}, unicode...)
 }
 
 // TestGolden renders each fixture with the real theme. cat shows a golden

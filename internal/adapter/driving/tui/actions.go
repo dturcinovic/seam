@@ -8,8 +8,12 @@ import (
 	"seam/internal/domain/view"
 )
 
-// hStep is how far h and l move the panes sideways, in columns.
+// hStep is how far h and l, or a notch of the wheel sideways, move the
+// panes, in columns.
 const hStep = 8
+
+// wheelLines is how far a notch of the wheel scrolls.
+const wheelLines = 3
 
 // The actions change the state and return what the ports should do; they do
 // no I/O themselves, so they are tested without a terminal or ports.
@@ -31,9 +35,10 @@ func (s *state) open(i int, fresh bool) (r filediff.Request, ok bool) {
 
 // unload shows no file until the next one arrives.
 func (s *state) unload() {
-	s.Snapshot, s.Loaded, s.Lines = filediff.Snapshot{}, false, nil
+	s.Snapshot, s.Loaded = filediff.Snapshot{}, false
 	s.Pos, s.HScroll = view.Pos{}, 0
 	s.place(s.Layout.Width, s.Layout.Height)
+	s.show(nil)
 }
 
 // step opens the file n places away, staying at either end of the list.
@@ -94,13 +99,28 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 
 // resize takes the new terminal size; the top line stays where it is.
 func (s *state) resize(width, height int) {
+	body := s.Layout.Body
 	s.place(width, height)
+	if s.Layout.Body != body {
+		s.mark()
+	}
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }
 
 // place lays out the screen for the current file.
 func (s *state) place(width, height int) {
 	s.Layout = computeLayout(width, height, s.Snapshot.Diff)
+}
+
+// show is the one way to change Lines, so the scrollbar's marks follow.
+func (s *state) show(lines []view.Line) {
+	s.Lines = lines
+	s.mark()
+}
+
+// mark derives the scrollbar's marks from Lines at the body's height.
+func (s *state) mark() {
+	s.Marks = changeMarks(s.Snapshot.Diff, s.Lines, s.Layout.Body)
 }
 
 // toggleMode switches between the hunk and the full view at the same row.
@@ -152,6 +172,22 @@ func (s *state) shiftH(n int) {
 	s.HScroll = max(s.HScroll+n*hStep, 0)
 }
 
+// unfoldAt shows the rows of the fold at screen cell x, y one by one; a
+// click anywhere else does nothing.
+func (s *state) unfoldAt(x, y int) {
+	i, ok := s.Layout.bodyLine(x, y)
+	if !ok {
+		return
+	}
+	lines, pos := view.Unfold(s.Lines, s.Pos, s.Pos.Scroll+i)
+	// Unfold hands back the same lines when there was no fold, and then
+	// the marks stand.
+	if len(lines) != len(s.Lines) {
+		s.Pos = pos
+		s.show(lines)
+	}
+}
+
 func (s *state) scrollTo(line int) {
 	s.Pos = view.Navigate(s.Lines, s.Pos, line, s.bodyHeight())
 }
@@ -159,7 +195,7 @@ func (s *state) scrollTo(line int) {
 // relayout lays out the diff again after it or the mode changed, keeping
 // the anchor row.
 func (s *state) relayout() {
-	s.Lines = view.Lines(s.Snapshot.Diff, s.Mode, contextRows)
 	s.place(s.Layout.Width, s.Layout.Height)
+	s.show(view.Lines(s.Snapshot.Diff, s.Mode, contextRows))
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }

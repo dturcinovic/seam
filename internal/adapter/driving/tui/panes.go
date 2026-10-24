@@ -23,7 +23,7 @@ type sideLine struct {
 
 // writeRow writes one line of the view: both panes, or a fold across them.
 func writeRow(b *strings.Builder, s *state, th *theme, l view.Line) {
-	ln := newLine(b, th, s.Cells, s.Layout.Width)
+	ln := newLine(b, th, s.Cells, s.Layout.panes())
 	if l.Fold {
 		ln.spaces(s.Layout.Left.gutter(), foldStyle)
 		ln.text("⋯ ", foldStyle)

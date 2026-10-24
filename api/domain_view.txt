@@ -14,6 +14,13 @@ func LineForRow(lines []Line, row int) int
 func RowAt(lines []Line, i int) int
     RowAt is the row of line i, the first one for a fold; i must index lines.
 
+func Unfold(lines []Line, pos Pos, i int) ([]Line, Pos)
+    Unfold shows the rows of the fold at line i one line each, and returns
+    lines and pos as they are for any other i. The top line keeps its row.
+    A fold that held the anchor hands it to that row, as any navigation would:
+    left inside the unfolded rows, it could lie far below the screen, and the
+    next Switch would jump there.
+
 
 TYPES
 

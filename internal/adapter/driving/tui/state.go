@@ -36,6 +36,10 @@ type state struct {
 	// the terminal's size; the actions keep both in step.
 	Lines  []view.Line
 	Layout layout
+	// Marks is the scrollbar's tone for each line of the body, derived from
+	// Lines at the body's height. It is kept rather than drawn per frame: a
+	// file of many changes would cost milliseconds per frame.
+	Marks []tone
 	// Cells is how the terminal counts columns, which Bubble Tea's renderer
 	// learns from it after the start.
 	Cells textcell.Method

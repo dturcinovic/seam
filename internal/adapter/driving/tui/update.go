@@ -19,6 +19,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 		}
 	case tea.KeyPressMsg:
 		return m.onKey(msg.String())
+	case tea.MouseWheelMsg:
+		onWheel(&m.s, msg.Button, msg.Mod.Contains(tea.ModShift))
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			m.s.unfoldAt(msg.X, msg.Y)
+		}
 	case fileDiffsReady:
 		for _, u := range m.files.Drain() {
 			m.s.apply(u)
@@ -72,4 +78,20 @@ func (m model) onKey(key string) (model, tea.Cmd) {
 		s.shiftH(1)
 	}
 	return m, nil
+}
+
+// onWheel scrolls by a notch of the wheel. Shift turns it sideways, as do
+// the wheel's own sideways buttons, which some terminals send for Shift or a
+// touchpad.
+func onWheel(s *state, b tea.MouseButton, shift bool) {
+	switch {
+	case b == tea.MouseWheelLeft, b == tea.MouseWheelUp && shift:
+		s.shiftH(-1)
+	case b == tea.MouseWheelRight, b == tea.MouseWheelDown && shift:
+		s.shiftH(1)
+	case b == tea.MouseWheelUp:
+		s.scrollBy(-wheelLines)
+	case b == tea.MouseWheelDown:
+		s.scrollBy(wheelLines)
+	}
 }
