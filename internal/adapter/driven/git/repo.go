@@ -28,9 +28,11 @@ type Config struct {
 // Repo is the git repository seam compares in. It implements the outgoing
 // ports for listing changes and reading both sides of a file.
 type Repo struct {
-	root   string
-	files  *os.Root
-	tasks  *supervise.Group
+	root  string
+	files *os.Root
+	tasks *supervise.Group
+	// reads watches the reads from cat-file; see readAbortable.
+	reads  *supervise.Group
 	blobMu sync.Mutex
 	blobs  *catFile
 	closed bool
@@ -60,11 +62,17 @@ func Open(root string, panics supervise.PanicFunc) (*Repo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open worktree: %w", err)
 	}
-	return &Repo{root: root, files: files, tasks: supervise.NewGroup("git", panics, nil)}, nil
+	return &Repo{
+		root: root, files: files,
+		tasks: supervise.NewGroup("git", panics, nil),
+		reads: supervise.NewGroup("git reads", panics, nil),
+	}, nil
 }
 
 // Close ends the cat-file process and releases the worktree.
 func (r *Repo) Close(ctx context.Context) error {
+	// Ends a read in flight before waiting for the blobMu it holds.
+	readsErr := r.reads.Stop(ctx)
 	r.blobMu.Lock()
 	cat := r.blobs
 	r.blobs = nil
@@ -75,7 +83,7 @@ func (r *Repo) Close(ctx context.Context) error {
 	if cat != nil {
 		err = cat.close(r.tasks)
 	}
-	return errors.Join(err, r.tasks.Stop(ctx), r.files.Close())
+	return errors.Join(readsErr, err, r.tasks.Stop(ctx), r.files.Close())
 }
 
 // ResolveCommit implements out.RevisionResolver.

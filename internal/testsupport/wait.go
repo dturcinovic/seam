@@ -32,6 +32,19 @@ func Collect[U any](t testing.TB, p Updates[U], done func([]U) bool) []U {
 	return all
 }
 
+// Await returns the value ch delivers.
+func Await[T any](t testing.TB, ch <-chan T) T {
+	t.Helper()
+	select {
+	case v := <-ch:
+		return v
+	case <-time.After(Guard):
+		t.Fatalf("no value within %v", Guard)
+		var zero T
+		return zero
+	}
+}
+
 // Until returns once ch is closed or receives.
 func Until(t testing.TB, ch <-chan struct{}) {
 	t.Helper()

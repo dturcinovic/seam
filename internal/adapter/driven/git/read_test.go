@@ -9,7 +9,6 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,13 +95,7 @@ func withTimeout(t *testing.T, read func() error) error {
 	t.Helper()
 	done := make(chan error, 1)
 	go func() { done <- read() }()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(5 * time.Second):
-		t.Fatal("read blocked")
-		return nil
-	}
+	return testsupport.Await(t, done)
 }
 
 func TestSpecialFilesAreNotRead(t *testing.T) {
