@@ -1,4 +1,4 @@
-package view // import "seam/internal/domain/view"
+package view // import "github.com/dturcinovic/seam/internal/domain/view"
 
 Package view lays out the rows of a file diff as the lines of a view, the full
 file or the changed blocks with context and folds, side by side or unified,

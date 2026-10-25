@@ -3,8 +3,8 @@ package out
 import (
 	"context"
 
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 //counterfeiter:generate . Highlighter

@@ -1,4 +1,4 @@
-package hover // import "seam/internal/domain/hover"
+package hover // import "github.com/dturcinovic/seam/internal/domain/hover"
 
 Package hover holds the values that pass between the viewer and the language
 servers: the documents a server is told about, the position a hover asks for,

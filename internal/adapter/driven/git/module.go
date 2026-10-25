@@ -7,8 +7,8 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	"seam/internal/app/port/out"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Module provides the repository and its checkouts as the ports they

@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"seam/internal/domain/change"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // rendered is what write writes on a line of width columns, without

@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/adapter/driving/tui"
-	"seam/internal/app/port/in"
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/adapter/driving/tui"
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // TestAHoverOnTheOldSideIsAnsweredFromACheckout asks seam's graph, with

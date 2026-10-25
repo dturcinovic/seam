@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // sgrPerLine is a guess at the bytes of style switches in a line, so the

@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"seam/internal/config"
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // version is stamped by `task build`. A plain `go build` leaves it empty, and

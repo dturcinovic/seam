@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 func TestAnLRUKeepsToItsBytes(t *testing.T) {

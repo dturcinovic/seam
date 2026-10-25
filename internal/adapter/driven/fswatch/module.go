@@ -3,7 +3,7 @@ package fswatch
 import (
 	"go.uber.org/fx"
 
-	"seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/app/port/out"
 )
 
 // Module provides the watcher as out.ChangeWatcher. It holds nothing until

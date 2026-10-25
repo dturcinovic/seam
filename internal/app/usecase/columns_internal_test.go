@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/diff"
 )
 
 func TestIndexingStopsWhenTheJobIsCancelled(t *testing.T) {

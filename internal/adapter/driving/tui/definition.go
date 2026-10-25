@@ -6,11 +6,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // jumpHistory bounds the places ctrl+o goes back to; the oldest falls out.

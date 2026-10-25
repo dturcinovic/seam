@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // cell is a Cell with what it shows, for readable expectations.

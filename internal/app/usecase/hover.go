@@ -5,12 +5,12 @@ import (
 	"errors"
 	"sync"
 
-	"seam/internal/app/port/out"
-	"seam/internal/domain/change"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // The bounds of the documents kept open with the servers: as many as a

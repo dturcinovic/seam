@@ -4,9 +4,9 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	"seam/internal/app/port/out"
-	"seam/internal/domain/lang"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Module provides the pool as the ports it fulfils and stops its servers

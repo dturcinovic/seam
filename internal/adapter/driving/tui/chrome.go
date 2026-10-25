@@ -5,10 +5,10 @@ import (
 	"slices"
 	"strings"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/ui"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // hint is an entry of the footer's reminder of the keys: the first key of

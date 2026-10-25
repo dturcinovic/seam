@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // blockDiff is a diff of the given parts in order: a number n > 0 is n equal

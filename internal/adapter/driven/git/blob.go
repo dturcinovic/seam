@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/limits"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // exitGrace is how long cat-file may take to exit after its input closes.

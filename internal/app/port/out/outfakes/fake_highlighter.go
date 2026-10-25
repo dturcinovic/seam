@@ -3,10 +3,11 @@ package outfakes
 
 import (
 	"context"
-	"seam/internal/app/port/out"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 type FakeHighlighter struct {

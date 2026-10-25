@@ -1,4 +1,4 @@
-package ui // import "seam/internal/domain/ui"
+package ui // import "github.com/dturcinovic/seam/internal/domain/ui"
 
 Package ui holds what a user may set about the viewer: the palette, the keys
 of its actions, the context of the hunk view, the delay of a hover and when

@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 func TestOnlyCodeInAKnownLanguageIsToColour(t *testing.T) {

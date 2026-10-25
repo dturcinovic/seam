@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // randomDiff draws up to 120 rows, each changed with some chance, so that

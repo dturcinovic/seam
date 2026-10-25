@@ -3,8 +3,8 @@ package usecase
 import (
 	"context"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // checkoutLocked is how far the checkout of k's commit has come, starting

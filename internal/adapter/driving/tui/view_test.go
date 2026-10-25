@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/syntax"
-	"seam/internal/domain/ui"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // methods are both ways a terminal counts columns, with how x/ansi measures

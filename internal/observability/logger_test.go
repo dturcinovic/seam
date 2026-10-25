@@ -13,9 +13,9 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
-	"seam/internal/config"
-	"seam/internal/observability"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/observability"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // lumberjack starts its compression goroutine on the first write and never

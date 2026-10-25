@@ -7,9 +7,9 @@ import (
 	"slices"
 	"sync"
 
-	"seam/internal/app/port/out"
-	"seam/internal/domain/change"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Changesets implements in.ChangesetLoader and in.ChangesetReloader.

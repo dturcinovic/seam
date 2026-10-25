@@ -8,7 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // printChangeset lists the files until the TUI shows them.

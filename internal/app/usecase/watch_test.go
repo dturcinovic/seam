@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/app/port/out"
-	"seam/internal/app/port/out/outfakes"
-	"seam/internal/app/usecase"
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/app/port/out/outfakes"
+	"github.com/dturcinovic/seam/internal/app/usecase"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 type watchFakes struct {

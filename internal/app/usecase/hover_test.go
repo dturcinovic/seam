@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/app/port/out/outfakes"
-	"seam/internal/app/usecase"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/app/port/out/outfakes"
+	"github.com/dturcinovic/seam/internal/app/usecase"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 type hoverFakes struct {

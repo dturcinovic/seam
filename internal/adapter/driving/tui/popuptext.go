@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/syntax"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // cutHint closes the text of an answer that was cut.

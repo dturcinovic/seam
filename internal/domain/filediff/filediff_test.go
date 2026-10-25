@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 func TestReadsWorktree(t *testing.T) {

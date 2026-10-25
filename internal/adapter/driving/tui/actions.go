@@ -3,12 +3,12 @@ package tui
 import (
 	"slices"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/ui"
-	"seam/internal/domain/view"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // hStep is how far h and l, or a notch of the wheel sideways, move the

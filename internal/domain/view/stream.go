@@ -3,7 +3,7 @@ package view
 import (
 	"sort"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // Spot is what a line of a stream shows, and so what its anchor holds.

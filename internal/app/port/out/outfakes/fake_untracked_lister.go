@@ -3,8 +3,9 @@ package outfakes
 
 import (
 	"context"
-	"seam/internal/app/port/out"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/out"
 )
 
 type FakeUntrackedLister struct {

@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // The file list's width in columns, its separator not counted.

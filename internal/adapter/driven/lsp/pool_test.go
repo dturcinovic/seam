@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 func TestTheServersRequestsGetThePlansAnswers(t *testing.T) {

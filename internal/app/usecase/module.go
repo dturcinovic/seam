@@ -6,11 +6,11 @@ import (
 
 	"go.uber.org/fx"
 
-	"seam/internal/app/port/in"
-	"seam/internal/app/port/out"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Module provides the use cases as their incoming ports and runs their

@@ -7,10 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/syntax"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // unicodeCore is the terminal mode in which a grapheme counts as one glyph.

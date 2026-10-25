@@ -3,9 +3,10 @@ package outfakes
 
 import (
 	"context"
-	"seam/internal/app/port/out"
-	"seam/internal/domain/change"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 type FakeChangeWatcher struct {

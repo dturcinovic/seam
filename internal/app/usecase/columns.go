@@ -3,9 +3,9 @@ package usecase
 import (
 	"context"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // columnsEvery is both the content length from which a line gets

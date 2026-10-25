@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/app/port/in/infakes"
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/app/port/in/infakes"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // program stands in for Program.Send: it records messages and can be held

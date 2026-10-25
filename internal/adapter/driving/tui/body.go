@@ -1,9 +1,9 @@
 package tui
 
 import (
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // The body scrolls through lines: those of the file shown, or in the stream

@@ -1,4 +1,4 @@
-package domain // import "seam/internal/domain"
+package domain // import "github.com/dturcinovic/seam/internal/domain"
 
 Package domain holds the business types of seam: the diff model and its
 algorithm, views and their anchors, comparisons and sources, languages, hover

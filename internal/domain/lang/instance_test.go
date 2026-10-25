@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // files answers has from a set of repository paths.

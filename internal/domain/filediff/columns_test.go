@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
 )
 
 func TestColumnIndexAt(t *testing.T) {

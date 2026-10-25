@@ -1,6 +1,6 @@
 package usecase
 
-import "seam/internal/domain/hover"
+import "github.com/dturcinovic/seam/internal/domain/hover"
 
 // Define asks where the symbol at p is defined, as Hover asks about it.
 func (h *Hovers) Define(p hover.Position) hover.Submit {

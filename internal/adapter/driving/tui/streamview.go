@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // writeStreamLine writes a line of the stream that shows no rows: a file's

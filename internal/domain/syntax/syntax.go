@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/diff"
 )
 
 // The bounds on long lines, in bytes without the line ending. A lexer reads

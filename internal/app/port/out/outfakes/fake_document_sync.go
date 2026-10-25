@@ -2,10 +2,11 @@
 package outfakes
 
 import (
-	"seam/internal/app/port/out"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 type FakeDocumentSync struct {

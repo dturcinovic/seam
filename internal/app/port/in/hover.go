@@ -1,8 +1,8 @@
 package in
 
 import (
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 //counterfeiter:generate . Hoverer

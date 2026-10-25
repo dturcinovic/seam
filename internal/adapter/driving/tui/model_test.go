@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"seam/internal/app/port/in/infakes"
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/app/port/in/infakes"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
 )
 
 func TestMain(m *testing.M) {

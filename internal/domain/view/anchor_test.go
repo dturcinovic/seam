@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // height is smaller than the 17 lines of the hunk view, so that it scrolls.

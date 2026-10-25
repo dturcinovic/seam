@@ -3,8 +3,8 @@ package lsp
 import (
 	"strings"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // markdownBlocks reads the part of Markdown that hover answers use:

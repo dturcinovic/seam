@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 func TestOverlay(t *testing.T) {

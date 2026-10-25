@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 // coalesced merges adjacent tokens of one type and drops empty ones, so

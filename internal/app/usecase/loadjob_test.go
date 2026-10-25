@@ -15,11 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/limits"
-	"seam/internal/supervise"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // blockOn makes the worktree reader wait for release on path, ignoring ctx

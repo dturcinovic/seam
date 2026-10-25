@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
 )
 
 // TestLongLinesGetCheckpoints loads a file whose second line is 10 KiB: an

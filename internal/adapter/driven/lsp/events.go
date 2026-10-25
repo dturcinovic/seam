@@ -4,8 +4,8 @@ import (
 	"slices"
 	"sync"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // maxResults bounds the hover answers waiting to be drained; the oldest

@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/ui"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // code is an answer of one block of code, as the adapter gives it.

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/diff"
 )
 
 // side draws a short file from few distinct lines, so that sides share many

@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/app/usecase"
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/limits"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/app/usecase"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // newStreams runs a stream loader over its own FileDiffs, whose worker

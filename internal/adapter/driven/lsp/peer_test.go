@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 // peer is the server side of an in-process connection. A synctest bubble

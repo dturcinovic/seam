@@ -1,4 +1,4 @@
-module seam
+module github.com/dturcinovic/seam
 
 go 1.27
 

@@ -3,10 +3,10 @@ package filediff
 import (
 	"errors"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 // ErrLoaderFailed is the error of every request once the loader has failed:

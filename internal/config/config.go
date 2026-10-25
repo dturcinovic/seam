@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 // Flags are the command-line switches that affect configuration.

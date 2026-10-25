@@ -2,9 +2,10 @@
 package infakes
 
 import (
-	"seam/internal/app/port/in"
-	"seam/internal/domain/filediff"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
 )
 
 type FakeFileDiffLoader struct {

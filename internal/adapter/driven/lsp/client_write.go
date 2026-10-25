@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // writer is the state of the writer goroutine, which alone writes to the

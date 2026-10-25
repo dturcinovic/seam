@@ -1,11 +1,11 @@
 package tui
 
 import (
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/ui"
-	"seam/internal/domain/view"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // state is what the TUI shows, as plain data: no ports, no channels. Only

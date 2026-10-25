@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/app/port/in/infakes"
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/app/port/in/infakes"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 func baseCommit(t *testing.T) change.ObjectID {

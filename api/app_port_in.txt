@@ -1,4 +1,4 @@
-package in // import "seam/internal/app/port/in"
+package in // import "github.com/dturcinovic/seam/internal/app/port/in"
 
 Package in holds the incoming ports, which the TUI adapter calls and the use
 cases implement. It knows nothing but the domain.

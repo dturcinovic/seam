@@ -3,7 +3,7 @@ package lang
 import (
 	"path"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 	"slices"
 	"strings"
 )

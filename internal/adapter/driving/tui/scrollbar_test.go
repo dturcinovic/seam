@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // rowsOf is a diff whose rows have the given kinds, with a change block for

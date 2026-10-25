@@ -6,14 +6,14 @@ import (
 	"hash/maphash"
 	"time"
 
-	"seam/internal/app/port/out"
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // commitVersion is the version of a document from a commit, whose text

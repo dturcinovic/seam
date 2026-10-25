@@ -3,10 +3,10 @@ package tui
 import (
 	"slices"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // streamWindow bounds the files the stream holds loaded beside those on

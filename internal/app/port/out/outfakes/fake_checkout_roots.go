@@ -2,9 +2,10 @@
 package outfakes
 
 import (
-	"seam/internal/app/port/out"
-	"seam/internal/domain/change"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 type FakeCheckoutRoots struct {

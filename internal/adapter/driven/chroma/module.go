@@ -3,7 +3,7 @@ package chroma
 import (
 	"go.uber.org/fx"
 
-	"seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/app/port/out"
 )
 
 // Module provides the highlighter as the port it fulfils.

@@ -3,7 +3,7 @@ package configfile
 import (
 	"fmt"
 
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 type limitsEntry struct {

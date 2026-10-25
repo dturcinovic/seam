@@ -4,11 +4,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/view"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // hoverTarget is the grapheme under the mouse: Line of Side of File and

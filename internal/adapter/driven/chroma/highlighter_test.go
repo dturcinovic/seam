@@ -13,11 +13,11 @@ import (
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
 
-	"seam/internal/adapter/driven/chroma"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/adapter/driven/chroma"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files from the current output")

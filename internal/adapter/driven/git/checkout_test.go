@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"seam/internal/adapter/driven/git"
-	"seam/internal/domain/change"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/adapter/driven/git"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // checkoutRepo is a repository with two commits of a.txt, and the

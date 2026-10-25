@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"seam/internal/adapter/driven/configfile"
-	"seam/internal/app/port/in"
-	"seam/internal/config"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // TestTheGraphProvidesEveryIncomingPort checks the wiring without running

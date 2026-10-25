@@ -12,9 +12,9 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
-	"seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 )
 
 // File is what the configuration file sets, over the defaults.

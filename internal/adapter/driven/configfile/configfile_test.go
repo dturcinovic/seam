@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/adapter/driven/configfile"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 )
 
 func write(t *testing.T, text string) string {

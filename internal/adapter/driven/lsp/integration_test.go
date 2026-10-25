@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // TestServers asks each default server for a hover in a small project of

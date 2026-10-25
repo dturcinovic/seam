@@ -5,7 +5,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // linkReach bounds how far the end of a link's text or target, or of a

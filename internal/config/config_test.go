@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/config"
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 func TestLoad(t *testing.T) {

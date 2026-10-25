@@ -3,9 +3,9 @@ package out
 import (
 	"context"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 //counterfeiter:generate . DocumentSync

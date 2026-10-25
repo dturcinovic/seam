@@ -12,9 +12,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // The bounds of one server connection; see the plan's write classes.

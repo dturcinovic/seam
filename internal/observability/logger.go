@@ -12,8 +12,8 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"seam/internal/config"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Rotation limits. A session writes little unless --verbose is on; this

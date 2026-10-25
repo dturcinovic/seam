@@ -1,4 +1,4 @@
-package lang // import "seam/internal/domain/lang"
+package lang // import "github.com/dturcinovic/seam/internal/domain/lang"
 
 Package lang names the languages of a session and the servers that hover over
 them: which language a file or a code fence is written in, which server and
