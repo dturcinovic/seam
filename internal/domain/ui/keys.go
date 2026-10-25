@@ -41,6 +41,7 @@ const (
 	ScrollRight
 	ToggleFiles
 	StartCaret
+	JumpBack
 
 	Open
 	Back
@@ -57,6 +58,7 @@ const (
 	WordEnd
 	OtherSide
 	Hover
+	Definition
 
 	ClosePopup
 	// Actions is the number of actions, no action itself.
@@ -115,12 +117,12 @@ func actionNames() [Actions]string {
 		PageDown: "page_down", PageUp: "page_up", Top: "top", Bottom: "bottom",
 		Quit: "quit", Reload: "reload", ToggleView: "toggle_view", ToggleLayout: "toggle_layout",
 		ToggleStream: "toggle_stream", NextChange: "next_change", PrevChange: "prev_change", NextFile: "next_file", PrevFile: "prev_file",
-		ScrollLeft: "scroll_left", ScrollRight: "scroll_right", ToggleFiles: "toggle_files", StartCaret: "start_caret",
+		ScrollLeft: "scroll_left", ScrollRight: "scroll_right", ToggleFiles: "toggle_files", StartCaret: "start_caret", JumpBack: "jump_back",
 		Open: "open", Back: "back", PrevFolder: "prev_folder", NextFolder: "next_folder",
 		LeaveCaret: "leave_caret", CaretDown: "caret_down", CaretUp: "caret_up",
 		CaretLeft: "caret_left", CaretRight: "caret_right",
 		WordForward: "word_forward", WordBack: "word_back", WordEnd: "word_end",
-		OtherSide: "other_side", Hover: "hover", ClosePopup: "close_popup",
+		OtherSide: "other_side", Hover: "hover", Definition: "definition", ClosePopup: "close_popup",
 	}
 }
 
@@ -130,11 +132,11 @@ func defaultKeys() [Actions][]string {
 		PageDown: {"pgdown", "space"}, PageUp: {"pgup"}, Top: {"g", "home"}, Bottom: {"G", "end"},
 		Quit: {"q", "esc", "ctrl+c"}, Reload: {"r"}, ToggleView: {"f"}, ToggleLayout: {"u"},
 		ToggleStream: {"s"}, NextChange: {"n"}, PrevChange: {"p"}, NextFile: {"tab", "]"}, PrevFile: {"shift+tab", "["},
-		ScrollLeft: {"h", "left"}, ScrollRight: {"l", "right"}, ToggleFiles: {"b"}, StartCaret: {"i"},
+		ScrollLeft: {"h", "left"}, ScrollRight: {"l", "right"}, ToggleFiles: {"b"}, StartCaret: {"i"}, JumpBack: {"ctrl+o"},
 		Open: {"enter"}, Back: {"esc"}, PrevFolder: {"["}, NextFolder: {"]"},
 		LeaveCaret: {"i", "esc"}, CaretDown: {"j", "down"}, CaretUp: {"k", "up"},
 		CaretLeft: {"h", "left"}, CaretRight: {"l", "right"},
-		WordForward: {"w"}, WordBack: {"b"}, WordEnd: {"e"}, OtherSide: {"o"}, Hover: {"K"},
+		WordForward: {"w"}, WordBack: {"b"}, WordEnd: {"e"}, OtherSide: {"o"}, Hover: {"K"}, Definition: {"d"},
 		ClosePopup: {"esc"},
 	}
 }

@@ -18,6 +18,18 @@ type Hoverer interface {
 	CancelHover(id hover.ReqID)
 }
 
+//counterfeiter:generate . Definer
+
+// Definer asks the language server where the symbol at a position is
+// defined. Neither call blocks; the answer comes through LSPUpdates.
+type Definer interface {
+	// Define asks at p, as Hover does; only the answer to the last p asked
+	// is handed on.
+	Define(p hover.Position) hover.Submit
+	// CancelDefinition drops the request: no answer comes for it.
+	CancelDefinition(id hover.ReqID)
+}
+
 //counterfeiter:generate . DocumentTracker
 
 // DocumentTracker tells the language servers which documents the viewer

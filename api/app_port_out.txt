@@ -42,6 +42,14 @@ type CommitCheckouts interface {
     CommitCheckouts makes checkouts of commits for the session, which go with
     it.
 
+type DefinitionRequester interface {
+	RequestDefinition(p hover.Position) hover.Submit
+	// CancelDefinition drops the request: no answer comes for it.
+	CancelDefinition(id hover.ReqID)
+}
+    DefinitionRequester asks where a symbol is defined. Neither call blocks;
+    the answer comes through ServerEvents as DefinitionDone.
+
 type DocumentSync interface {
 	// Sync opens d or brings it to d's version, starting its server if need
 	// be. It names the instance that serves d; ok is false if no server

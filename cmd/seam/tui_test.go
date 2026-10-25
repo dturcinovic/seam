@@ -38,6 +38,7 @@ type outFakes struct {
 	highlight *outfakes.FakeHighlighter
 	docs      *outfakes.FakeDocumentSync
 	requester *outfakes.FakeHoverRequester
+	defs      *outfakes.FakeDefinitionRequester
 	events    *outfakes.FakeServerEvents
 	checkouts *outfakes.FakeCommitCheckouts
 	roots     *outfakes.FakeCheckoutRoots
@@ -51,7 +52,7 @@ func newOutFakes(t *testing.T) outFakes {
 	f := outFakes{
 		&outfakes.FakeRevisionResolver{}, &outfakes.FakeChangeLister{}, &outfakes.FakeUntrackedLister{},
 		&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{},
-		&outfakes.FakeHighlighter{}, &outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{},
+		&outfakes.FakeHighlighter{}, &outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeDefinitionRequester{}, &outfakes.FakeServerEvents{},
 		&outfakes.FakeCommitCheckouts{}, &outfakes.FakeCheckoutRoots{},
 		&outfakes.FakeWatchPathsReader{}, &outfakes.FakeIgnoreChecker{}, &outfakes.FakeChangeWatcher{},
 	}
@@ -81,6 +82,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.Highlighter { return f.highlight },
 			func() out.DocumentSync { return f.docs },
 			func() out.HoverRequester { return f.requester },
+			func() out.DefinitionRequester { return f.defs },
 			func() out.ServerEvents { return f.events },
 			func() out.CommitCheckouts { return f.checkouts },
 			func() out.CheckoutRoots { return f.roots },
@@ -92,7 +94,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 		fx.Supply(limits.DefaultFileSize, lang.Defaults()),
 		usecase.Module,
 		fx.NopLogger,
-		fx.Populate(&ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch, &loader),
+		fx.Populate(&ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch, &loader),
 	)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))

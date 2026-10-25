@@ -30,7 +30,7 @@ func (s *state) open(i int, fresh bool) (r filediff.Request, ok bool) {
 	}
 	if i != s.Current {
 		s.unload()
-		s.Current = i
+		s.Current, s.VisitPath = i, ""
 		s.List.follow(i, s.listLines())
 	}
 	s.LoadGen++
@@ -72,6 +72,7 @@ func (s *state) apply(u filediff.Update) (shown bool) {
 	}
 	s.Snapshot, s.Loaded, s.Err, s.ShownGen = u.Snapshot, true, nil, u.Gen
 	s.relayout()
+	s.bringTarget()
 	return true
 }
 
@@ -108,6 +109,8 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 	}
 	before := s.Files
 	shown, had := s.file()
+	// Their file indexes are of the files before.
+	s.Jump.Target, s.Jump.Waiting = nil, nil
 	old := s.Current
 	// A commit or a checkout may have moved the commits, and the files'
 	// loads must ask for the new ones.
@@ -131,11 +134,16 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 	if s.Current >= 0 {
 		// The same file stays current, so open does not bring it into
 		// view, though files before it may have come or gone; nor does it
-		// drop the caret, which goes with its file.
-		s.Caret.File = s.Current
+		// drop the caret, which goes with its file. A file visited that is
+		// in the changeset now is one of it.
+		s.Caret.File, s.VisitPath = s.Current, ""
 		r, ok := s.open(s.Current, true)
 		s.List.keep(s.Current, s.listLines())
 		return r, ok
+	}
+	if s.visiting() {
+		// Still outside the changeset: read afresh, at its place.
+		return s.visitRequest(true), true
 	}
 	if len(s.Files) == 0 {
 		s.unload()
@@ -197,6 +205,11 @@ func (s *state) show(lines []view.Line) {
 
 // mark derives the scrollbar's marks from Lines at the body's height.
 func (s *state) mark() {
+	if s.visiting() {
+		// Every row is new to a diff against nothing; none is a change.
+		s.Marks = nil
+		return
+	}
 	if s.Stream.On {
 		s.Marks = streamMarks(s, s.Layout.Body)
 		return
@@ -206,6 +219,10 @@ func (s *state) mark() {
 
 // unified says whether a diff of width columns shows unified.
 func (s *state) unified(width int) bool {
+	if s.visiting() {
+		// It has one side only.
+		return true
+	}
 	switch s.LayoutSetting {
 	case ui.SplitLayout:
 		return false
@@ -311,15 +328,18 @@ func (s *state) shiftH(n int) {
 // unfoldAt shows the rows of the fold at screen cell x, y one by one; a
 // click anywhere else does nothing.
 func (s *state) unfoldAt(x, y int) {
-	i, ok := s.Layout.bodyLine(x, y)
-	if !ok {
-		return
+	if i, ok := s.Layout.bodyLine(x, y); ok {
+		s.unfoldLine(s.top() + i)
 	}
+}
+
+// unfoldLine shows the rows of the fold at line i of the body one by one.
+func (s *state) unfoldLine(i int) {
 	if s.Stream.On {
-		s.streamUnfold(s.top() + i)
+		s.streamUnfold(i)
 		return
 	}
-	lines, pos := view.Unfold(s.Lines, s.Pos, s.Pos.Scroll+i)
+	lines, pos := view.Unfold(s.Lines, s.Pos, i)
 	// Unfold hands back the same lines when there was no fold, and then
 	// the marks stand.
 	if len(lines) != len(s.Lines) {

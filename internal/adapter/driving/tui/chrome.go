@@ -36,7 +36,7 @@ func viewHints() []hint {
 		firstKeys("change", ui.NextChange, ui.PrevChange), firstKeys("file", ui.NextFile, ui.PrevFile),
 		firstKeys("stream", ui.ToggleStream),
 		firstKeys("scroll", ui.Down, ui.Up), firstKeys("sideways", ui.ScrollLeft, ui.ScrollRight),
-		firstKeys("files", ui.ToggleFiles), firstKeys("caret", ui.StartCaret),
+		firstKeys("files", ui.ToggleFiles), firstKeys("caret", ui.StartCaret), firstKeys("back", ui.JumpBack),
 	}
 }
 
@@ -50,7 +50,7 @@ func listHints() []hint {
 
 func caretHints() []hint {
 	return []hint{
-		firstKeys("hover", ui.Hover), firstKeys("move", ui.CaretLeft, ui.CaretDown, ui.CaretUp, ui.CaretRight),
+		firstKeys("hover", ui.Hover), firstKeys("definition", ui.Definition), firstKeys("move", ui.CaretLeft, ui.CaretDown, ui.CaretUp, ui.CaretRight),
 		firstKeys("word", ui.WordForward, ui.WordBack, ui.WordEnd), firstKeys("other side", ui.OtherSide),
 		everyKey("leave", ui.LeaveCaret),
 		firstKeys("change", ui.NextChange, ui.PrevChange), firstKeys("file", ui.NextFile, ui.PrevFile),
@@ -113,9 +113,17 @@ func header(s *state) string {
 	if !ok {
 		return "no changes"
 	}
-	h := fmt.Sprintf("%d/%d  %s %s  %s", s.Current+1, len(s.Files), f.Status, shownText(f.Path()), modeName(s.Mode))
-	if s.Layout.Unified {
-		h += " unified"
+	// A file visited has no place in the list, no layout to choose and no
+	// differences to count.
+	visit := s.visiting()
+	var h string
+	if visit {
+		h = fmt.Sprintf("visit  %s  not changed", shownText(f.Path()))
+	} else {
+		h = fmt.Sprintf("%d/%d  %s %s  %s", s.Current+1, len(s.Files), f.Status, shownText(f.Path()), modeName(s.Mode))
+		if s.Layout.Unified {
+			h += " unified"
+		}
 	}
 	if s.Stream.On {
 		h += "  stream"
@@ -132,6 +140,9 @@ func header(s *state) string {
 		return h + "  failed"
 	case !loaded:
 		return h + "  loading…"
+	}
+	if visit {
+		return h + noticesText(snap.Notices)
 	}
 	return h + fmt.Sprintf("  %d differences", len(snap.Diff.Changes)) + noticesText(snap.Notices)
 }
@@ -162,6 +173,9 @@ func placeholder(s *state) string {
 func footer(s *state) (string, style) {
 	if s.Err != nil {
 		return "error: " + s.Err.Error(), errorStyle
+	}
+	if s.Note != "" {
+		return s.Note, footerStyle
 	}
 	if s.List.Focus {
 		return s.KeyText.list, footerStyle

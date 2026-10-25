@@ -20,7 +20,7 @@ var Module = fx.Module("usecase",
 		fx.Annotate(newChangesets, fx.As(new(in.ChangesetLoader)), fx.As(new(in.ChangesetReloader))),
 		fx.Annotate(newFileDiffs, fx.As(new(in.FileDiffLoader)), fx.As(fx.Self())),
 		fx.Annotate(newStreams, fx.As(new(in.StreamLoader))),
-		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
+		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.Definer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 		fx.Annotate(newWatches, fx.As(new(in.WatchStarter)), fx.As(new(in.WatchUpdates))),
 	),
 )
@@ -84,6 +84,7 @@ type hoverPorts struct {
 
 	Docs        out.DocumentSync
 	Requester   out.HoverRequester
+	Definitions out.DefinitionRequester
 	Events      out.ServerEvents
 	Highlighter out.Highlighter
 	Checkouts   out.CommitCheckouts
@@ -92,7 +93,7 @@ type hoverPorts struct {
 
 func newHovers(lc fx.Lifecycle, p hoverPorts, languages lang.Table, panics supervise.PanicFunc) *Hovers {
 	hs := NewHovers(HoverPorts{
-		Docs: p.Docs, Requester: p.Requester, Events: p.Events, Highlighter: p.Highlighter, Checkouts: p.Checkouts, Roots: p.Roots,
+		Docs: p.Docs, Requester: p.Requester, Definitions: p.Definitions, Events: p.Events, Highlighter: p.Highlighter, Checkouts: p.Checkouts, Roots: p.Roots,
 	}, languages, panics)
 	runWorker(lc, hs)
 	return hs

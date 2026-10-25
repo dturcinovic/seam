@@ -53,7 +53,7 @@ func TestICallsTheCaretOntoTheFirstText(t *testing.T) {
 
 	assert.Equal(t, caret{On: true, Side: filediff.NewSide, Row: 0, Byte: len("\t")}, m.s.Caret)
 	text, _ := footer(&m.s)
-	assert.Equal(t, "K hover  h/j/k/l move  w/b/e word  o other side  i/esc leave  n/p change  tab/shift+tab file  q quit", text)
+	assert.Equal(t, "K hover  d definition  h/j/k/l move  w/b/e word  o other side  i/esc leave  n/p change  tab/shift+tab file  q quit", text)
 	m, _ = typed(m, "i")
 	assert.False(t, m.s.Caret.On, "i again takes it away")
 }

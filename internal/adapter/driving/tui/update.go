@@ -15,8 +15,14 @@ import (
 // was about the text that was there, and so does moving the caret, which
 // in turn stays on the screen when the view or the text moves under it.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // tea.Model prescribes it
-	before, caret := m.s.screenKey(), m.s.Caret
+	before, caret, stream := m.s.screenKey(), m.s.Caret, m.s.Stream.On
+	m.s.userActed(msg)
 	m, cmd := m.update(msg)
+	if stream && !m.s.Stream.On {
+		// However the stream was left, its loads would hold up the file
+		// now asked for.
+		m.p.Stream.Want(nil)
+	}
 	m.want()
 	m.s.keepCaret()
 	if m.s.screenKey() != before || m.s.Caret != caret {
@@ -116,12 +122,14 @@ func (m *model) onLSP() {
 		if m.s.hoverUpdate(u) {
 			m.ask(m.s.Hover.Seq)
 		}
+		m.onDefinition(u)
 	}
 }
 
 // onKeyPress takes a key, asking the layers from the top: an open popup,
 // the focused file list, the caret, then the view.
 func (m model) onKeyPress(key string) (model, tea.Cmd) {
+	m.s.Note = ""
 	k := m.s.Keys
 	if _, ok := k.Action(ui.PopupLayer, key); ok && m.s.Hover.Popup.Open {
 		m.dropHover()
@@ -165,6 +173,8 @@ func (m *model) onCaretAction(a ui.Action) {
 		s.otherSide()
 	case ui.Hover:
 		m.hoverAtCaret()
+	case ui.Definition:
+		m.defineAtCaret()
 	}
 }
 
@@ -194,10 +204,6 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		s.toggleLayout()
 	case ui.ToggleStream:
 		m.load(s.toggleStream())
-		if !s.Stream.On {
-			// The stream's loads would hold up the file now asked for.
-			m.p.Stream.Want(nil)
-		}
 	case ui.ScrollLeft:
 		s.shiftH(-1)
 	case ui.ScrollRight:
@@ -206,6 +212,8 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		s.toggleList()
 	case ui.StartCaret:
 		s.startCaret()
+	case ui.JumpBack:
+		m.load(s.jumpBack())
 	}
 	return m, nil
 }
@@ -280,6 +288,13 @@ func (mo motion) steps(n, height int) int {
 func (m *model) onClick(c tea.MouseClickMsg) {
 	// A click on the popup is not for what lies under it.
 	if c.Button != tea.MouseLeft || m.s.Hover.Popup.contains(c.X, c.Y) {
+		return
+	}
+	m.s.Note = ""
+	if c.Mod.Contains(tea.ModCtrl) {
+		if t, ok := m.s.targetAt(c.X, c.Y, hoverTarget{}); ok {
+			m.define(t)
+		}
 		return
 	}
 	if m.s.Layout.inList(c.X, c.Y) {

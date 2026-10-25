@@ -158,7 +158,15 @@ func (p *Pool) Mount(id change.ObjectID, dir string) {
 }
 
 // Request implements out.HoverRequester.
-func (p *Pool) Request(pos hover.Position) hover.Submit {
+func (p *Pool) Request(pos hover.Position) hover.Submit { return p.ask(pos, pendingHover) }
+
+// RequestDefinition implements out.DefinitionRequester.
+func (p *Pool) RequestDefinition(pos hover.Position) hover.Submit {
+	return p.ask(pos, pendingDefinition)
+}
+
+// ask hands a request of kind at pos to the client of pos's instance.
+func (p *Pool) ask(pos hover.Position, kind pendingKind) hover.Submit {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	inst, ok := p.paths[pos.Key()]
@@ -169,8 +177,12 @@ func (p *Pool) Request(pos hover.Position) hover.Submit {
 	if c == nil {
 		return hover.Unsupported
 	}
-	return c.request(pos)
+	return c.ask(pos, kind)
 }
+
+// CancelDefinition implements out.DefinitionRequester: hovers and
+// definitions share their ReqIDs.
+func (p *Pool) CancelDefinition(id hover.ReqID) { p.Cancel(id) }
 
 // Cancel implements out.HoverRequester.
 func (p *Pool) Cancel(id hover.ReqID) {

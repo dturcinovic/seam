@@ -37,7 +37,7 @@ func TestAHoverOnTheOldSideIsAnsweredFromACheckout(t *testing.T) {
 		ports      tui.Ports
 		changesets in.ChangesetLoader
 	)
-	stop, log := fakeGraph(t, repo.Dir, fakelsp, &changesets, &ports.Files, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch)
+	stop, log := fakeGraph(t, repo.Dir, fakelsp, &changesets, &ports.Files, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch)
 	cs, err := changesets.LoadChangeset(t.Context(), change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()})
 	require.NoError(t, err)
 	ports.Files.Load(filediff.Request{Gen: 1, Comparison: cs.Comparison, File: fileAt(t, cs, "a.go")})

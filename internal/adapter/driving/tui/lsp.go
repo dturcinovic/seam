@@ -108,7 +108,7 @@ func (l *lspState) update(u hover.Update) {
 			l.Checkouts = make(map[change.ObjectID]hover.ServerStatus)
 		}
 		l.Checkouts[u.Commit] = u.Status
-	case hover.HoverDone:
+	case hover.HoverDone, hover.DefinitionDone:
 	}
 }
 

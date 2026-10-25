@@ -61,6 +61,10 @@ func writeUnified(ln *line, s *state, lay layout, file int, l view.Line) {
 	case view.NewHalf:
 		w, sl, old = filediff.NewSide, right, -1
 		sl.tone, sl.mark = insertedTone, "+"
+		if s.visiting() {
+			// Read only: the file as it is, not as an insertion.
+			sl.tone, sl.mark = equalTone, " "
+		}
 	case view.Whole:
 		if s.halfSide(file, l) == filediff.OldSide {
 			sl.text, sl.points, sl.runs = left.text, left.points, left.runs

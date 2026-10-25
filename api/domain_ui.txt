@@ -67,6 +67,7 @@ const (
 	ScrollRight
 	ToggleFiles
 	StartCaret
+	JumpBack
 
 	Open
 	Back
@@ -83,6 +84,7 @@ const (
 	WordEnd
 	OtherSide
 	Hover
+	Definition
 
 	ClosePopup
 	// Actions is the number of actions, no action itself.

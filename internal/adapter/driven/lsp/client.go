@@ -19,8 +19,9 @@ import (
 
 // The bounds of one server connection; see the plan's write classes.
 const (
-	mandatoryCap  = 32
-	requestCap    = 16
+	mandatoryCap = 32
+	requestCap   = 16
+	// maxOpenHovers bounds hovers and definitions together.
 	maxOpenHovers = 8
 	initTimeout   = 20 * time.Second
 	hoverTimeout  = 5 * time.Second
