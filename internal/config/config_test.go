@@ -130,3 +130,12 @@ func TestMaxFileSize(t *testing.T) {
 		})
 	}
 }
+
+func TestHeapProfile(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	cfg, err := config.Load(config.Flags{HeapProfile: "heap.pprof"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "heap.pprof", cfg.HeapProfile)
+}

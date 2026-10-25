@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,6 +115,30 @@ func TestAMissingServerDoesNotStopTheStart(t *testing.T) {
 
 	require.Equal(t, 0, code, stderr)
 	assert.Equal(t, "A\tstaged.txt\n", stdout)
+}
+
+// TestTheSessionWritesItsHeapProfile checks the file is a profile: pprof
+// writes it gzipped.
+func TestTheSessionWritesItsHeapProfile(t *testing.T) {
+	inRepo(t)
+	p := filepath.Join(t.TempDir(), "heap.pprof")
+
+	code, _, stderr := runSeam(t, "--staged", "--pprof", p)
+
+	require.Equal(t, 0, code, stderr)
+	data, err := os.ReadFile(p)
+	require.NoError(t, err)
+	assert.True(t, bytes.HasPrefix(data, []byte{0x1f, 0x8b}), "gzip")
+}
+
+func TestAHeapProfileThatCannotBeWrittenFailsTheSession(t *testing.T) {
+	inRepo(t)
+
+	code, stdout, stderr := runSeam(t, "--staged", "--pprof", filepath.Join(t.TempDir(), "no", "heap.pprof"))
+
+	assert.Equal(t, 1, code)
+	assert.Empty(t, stdout, "before the session")
+	assert.Contains(t, stderr, "seam: heap profile: ")
 }
 
 func TestCommandLineErrors(t *testing.T) {

@@ -21,14 +21,21 @@ import (
 	"seam/internal/testsupport"
 )
 
-// loadNew loads file through the port and returns the text of its new side.
-func loadNew(t *testing.T, files in.FileDiffLoader, r filediff.Request) string {
+// load loads r through the port and returns its update, which must not
+// have failed.
+func load(t *testing.T, files in.FileDiffLoader, r filediff.Request) filediff.Update {
 	t.Helper()
 	files.Load(r)
 	all := testsupport.Collect(t, files, func(u []filediff.Update) bool { return len(u) > 0 && u[len(u)-1].Gen == r.Gen })
 	u := all[len(all)-1]
 	require.NoError(t, u.Err)
-	return diff.Content(u.Snapshot.Diff.New.Lines[0])
+	return u
+}
+
+// loadNew loads r and returns the text of its new side.
+func loadNew(t *testing.T, files in.FileDiffLoader, r filediff.Request) string {
+	t.Helper()
+	return diff.Content(load(t, files, r).Snapshot.Diff.New.Lines[0])
 }
 
 // TestFreshReadsAChangeTheStampHides is what r relies on: an edit that

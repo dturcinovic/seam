@@ -14,6 +14,9 @@ type Flags struct {
 	// MaxFileSize is a size in bytes, or with a binary suffix K, M or G;
 	// empty means the default.
 	MaxFileSize string
+	// HeapProfile is where to write a heap profile at the end of the session;
+	// empty means none.
+	HeapProfile string
 }
 
 // Config is the resolved configuration of one session.
@@ -33,6 +36,9 @@ type Config struct {
 	// MaxFileSize is the largest side of a file that is loaded; zero means
 	// the default. Read it through FileSizeLimit.
 	MaxFileSize limits.FileSize
+	// HeapProfile is the file the session writes its heap profile to as
+	// the TUI ends; empty means none.
+	HeapProfile string
 }
 
 // Settle takes the file size limit of the configuration file, zero if it
@@ -85,6 +91,7 @@ func Load(f Flags) (Config, error) {
 		Checkouts:   filepath.Join(cache, "seam", "worktrees"),
 		Verbose:     f.Verbose,
 		MaxFileSize: size,
+		HeapProfile: f.HeapProfile,
 	}, nil
 }
 
