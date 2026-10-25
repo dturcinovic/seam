@@ -16,11 +16,25 @@ type pendingKind int
 const (
 	pendingInit pendingKind = iota + 1
 	pendingHover
+	pendingDefinition
 	pendingShutdown
 )
 
+// asks says that a request of kind k asks about a position for the
+// viewer: it counts among the open ones and is answered by an update.
+func (k pendingKind) asks() bool { return k == pendingHover || k == pendingDefinition }
+
+// method is the protocol's name of a request of kind k, which asks.
+func (k pendingKind) method() string {
+	if k == pendingDefinition {
+		return "textDocument/definition"
+	}
+	return "textDocument/hover"
+}
+
 // pending is a request of the client's that awaits its answer. The
-// JSON-RPC id stays inside the adapter; outside, a hover is its ReqID.
+// JSON-RPC id stays inside the adapter; outside, a hover or a definition
+// is its ReqID.
 type pending struct {
 	kind    pendingKind
 	req     hover.ReqID
@@ -45,10 +59,10 @@ func (c *client) call(kind pendingKind, method string, params any) error {
 	return nil
 }
 
-// request sends a hover at p, after the text of p's version, which the
-// writer sends first if it has not yet. The oldest open hover beyond
+// ask sends a request of kind at p, after the text of p's version, which
+// the writer sends first if it has not yet. The oldest open request beyond
 // maxOpenHovers ends with Error, as every Sent gets an answer.
-func (c *client) request(p hover.Position) hover.Submit {
+func (c *client) ask(p hover.Position, kind pendingKind) hover.Submit {
 	var dropped *pending
 	// Runs after the unlock below; the sink must not be called under c.mu.
 	defer func() {
@@ -68,12 +82,13 @@ func (c *client) request(p hover.Position) hover.Submit {
 	}
 	c.nextID++
 	id := c.nextID
-	body, err := request(id, "textDocument/hover", map[string]any{
+	method := kind.method()
+	body, err := request(id, method, map[string]any{
 		"textDocument": map[string]string{"uri": c.uri(p.Path)},
 		"position":     map[string]int{"line": p.Line, "character": char},
 	})
 	if err != nil {
-		c.log.Error("hover request", zap.Error(err))
+		c.log.Error("request", zap.String("method", method), zap.Error(err))
 		return hover.Failed
 	}
 	select {
@@ -81,7 +96,7 @@ func (c *client) request(p hover.Position) hover.Submit {
 	default:
 		return hover.Busy
 	}
-	entry := &pending{kind: pendingHover, req: p.Req, version: p.Version}
+	entry := &pending{kind: kind, req: p.Req, version: p.Version}
 	c.pending[id] = entry
 	c.hovers = append(c.hovers, id)
 	if len(c.hovers) > maxOpenHovers {
@@ -140,7 +155,7 @@ func (c *client) timeout(id int64) {
 	}
 	c.mu.Unlock()
 	if ok {
-		c.sink.result(hover.Update{Kind: hover.HoverDone, Req: p.req, Version: p.version, Outcome: hover.TimedOut})
+		c.sink.result(p.ended(hover.TimedOut))
 	}
 }
 
@@ -171,7 +186,7 @@ func (c *client) takeLocked(id int64) (*pending, bool) {
 	if p.timer != nil {
 		p.timer.Stop()
 	}
-	if p.kind == pendingHover {
+	if p.kind.asks() {
 		c.hovers = slices.DeleteFunc(c.hovers, func(h int64) bool { return h == id })
 	}
 	return p, true
@@ -190,8 +205,17 @@ func (c *client) takeHoversLocked() []*pending {
 
 func (c *client) endHovers(open []*pending, o hover.Outcome) {
 	for _, p := range open {
-		c.sink.result(hover.Update{Kind: hover.HoverDone, Req: p.req, Version: p.version, Outcome: o})
+		c.sink.result(p.ended(o))
 	}
+}
+
+// ended is the answer to p when it ends without the server's, with o.
+func (p *pending) ended(o hover.Outcome) hover.Update {
+	kind := hover.HoverDone
+	if p.kind == pendingDefinition {
+		kind = hover.DefinitionDone
+	}
+	return hover.Update{Kind: kind, Req: p.req, Version: p.version, Outcome: o}
 }
 
 func (c *client) uri(path string) string {

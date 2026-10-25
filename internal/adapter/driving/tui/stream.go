@@ -86,7 +86,9 @@ func (s *state) toggleStream() (filediff.Request, bool) {
 func (s *state) enterStream() {
 	st := &s.Stream
 	*st = streamState{On: true, Gen: st.Gen + 1, Held: map[int]*heldFile{}, View: view.NewStream(s.estimates())}
-	if s.Loaded {
+	visited := s.visiting()
+	s.VisitPath = ""
+	if s.Loaded && !visited {
 		h := newHeld(s.Snapshot, s.LSP.servers)
 		// An answer still to come, as for a reload, is the stream's to ask
 		// for now: the single view drops it.
@@ -96,6 +98,10 @@ func (s *state) enterStream() {
 	}
 	s.LoadGen++
 	st.Pos = view.StreamPosFor(max(s.Current, 0), s.Pos)
+	if visited {
+		// Its place, and the caret's, are in no file of the stream.
+		st.Pos, s.Caret = view.StreamPos{}, caret{}
+	}
 	s.Pos, s.Lines = view.Pos{}, nil
 	s.switchStream()
 }
@@ -106,10 +112,9 @@ func (s *state) leaveStream() (filediff.Request, bool) {
 	st := &s.Stream
 	f, pos := st.Pos.File, st.Pos.FilePos()
 	h := st.Held[f]
-	*st = streamState{Gen: st.Gen}
-	s.Current = -1
+	s.dropStream()
 	stale := h != nil && h.stale
-	r, ok := s.open(f, stale)
+	r, ok := s.reopen(f, stale)
 	s.Pos = pos
 	if !ok || h == nil || h.err != nil {
 		return r, ok
@@ -198,6 +203,7 @@ func (s *state) streamApply(us []filediff.Update) (files []int) {
 	}
 	if len(us) > 0 && st.On {
 		s.switchStream()
+		s.bringTarget()
 	}
 	return files
 }

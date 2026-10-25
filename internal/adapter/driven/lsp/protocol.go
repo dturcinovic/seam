@@ -151,6 +151,7 @@ func initializeParams(pid int, w workspace, options map[string]any) map[string]a
 			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
 			"textDocument": map[string]any{
 				"hover":           map[string]any{"contentFormat": []string{"markdown", "plaintext"}},
+				"definition":      map[string]any{"linkSupport": true},
 				"synchronization": map[string]any{"didSave": false, "willSave": false, "dynamicRegistration": false},
 			},
 			"workspace": map[string]any{"configuration": true, "workspaceFolders": true},

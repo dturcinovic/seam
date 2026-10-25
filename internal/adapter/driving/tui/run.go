@@ -21,6 +21,7 @@ type Ports struct {
 	Docs   in.DocumentTracker
 	LSP    in.LSPUpdates
 	Hover  in.Hoverer
+	Define in.Definer
 	Watch  in.WatchUpdates
 }
 

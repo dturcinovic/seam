@@ -98,7 +98,7 @@ func (s *state) rowIndex(file, row int) int {
 	if lines := s.linesOf(file); len(lines) > 0 {
 		return s.bodyIndex(file, view.LineForRow(lines, row))
 	}
-	if s.Stream.On && file < s.Stream.View.Files() {
+	if s.Stream.On && file >= 0 && file < s.Stream.View.Files() {
 		return s.Stream.View.Start(file)
 	}
 	return 0

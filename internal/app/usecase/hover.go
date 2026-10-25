@@ -26,11 +26,11 @@ const (
 	waitingDocs = 4
 )
 
-// Hovers implements in.Hoverer, in.DocumentTracker and in.LSPUpdates over
-// the language servers. It passes the servers' updates on, less the
-// answers no one waits for any more, and colours the code in answers
-// first, in the background. Documents of a commit wait for a checkout of
-// it, made the first time a hover asks in one.
+// Hovers implements in.Hoverer, in.Definer, in.DocumentTracker and
+// in.LSPUpdates over the language servers. It passes the servers' updates
+// on, less the answers no one waits for any more, and colours the code in
+// answers first, in the background. Documents of a commit wait for a
+// checkout of it, made the first time a hover or a definition asks in one.
 //
 // Two goroutines in groups of their own do that: one takes the updates
 // from the servers and passes them on, the other colours. Status changes
@@ -41,6 +41,7 @@ const (
 type Hovers struct {
 	docs        out.DocumentSync
 	requester   out.HoverRequester
+	definitions out.DefinitionRequester
 	events      out.ServerEvents
 	highlighter out.Highlighter
 	checkouts   out.CommitCheckouts
@@ -62,6 +63,9 @@ type Hovers struct {
 	// Starting, Ready or ServerFailed.
 	trees  map[change.ObjectID]hover.ServerStatus
 	latest hover.ReqID
+	// latestDefinition is latest for definitions, which a hover asked
+	// meanwhile does not replace.
+	latestDefinition hover.ReqID
 	// forwardFailed says the servers' updates no longer arrive.
 	forwardFailed bool
 }
@@ -70,6 +74,7 @@ type Hovers struct {
 type HoverPorts struct {
 	Docs        out.DocumentSync
 	Requester   out.HoverRequester
+	Definitions out.DefinitionRequester
 	Events      out.ServerEvents
 	Highlighter out.Highlighter
 	Checkouts   out.CommitCheckouts
@@ -80,7 +85,7 @@ type HoverPorts struct {
 // goroutines. languages tells which documents a server may hover over.
 func NewHovers(p HoverPorts, languages lang.Table, panics supervise.PanicFunc) *Hovers {
 	h := &Hovers{
-		docs: p.Docs, requester: p.Requester, events: p.Events, highlighter: p.Highlighter,
+		docs: p.Docs, requester: p.Requester, definitions: p.Definitions, events: p.Events, highlighter: p.Highlighter,
 		checkouts: p.Checkouts, roots: p.Roots, languages: languages,
 		checkingOut: supervise.NewGroup("hover checkouts", panics, nil),
 		open:        newLRU[hover.DocKey, struct{}](openDocs, openDocsBytes),
@@ -158,9 +163,19 @@ func (h *Hovers) Untrack(k hover.DocKey) {
 // Hover asks at p; an answer to an earlier request is dropped from then
 // on, and its colouring given up. In a commit it is first checked out.
 func (h *Hovers) Hover(p hover.Position) hover.Submit {
+	if sub := h.admit(p, &h.latest); sub != hover.Sent {
+		return sub
+	}
+	h.colours.drop(func(u hover.Update) bool { return u.Req != p.Req })
+	return h.requester.Request(p)
+}
+
+// admit makes p the request latest waits for, and says whether a server
+// may take it: Sent if so. In a commit it starts the checkout.
+func (h *Hovers) admit(p hover.Position, latest *hover.ReqID) hover.Submit {
 	h.mu.Lock()
 	// Before the request: its answer may be drained before Request returns.
-	h.latest = p.Req
+	*latest = p.Req
 	failed := h.forwardFailed
 	checkout := hover.Ready
 	if !p.Commit.IsZero() {
@@ -175,8 +190,7 @@ func (h *Hovers) Hover(p hover.Position) hover.Submit {
 	case checkout != hover.Ready:
 		return hover.Unsupported
 	}
-	h.colours.drop(func(u hover.Update) bool { return u.Req != p.Req })
-	return h.requester.Request(p)
+	return hover.Sent
 }
 
 // CancelHover drops the request id.
@@ -193,11 +207,14 @@ func (h *Hovers) Signal() <-chan struct{} { return h.colours.Signal() }
 func (h *Hovers) Drain() []hover.Update {
 	us := h.colours.Drain()
 	h.mu.Lock()
-	latest := h.latest
+	latest, definition := h.latest, h.latestDefinition
 	h.mu.Unlock()
 	kept := us[:0]
 	for _, u := range us {
-		if u.Kind != hover.HoverDone || u.Req == latest {
+		switch {
+		case u.Kind == hover.HoverDone && u.Req != latest:
+		case u.Kind == hover.DefinitionDone && u.Req != definition:
+		default:
 			kept = append(kept, u)
 		}
 	}

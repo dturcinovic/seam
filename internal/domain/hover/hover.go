@@ -110,7 +110,20 @@ const (
 	// Commit's documents: Starting while it is made, Ready once it is,
 	// ServerFailed if it could not be.
 	CheckoutChanged
+	// DefinitionDone sets Req, Version, Outcome and, for Text, Target and
+	// Targets, how many the server named: Target is the first of them.
+	DefinitionDone
 )
+
+// Location is where a definition lies: line Line, counted from 0, of Path
+// in the tree of Commit, the worktree for none. Outside says that it lies
+// in no tree of the repository; Path is then absolute.
+type Location struct {
+	Commit  change.ObjectID
+	Path    string
+	Outside bool
+	Line    int
+}
 
 // Update is news from the language servers.
 type Update struct {
@@ -126,4 +139,7 @@ type Update struct {
 	// Content is the answer, for Text; its code comes coloured where the
 	// viewer can colour it.
 	Content Content
+
+	Target  Location
+	Targets int
 }

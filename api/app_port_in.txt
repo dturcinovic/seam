@@ -27,6 +27,16 @@ type ChangesetReloader interface {
     Reload never blocks: the work runs in the background, and its outcome waits
     in Drain until the UI collects it.
 
+type Definer interface {
+	// Define asks at p, as Hover does; only the answer to the last p asked
+	// is handed on.
+	Define(p hover.Position) hover.Submit
+	// CancelDefinition drops the request: no answer comes for it.
+	CancelDefinition(id hover.ReqID)
+}
+    Definer asks the language server where the symbol at a position is defined.
+    Neither call blocks; the answer comes through LSPUpdates.
+
 type DocumentTracker interface {
 	// Track opens d or brings it to d's version, and keeps it open while it
 	// is among the last shown. It names the instance that serves d; ok is

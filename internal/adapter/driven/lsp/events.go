@@ -78,16 +78,21 @@ func (e *events) result(u hover.Update) {
 	e.pending = append(e.pending, u)
 	results := 0
 	for _, p := range e.pending {
-		if p.Kind == hover.HoverDone {
+		if answer(p) {
 			results++
 		}
 	}
 	if results > maxResults {
-		oldest := slices.IndexFunc(e.pending, func(p hover.Update) bool { return p.Kind == hover.HoverDone })
+		oldest := slices.IndexFunc(e.pending, answer)
 		e.pending = slices.Delete(e.pending, oldest, oldest+1)
 	}
 	e.mu.Unlock()
 	notify(e.signal)
+}
+
+// answer says u answers a request, rather than reporting a status.
+func answer(u hover.Update) bool {
+	return u.Kind == hover.HoverDone || u.Kind == hover.DefinitionDone
 }
 
 // Signal implements out.ServerEvents.

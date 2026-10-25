@@ -18,6 +18,7 @@ import (
 type hoverFakes struct {
 	docs        *outfakes.FakeDocumentSync
 	requester   *outfakes.FakeHoverRequester
+	definitions *outfakes.FakeDefinitionRequester
 	events      *outfakes.FakeServerEvents
 	highlighter *outfakes.FakeHighlighter
 	checkouts   *outfakes.FakeCommitCheckouts
@@ -32,14 +33,15 @@ type hoverFakes struct {
 func newHovers(t *testing.T) (*usecase.Hovers, hoverFakes) {
 	t.Helper()
 	f := hoverFakes{
-		&outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeServerEvents{}, &outfakes.FakeHighlighter{},
+		&outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeDefinitionRequester{}, &outfakes.FakeServerEvents{}, &outfakes.FakeHighlighter{},
 		&outfakes.FakeCommitCheckouts{}, &outfakes.FakeCheckoutRoots{}, make(chan struct{}, 1),
 	}
 	f.events.SignalReturns(f.signal)
 	f.docs.SyncReturns(gopls(), true)
 	f.requester.RequestReturns(hover.Sent)
+	f.definitions.RequestDefinitionReturns(hover.Sent)
 	h := usecase.NewHovers(usecase.HoverPorts{
-		Docs: f.docs, Requester: f.requester, Events: f.events, Highlighter: f.highlighter, Checkouts: f.checkouts, Roots: f.roots,
+		Docs: f.docs, Requester: f.requester, Definitions: f.definitions, Events: f.events, Highlighter: f.highlighter, Checkouts: f.checkouts, Roots: f.roots,
 	}, lang.Defaults(), nil)
 	require.NoError(t, h.Start())
 	t.Cleanup(func() { assert.NoError(t, h.Stop(context.Background())) })

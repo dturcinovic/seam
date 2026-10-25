@@ -105,11 +105,18 @@ func (s *state) hoverAsk(seq uint64) (hover.Position, bool) {
 	if !h.On || seq != h.Seq {
 		return hover.Position{}, false
 	}
-	h.LastReq++
-	h.Inflight, h.Waiting = h.LastReq, false
+	p := s.positionAt(h.Target)
+	h.Inflight, h.Waiting = p.Req, false
 	s.LSP.Side = h.Target.Side
-	d := s.snapOf(h.Target.File).Doc(h.Target.Side)
-	return hover.Position{Req: h.Inflight, Commit: d.Commit, Path: d.Path, Version: d.Version, Line: h.Target.Line, Byte: h.Target.Byte}, true
+	return p, true
+}
+
+// positionAt is the position of t to ask the servers about, with a new
+// ReqID; hovers and definitions share them.
+func (s *state) positionAt(t hoverTarget) hover.Position {
+	s.Hover.LastReq++
+	d := s.snapOf(t.File).Doc(t.Side)
+	return hover.Position{Req: s.Hover.LastReq, Commit: d.Commit, Path: d.Path, Version: d.Version, Line: t.Line, Byte: t.Byte}
 }
 
 // hoverSubmitted takes how the request was taken. Only an answer to come
@@ -135,15 +142,13 @@ func (s *state) hoverSubmitted(sub hover.Submit) {
 func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 	h := &s.Hover
 	switch u.Kind {
-	case hover.StatusChanged:
-		return h.Waiting && u.Status == hover.Ready && u.Instance == s.instanceOf(h.Target.File, h.Target.Side)
-	case hover.CheckoutChanged:
-		if !h.Waiting || u.Commit != s.snapOf(h.Target.File).Doc(h.Target.Side).Commit {
+	case hover.StatusChanged, hover.CheckoutChanged:
+		if !h.Waiting {
 			return false
 		}
-		// A checkout that failed brings no server to wait for.
-		h.Waiting = u.Status != hover.ServerFailed
-		return u.Status == hover.Ready
+		retry, waiting := s.readyFor(u, h.Target)
+		h.Waiting = waiting
+		return retry
 	case hover.HoverDone:
 		if u.Req == 0 || u.Req != h.Inflight || u.Version != s.snapOf(h.Target.File).Doc(h.Target.Side).Version {
 			return false
@@ -152,6 +157,7 @@ func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 		if u.Outcome == hover.Text {
 			h.Popup = s.openPopup(u.Content, h.X, h.Y)
 		}
+	case hover.DefinitionDone:
 	}
 	return false
 }
@@ -179,13 +185,38 @@ func (m *model) hoverAtCaret() {
 	if !ok {
 		return
 	}
-	w := m.s.caretSide(p.line)
-	c := m.s.Caret
-	if t, ok := targetOn(c.File, w, lineOf(m.s.snapOf(c.File).Diff.Rows[c.Row], w), p.text, p.c, hoverTarget{}); ok {
+	if t, ok := m.s.caretTarget(); ok {
 		cancel, seq := m.s.hoverNow(t, x, y)
 		m.cancel(cancel)
 		m.ask(seq)
 	}
+}
+
+// caretTarget is what K and d ask about: the grapheme under the caret.
+func (s *state) caretTarget() (hoverTarget, bool) {
+	p, ok := s.spot()
+	if !ok {
+		return hoverTarget{}, false
+	}
+	c, w := s.Caret, s.caretSide(p.line)
+	return targetOn(c.File, w, lineOf(s.snapOf(c.File).Diff.Rows[c.Row], w), p.text, p.c, hoverTarget{})
+}
+
+// readyFor says whether u makes a request for t, waiting for its server,
+// worth asking again, and whether it is still to wait: a checkout that
+// failed brings no server to wait for.
+func (s *state) readyFor(u hover.Update, t hoverTarget) (retry, waiting bool) {
+	switch u.Kind {
+	case hover.StatusChanged:
+		return u.Status == hover.Ready && u.Instance == s.instanceOf(t.File, t.Side), true
+	case hover.CheckoutChanged:
+		if u.Commit != s.snapOf(t.File).Doc(t.Side).Commit {
+			return false, true
+		}
+		return u.Status == hover.Ready, u.Status != hover.ServerFailed
+	case hover.HoverDone, hover.DefinitionDone:
+	}
+	return false, true
 }
 
 // ask asks about the target of tick seq, if the mouse still rests on it.

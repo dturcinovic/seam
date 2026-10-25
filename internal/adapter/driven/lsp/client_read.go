@@ -69,6 +69,8 @@ func (c *client) answered(m message) {
 		c.initialized(m)
 	case pendingHover:
 		c.sink.result(hoverResult(p, m, c.languages))
+	case pendingDefinition:
+		c.sink.result(c.definitionResult(p, m))
 	case pendingShutdown:
 		close(c.shutdownDone)
 	}

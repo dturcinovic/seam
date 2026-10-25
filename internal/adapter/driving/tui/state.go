@@ -42,6 +42,14 @@ type state struct {
 	Hover hoverState
 	// Caret is the keyboard's cursor in a pane, for hovers.
 	Caret caret
+	// VisitPath is a worktree file outside the changeset shown read only,
+	// as a definition jumped to, while Current is -1.
+	VisitPath string
+	// Jump is go-to-definition and the places to go back to.
+	Jump jumpState
+	// Note is a word for the footer in place of the keys, as why a
+	// definition was not jumped to, until the next key.
+	Note string
 	// Stream shows every file at once while On; Current, Snapshot, Loaded
 	// and LSP then follow the file at its top, and Lines and Pos are unused.
 	Stream streamState
@@ -96,6 +104,9 @@ func (s *state) setKeys(k ui.Keymap) {
 
 // file is the current file; ok is false when there is none.
 func (s *state) file() (change.ChangedFile, bool) {
+	if s.visiting() {
+		return change.ChangedFile{NewPath: s.VisitPath}, true
+	}
 	if s.Current < 0 || s.Current >= len(s.Files) {
 		return change.ChangedFile{}, false
 	}

@@ -51,6 +51,16 @@ type HoverRequester interface {
 	Cancel(id hover.ReqID)
 }
 
+//counterfeiter:generate . DefinitionRequester
+
+// DefinitionRequester asks where a symbol is defined. Neither call blocks;
+// the answer comes through ServerEvents as DefinitionDone.
+type DefinitionRequester interface {
+	RequestDefinition(p hover.Position) hover.Submit
+	// CancelDefinition drops the request: no answer comes for it.
+	CancelDefinition(id hover.ReqID)
+}
+
 //counterfeiter:generate . ServerEvents
 
 // ServerEvents hands out the answers and status changes of the servers.
