@@ -4,7 +4,7 @@ package lang
 const (
 	gopls        = "gopls"
 	rustAnalyzer = "rust-analyzer"
-	tsServer     = "typescript-language-server"
+	tsServer     = "tsgo"
 	htmlServer   = "vscode-html-language-server"
 	intelephense = "intelephense"
 	pyright      = "pyright"
@@ -36,7 +36,7 @@ func defaultServers() []Server {
 	return []Server{
 		{Name: gopls, Command: "gopls", RootMarkers: []string{"go.work", "go.mod"}},
 		{Name: rustAnalyzer, Command: "rust-analyzer", RootMarkers: []string{"Cargo.toml"}},
-		{Name: tsServer, Command: "typescript-language-server", Args: []string{"--stdio"}, RootMarkers: []string{"tsconfig.json", "jsconfig.json", "package.json"}},
+		{Name: tsServer, Command: "tsc", Args: []string{"--lsp", "--stdio"}, RootMarkers: []string{"tsconfig.json", "jsconfig.json", "package.json"}},
 		{Name: htmlServer, Command: "vscode-html-language-server", Args: []string{"--stdio"}},
 		{Name: intelephense, Command: "intelephense", Args: []string{"--stdio"}, RootMarkers: []string{"composer.json"}},
 		{Name: pyright, Command: "pyright-langserver", Args: []string{"--stdio"}, RootMarkers: []string{"pyproject.toml"}},

@@ -62,7 +62,7 @@ func TestAShellLineIsOneProgram(t *testing.T) {
 
 func TestADisabledServer(t *testing.T) {
 	table := load(t, `
-[servers.typescript-language-server]
+[servers.tsgo]
 enabled = false
 `)
 	for _, l := range []lang.Lang{lang.JavaScript, lang.TypeScript, lang.JSX, lang.TSX} {
@@ -73,7 +73,7 @@ enabled = false
 	_, _, ok := table.Server(lang.Go)
 	assert.True(t, ok)
 
-	table = load(t, "[servers.typescript-language-server]\nenabled = false\n[servers.typescript-language-server.settings]\n")
+	table = load(t, "[servers.tsgo]\nenabled = false\n[servers.tsgo.settings]\n")
 	_, _, ok = table.Server(lang.TSX)
 	assert.False(t, ok)
 	table = load(t, "servers.gopls.enabled = true\n")
@@ -112,7 +112,7 @@ language_id = "ts"
 [languages.tsx]
 extensions = []
 
-[servers.typescript-language-server]
+[servers.tsgo]
 root_markers = ["deno.json"]
 `)
 	assert.Equal(t, lang.TypeScript, table.Detect("App.tsx", ""))

@@ -43,6 +43,9 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 		return err
 	}
 	cfg = cfg.Settle(file.MaxFileSize)
+	if err := createHeapProfile(cfg.HeapProfile); err != nil {
+		return err
+	}
 	logger, err := observability.NewLogger(cfg)
 	if err != nil {
 		return err
@@ -70,6 +73,9 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 			watches.Watch(c)
 		}
 	})
+	// Before the graph stops: the profile is to show what the session
+	// holds, not what is left of it.
+	err = errors.Join(err, writeHeapProfile(cfg.HeapProfile))
 	return errors.Join(err, stopGraph(app))
 }
 

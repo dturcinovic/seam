@@ -77,6 +77,7 @@ index or HEAD changes.`,
 	cmd.Flags().BoolVar(&staged, "staged", false, "compare HEAD with the index")
 	cmd.Flags().BoolVarP(&watch, "watch", "w", false, "reload when the worktree, the index or HEAD changes")
 	cmd.Flags().StringVar(&flags.MaxFileSize, "max-file-size", "", "largest side of a file to load, in bytes or with K, M or G (default 8M)")
+	cmd.Flags().StringVar(&flags.HeapProfile, "pprof", "", "write a heap profile to this file when seam ends")
 	return cmd
 }
 

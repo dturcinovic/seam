@@ -4,6 +4,8 @@ package lsp
 
 import (
 	"os/exec"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -38,7 +40,7 @@ func TestServers(t *testing.T) {
 			want: "pub fn greet(name: &str) -> String",
 		},
 		{
-			name: "typescript with a local import", needs: []string{"typescript-language-server"},
+			name: "typescript with a local import", needs: []string{"tsc"},
 			files: map[string]string{
 				"tsconfig.json": "{\"compilerOptions\":{\"strict\":true}}\n",
 				"greet.ts":      "export function greet(name: string): string {\n  return `hi ${name}`;\n}\n",
@@ -48,13 +50,13 @@ func TestServers(t *testing.T) {
 			want: "function greet(name: string): string",
 		},
 		{
-			name: "javascript", needs: []string{"typescript-language-server"},
+			name: "javascript", needs: []string{"tsc"},
 			files: map[string]string{"package.json": "{}\n", "main.js": "function twice(n) {\n  return n * 2;\n}\ntwice(2);\n"},
 			path:  "main.js", lang: lang.JavaScript, at: "twice(2);", word: "twice",
 			want: "function twice(n: any): number",
 		},
 		{
-			name: "tsx", needs: []string{"typescript-language-server"},
+			name: "tsx", needs: []string{"tsc"},
 			files: map[string]string{
 				"tsconfig.json": "{\"compilerOptions\":{\"jsx\":\"preserve\",\"strict\":true}}\n",
 				"App.tsx":       "function Title(props: { text: string }) {\n  return <h1>{props.text}</h1>;\n}\nexport const app = <Title text=\"a\" />;\n",
@@ -63,10 +65,11 @@ func TestServers(t *testing.T) {
 			want: "function Title(props: {",
 		},
 		{
-			name: "jsx", needs: []string{"typescript-language-server"},
+			name: "jsx", needs: []string{"tsc"},
 			files: map[string]string{"package.json": "{}\n", "App.jsx": "function Title() {\n  return <h1>a</h1>;\n}\nexport const app = <Title />;\n"},
 			path:  "App.jsx", lang: lang.JSX, at: "export const app = <Title />;", word: "Title",
-			want: "function Title(): JSX.Element",
+			// Without React types the return type is the server's guess.
+			want: "function Title()",
 		},
 		{
 			name: "html", needs: []string{"vscode-html-language-server"},
@@ -91,12 +94,16 @@ func TestServers(t *testing.T) {
 			want: "def greet(name: str) -> str",
 		},
 	}
+	native := nativeTsc(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, program := range tt.needs {
 				if _, err := exec.LookPath(program); err != nil {
 					t.Skipf("%s is not installed", program)
 				}
+			}
+			if slices.Contains(tt.needs, "tsc") && !native {
+				t.Skip("tsc is older than TypeScript 7, which has no --lsp")
 			}
 			pool := realPool(t, lang.Defaults(), tt.files)
 			text := tt.files[tt.path]
@@ -112,4 +119,16 @@ func TestServers(t *testing.T) {
 			stopPool(t, pool)
 		})
 	}
+}
+
+// nativeTsc reports whether tsc is TypeScript 7 or later, the native port
+// that serves LSP.
+func nativeTsc(t *testing.T) bool {
+	out, err := exec.CommandContext(t.Context(), "tsc", "--version").Output()
+	if err != nil {
+		return false
+	}
+	major, _, _ := strings.Cut(strings.TrimPrefix(strings.TrimSpace(string(out)), "Version "), ".")
+	n, err := strconv.Atoi(major)
+	return err == nil && n >= 7
 }

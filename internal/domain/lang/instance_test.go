@@ -29,8 +29,8 @@ func TestInstance(t *testing.T) {
 		{"tools/cmd/gen/main.go", lang.Instance{Server: "gopls", Root: "tools"}},
 		{"crates/a/src/lib.rs", lang.Instance{Server: "rust-analyzer", Root: "crates/a"}},
 		{"crates/b/src/lib.rs", lang.Instance{Server: "rust-analyzer", Root: "."}},
-		{"web/server.js", lang.Instance{Server: "typescript-language-server", Root: "web"}},
-		{"web/app/page.tsx", lang.Instance{Server: "typescript-language-server", Root: "web/app"}},
+		{"web/server.js", lang.Instance{Server: "tsgo", Root: "web"}},
+		{"web/app/page.tsx", lang.Instance{Server: "tsgo", Root: "web/app"}},
 		{"web/index.html", lang.Instance{Server: "vscode-html-language-server", Root: "."}},
 		{"api/src/index.php", lang.Instance{Server: "intelephense", Root: "api"}},
 		{"py/pkg/mod.py", lang.Instance{Server: "pyright", Root: "py"}},
@@ -56,7 +56,7 @@ func TestJavaScriptAndTypeScriptOfOneWorkspaceShareAnInstance(t *testing.T) {
 		all = append(all, i)
 	}
 	for _, i := range all {
-		assert.Equal(t, lang.Instance{Server: "typescript-language-server", Root: "web"}, i)
+		assert.Equal(t, lang.Instance{Server: "tsgo", Root: "web"}, i)
 	}
 }
 

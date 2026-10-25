@@ -49,13 +49,16 @@ and syntax colours work without it.
 |---|---|---|
 | `.go` | gopls | `go install golang.org/x/tools/gopls@latest` |
 | `.rs` | rust-analyzer | `rustup component add rust-analyzer` |
-| `.js` `.mjs` `.cjs` `.ts` `.mts` `.cts` `.jsx` `.tsx` | typescript-language-server | `npm install -g typescript-language-server typescript` |
+| `.js` `.mjs` `.cjs` `.ts` `.mts` `.cts` `.jsx` `.tsx` | tsgo (`tsc --lsp --stdio`) | `npm install -g typescript@7` |
 | `.html` `.htm` | vscode-html-language-server | `npm install -g vscode-langservers-extracted` |
 | `.php` | intelephense | `npm install -g intelephense` |
 | `.py` `.pyi` | pyright | `npm install -g pyright` |
 
-The npm servers need Node.js on the `PATH`. typescript-language-server uses
-the project's own `typescript` package when it has one. pyright finds the
+The npm servers need Node.js on the `PATH`. tsgo is TypeScript 7's native
+compiler; a `tsc` older than TypeScript 7 on the `PATH` has no `--lsp` and
+fails to start. In a comparison of commits the servers read a checkout that
+holds only tracked files: without `node_modules` or `vendor/` they answer
+about the project's own code, not about its packages. pyright finds the
 packages of a project only in the Python environment it is told about; see
 `settings` below.
 
@@ -79,12 +82,12 @@ args = ["serve"]
 root_markers = ["go.work", "go.mod"]
 
 # Off: no hover for its languages.
-[servers.intelephense]
+[servers.vscode-html-language-server]
 enabled = false
 
 # Sent with initialize, unread by seam.
-[servers.typescript-language-server.initialization_options]
-preferences = { includeInlayParameterNameHints = "none" }
+[servers.intelephense.initialization_options]
+storagePath = "/tmp/intelephense"
 
 # Answers to workspace/configuration, by section: here the
 # Python environment pyright resolves imports in.
@@ -95,7 +98,7 @@ pythonPath = ".venv/bin/python"
 [languages.typescript]
 extensions = [".ts", ".mts", ".cts"]
 language_id = "typescript"
-server = "typescript-language-server"
+server = "tsgo"
 
 # A new language: its name is the chroma lexer's.
 [servers.vue-language-server]
