@@ -20,6 +20,9 @@ type state struct {
 	// is shown. ReloadGen is the same for the changeset.
 	LoadGen   filediff.Gen
 	ReloadGen change.Gen
+	// ShownGen is the generation of the snapshot shown: behind LoadGen
+	// while an answer is still to come, as for a reload.
+	ShownGen filediff.Gen
 
 	// Snapshot is the current file once Loaded, and empty before.
 	Snapshot filediff.Snapshot
@@ -39,6 +42,9 @@ type state struct {
 	Hover hoverState
 	// Caret is the keyboard's cursor in a pane, for hovers.
 	Caret caret
+	// Stream shows every file at once while On; Current, Snapshot, Loaded
+	// and LSP then follow the file at its top, and Lines and Pos are unused.
+	Stream streamState
 
 	// Context is how many unchanged rows the hunk view keeps around a
 	// change, and Keys what each key does; both are the user's settings.
@@ -77,6 +83,9 @@ func newState(cs change.Changeset, set ui.Settings) state {
 	s.setKeys(set.Keys)
 	s.setFiles(cs.Files)
 	s.place(0, 0)
+	if set.View == ui.StreamView {
+		s.enterStream()
+	}
 	return s
 }
 

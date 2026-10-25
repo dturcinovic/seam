@@ -7,6 +7,13 @@ It knows nothing of the terminal: no widths, colours or keys.
 
 FUNCTIONS
 
+func Estimate(counts change.LineCounts, m Mode, context int) int
+    Estimate is how many lines a file of counts is likely to show in mode m with
+    context rows around each change. It may be wrong either way: without the
+    unchanged rows the full view comes out short, and blocks that share their
+    context make the hunk view shorter. A file git counts nothing for gets one
+    line.
+
 func LineFor(lines []Line, row int, h Half) int
     LineFor is the index of the line that shows half h of row; for a row that
     shows whole or is folded, and for a half the row lacks, it is LineForRow.
@@ -100,4 +107,103 @@ func Switch(lines []Line, pos Pos, height int) Pos
     Switch places a view whose lines changed, after a change of mode or context
     or layout: the anchor stays, and the top line becomes the one that holds it,
     within the bounds of the lines.
+
+type Spot int
+    Spot is what a line of a stream shows, and so what its anchor holds.
+
+const (
+	// OnHead is the header line of a file.
+	OnHead Spot = iota
+	// OnRow is a line of a file that is laid out.
+	OnRow
+	// OnGuess is a line of a file that is not laid out yet, standing in for
+	// lines of unknown rows.
+	OnGuess
+)
+    The spots of a stream. The zero value is the header, so that StreamPos{}
+    stands at the top of the stream.
+
+type Stream struct {
+	// Has unexported fields.
+}
+    Stream lays out the files of a changeset one below the other, each as a
+    header line and then its lines, or an estimate of their number while it is
+    not laid out. The zero value has no files.
+
+func NewStream(estimates []int) *Stream
+    NewStream is a stream of files none of which is laid out, file i with
+    estimates[i] lines below its header; a negative estimate counts as none.
+
+func (s *Stream) At(i int) StreamLine
+    At is the line at index i of the stream, which must not be empty; an index
+    outside it gives the nearest line.
+
+func (s *Stream) End(file int) int
+    End is the index of the line after file, which must be a file of the stream.
+
+func (s *Stream) Files() int
+    Files is the number of files in the stream.
+
+func (s *Stream) Forget(file int)
+    Forget drops the lines of file and keeps their number as its estimate,
+    so that the stream keeps its length and the scroll bar its marks.
+
+func (s *Stream) Index(l StreamLine) int
+    Index is the index in the stream of l, the inverse of At.
+
+func (s *Stream) Lay(file int, lines []Line)
+    Lay gives file its lines; a file index outside the stream is ignored.
+
+func (s *Stream) Len() int
+    Len is the number of lines in the stream.
+
+func (s *Stream) Lines(file int) ([]Line, bool)
+    Lines is the lines of file and whether it is laid out.
+
+func (s *Stream) Navigate(pos StreamPos, scroll, height int) StreamPos
+    Navigate moves the top line to scroll, within the bounds of the stream, and
+    anchors the stream at the new top line; pos must be placed on this stream.
+    As in Navigate of a single file, the anchor stays when nothing moved or a
+    fold at the top holds it.
+
+func (s *Stream) Start(file int) int
+    Start is the index of the header line of file, which must be a file of the
+    stream.
+
+func (s *Stream) Switch(pos StreamPos, height int) StreamPos
+    Switch places a stream whose lines changed, after a file was laid out or
+    forgotten, or a change of mode or context or layout: the anchor stays,
+    and the top line becomes the one that holds it, within the bounds of the
+    stream. A guess in a file that is laid out now becomes the row of its line.
+    A file past the end gives the last one.
+
+type StreamLine struct {
+	File int
+	Spot Spot
+	Line int
+}
+    StreamLine is one line of a stream: the header of File, or its line Line,
+    an index into its lines with OnRow and into its estimate with OnGuess.
+
+type StreamPos struct {
+	File       int
+	Spot       Spot
+	AnchorRow  int
+	AnchorHalf Half
+	Scroll     int
+}
+    StreamPos is where a stream stands. File, Spot, AnchorRow and AnchorHalf are
+    the anchor: with OnRow a row and its half as in Pos, with OnGuess a line of
+    the file's estimate, which Switch turns into a row once the file is laid
+    out. Scroll is the index of the top line of the whole stream.
+
+func StreamPosFor(file int, pos Pos) StreamPos
+    StreamPosFor is the place in a stream of pos in file: its anchor on top,
+    or the file's header if pos stands at the top of the file, so that the
+    header shows what the single file view shows above its first line.
+
+func (p StreamPos) FilePos() Pos
+    FilePos is the anchor of p in its file, for the single file view to Switch
+    to. A header stands for the first row; a guess for the row of the same
+    index, the best there is before the file is laid out.
 

@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"seam/internal/domain/change"
 	"seam/internal/domain/diff"
 	"seam/internal/domain/view"
 )
@@ -18,22 +19,77 @@ func changeMarks(d diff.FileDiff, lines []view.Line, body int) []tone {
 	if len(d.Changes) == 0 || len(lines) == 0 {
 		return nil
 	}
-	out := make([]tone, body)
-	n := max(len(lines), body)
-	cell := func(line int) int { return line * body / n }
+	m := newMarks(len(lines), body)
+	m.blocks(d, lines, 0)
+	return m.out
+}
+
+// streamMarks are changeMarks over every file of the stream: a file laid
+// out marks its blocks, one that is not its stand-in lines in the tone
+// its counts give.
+func streamMarks(s *state, body int) []tone {
+	st := s.Stream.View
+	if st.Len() == 0 {
+		return nil
+	}
+	m := newMarks(st.Len(), body)
+	for f := range st.Files() {
+		first, last := st.Start(f)+1, st.End(f)-1
+		if lines, laid := st.Lines(f); laid {
+			if len(lines) > 0 {
+				m.blocks(s.snapOf(f).Diff, lines, first)
+			}
+			continue
+		}
+		if t := countsTone(s.Files[f].Counts); t != equalTone && first <= last {
+			m.span(first, last, t)
+		}
+	}
+	return m.out
+}
+
+// marks are the cells of a scrollbar of body cells beside n lines.
+type marks struct {
+	out     []tone
+	n, body int
+}
+
+func newMarks(n, body int) marks {
+	return marks{out: make([]tone, body), n: max(n, body), body: body}
+}
+
+// blocks marks the change blocks of d, laid out as lines from line start.
+func (m marks) blocks(d diff.FileDiff, lines []view.Line, start int) {
 	for _, c := range d.Changes {
-		t := blockTone(d.Rows[c.Start:c.End])
 		// The block ends before the line of the row after it: the unified
 		// view shows new halves after its last row's old one.
 		last := len(lines) - 1
 		if c.End < len(d.Rows) {
 			last = view.LineForRow(lines, c.End) - 1
 		}
-		for i := cell(view.LineForRow(lines, c.Start)); i <= cell(last); i++ {
-			out[i] = merge(out[i], t)
-		}
+		m.span(start+view.LineForRow(lines, c.Start), start+last, blockTone(d.Rows[c.Start:c.End]))
 	}
-	return out
+}
+
+// span marks the cells beside lines first to last in tone t.
+func (m marks) span(first, last int, t tone) {
+	for i := first * m.body / m.n; i <= last*m.body/m.n; i++ {
+		m.out[i] = merge(m.out[i], t)
+	}
+}
+
+// countsTone is the tone of a file git counted: inserted or deleted if it
+// only gains or loses lines, else changed.
+func countsTone(c change.LineCounts) tone {
+	switch {
+	case !c.Known || c.Added == 0 && c.Deleted == 0:
+		return equalTone
+	case c.Deleted == 0:
+		return insertedTone
+	case c.Added == 0:
+		return deletedTone
+	}
+	return changedTone
 }
 
 // blockTone is deleted for a block that only deletes, inserted for one that

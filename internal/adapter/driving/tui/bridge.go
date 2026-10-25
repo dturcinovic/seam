@@ -35,6 +35,9 @@ func (b *bridge) start(send func(tea.Msg), p Ports) error {
 	if err := b.watch("file diffs", p.Files.Signal(), send, fileDiffsReady{}); err != nil {
 		return err
 	}
+	if err := b.watch("stream", p.Stream.Signal(), send, streamReady{}); err != nil {
+		return err
+	}
 	if err := b.watch("changeset", p.Reload.Signal(), send, changesetReady{}); err != nil {
 		return err
 	}

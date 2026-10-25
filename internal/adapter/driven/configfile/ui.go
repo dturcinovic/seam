@@ -16,6 +16,7 @@ type uiEntry struct {
 	HoverDelay    *string `toml:"hover_delay"`
 	Layout        *string `toml:"layout"`
 	SplitMinWidth *int    `toml:"split_min_width"`
+	View          *string `toml:"view"`
 }
 
 // settings lays the ui, colors and keys sections over the defaults, the
@@ -41,6 +42,11 @@ func (d document) settings() (ui.Settings, error) {
 	if d.UI.Layout != nil {
 		if s.Layout, err = ui.ParseLayout(*d.UI.Layout); err != nil {
 			return ui.Settings{}, fmt.Errorf("ui.layout: %w", err)
+		}
+	}
+	if d.UI.View != nil {
+		if s.View, err = ui.ParseView(*d.UI.View); err != nil {
+			return ui.Settings{}, fmt.Errorf("ui.view: %w", err)
 		}
 	}
 	if s, err = ui.NewSettings(s); err != nil {

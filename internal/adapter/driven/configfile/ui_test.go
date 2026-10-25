@@ -28,6 +28,7 @@ context_lines = 0
 hover_delay = "1s"
 layout = "unified"
 split_min_width = 0
+view = "stream"
 
 [colors]
 inserted_bg = "#d7f5dd"
@@ -46,6 +47,7 @@ reload = []
 	assert.Equal(t, time.Second, f.UI.HoverDelay)
 	assert.Equal(t, ui.UnifiedLayout, f.UI.Layout)
 	assert.Equal(t, 0, f.UI.SplitMinWidth)
+	assert.Equal(t, ui.StreamView, f.UI.View)
 	assert.Equal(t, []string{"ctrl+n", "n"}, f.UI.Keys.Keys(ui.NextChange))
 	assert.Empty(t, f.UI.Keys.Keys(ui.Reload))
 	assert.Equal(t, []string{"p"}, f.UI.Keys.Keys(ui.PrevChange))
@@ -76,6 +78,7 @@ func TestBadSettingsNameTheirKey(t *testing.T) {
 		"hover_delay 10s":          `ui.hover_delay = "10s"`,
 		"context_lines -1":         `ui.context_lines = -1`,
 		"ui.layout":                `ui.layout = "stacked"`,
+		"ui.view":                  `ui.view = "all"`,
 		"split_min_width 1001":     `ui.split_min_width = 1001`,
 		"colors.inserted":          `colors.inserted = "#000000"`,
 		"colors.inserted_bg":       `colors.inserted_bg = "green"`,

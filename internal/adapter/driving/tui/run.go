@@ -16,6 +16,7 @@ import (
 // Ports are the incoming ports the TUI calls while it runs.
 type Ports struct {
 	Files  in.FileDiffLoader
+	Stream in.StreamLoader
 	Reload in.ChangesetReloader
 	Docs   in.DocumentTracker
 	LSP    in.LSPUpdates

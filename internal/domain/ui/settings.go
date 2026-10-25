@@ -54,6 +54,38 @@ func ParseLayout(name string) (Layout, error) {
 	return 0, fmt.Errorf("%w: layout %q, want one of %q", ErrInvalidSetting, name, names)
 }
 
+// View is what the viewer shows of the files.
+type View uint8
+
+// The views. FileView shows one file at a time, StreamView all of them
+// one below the other.
+const (
+	FileView View = iota
+	StreamView
+	views
+)
+
+func viewNames() [views]string {
+	return [views]string{FileView: "file", StreamView: "stream"}
+}
+
+// String is the name of v in the configuration file.
+func (v View) String() string {
+	if v < views {
+		return viewNames()[v]
+	}
+	return fmt.Sprintf("View(%d)", uint8(v))
+}
+
+// ParseView is the view named name.
+func ParseView(name string) (View, error) {
+	names := viewNames()
+	if i := slices.Index(names[:], name); i >= 0 {
+		return View(i), nil
+	}
+	return 0, fmt.Errorf("%w: view %q, want one of %q", ErrInvalidSetting, name, names)
+}
+
 // Settings are how the viewer looks and takes keys. The zero value is not
 // valid; use NewSettings or DefaultSettings.
 type Settings struct {
@@ -70,6 +102,8 @@ type Settings struct {
 	// SplitMinWidth is the narrowest diff, in columns, that AutoLayout
 	// shows side by side; zero never unifies.
 	SplitMinWidth int
+	// View is the view the viewer starts in.
+	View View
 }
 
 // NewSettings checks the bounds of s and returns it.
@@ -81,6 +115,8 @@ func NewSettings(s Settings) (Settings, error) {
 		return Settings{}, fmt.Errorf("%w: hover_delay %s, want 0 to %s", ErrInvalidSetting, s.HoverDelay, MaxHoverDelay)
 	case s.Layout >= layouts:
 		return Settings{}, fmt.Errorf("%w: no layout %s", ErrInvalidSetting, s.Layout)
+	case s.View >= views:
+		return Settings{}, fmt.Errorf("%w: no view %s", ErrInvalidSetting, s.View)
 	case s.SplitMinWidth < 0 || s.SplitMinWidth > MaxSplitMinWidth:
 		return Settings{}, fmt.Errorf("%w: split_min_width %d, want 0 to %d", ErrInvalidSetting, s.SplitMinWidth, MaxSplitMinWidth)
 	}

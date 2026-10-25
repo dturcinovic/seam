@@ -21,34 +21,35 @@ type sideLine struct {
 	points []filediff.Checkpoint
 }
 
-// writeRow writes one line of the view: both panes, the unified one, or a
-// fold across them.
-func writeRow(b *strings.Builder, s *state, th *theme, l view.Line) {
-	ln := newLine(b, th, s.Cells, s.Layout.panes())
+// writeRow writes one line of file's view: both panes, the unified one, or
+// a fold across them.
+func writeRow(b *strings.Builder, s *state, th *theme, file int, l view.Line) {
+	lay := s.layoutOf(file)
+	ln := newLine(b, th, s.Cells, lay.panes())
 	if l.Fold {
-		ln.spaces(s.Layout.gutter(), foldStyle)
+		ln.spaces(lay.gutter(), foldStyle)
 		ln.text("⋯ ", foldStyle)
 		ln.number(l.Rows.End-l.Rows.Start, 0, foldStyle)
 		ln.text(" unchanged lines", foldStyle)
 		ln.end(foldStyle)
 		return
 	}
-	if s.Layout.Unified {
-		writeUnified(&ln, s, l)
+	if lay.Unified {
+		writeUnified(&ln, s, lay, file, l)
 		return
 	}
-	left, right := sides(s.Snapshot, l.Rows.Start)
-	writePane(&ln, s.Layout.Left, left, s.HScroll, s.caretOn(l.Rows.Start, filediff.OldSide))
+	left, right := sides(s.snapOf(file), l.Rows.Start)
+	writePane(&ln, lay.Left, left, s.HScroll, s.caretOn(file, l.Rows.Start, filediff.OldSide))
 	ln.text("│", separatorStyle)
-	writePane(&ln, s.Layout.Right, right, s.HScroll, s.caretOn(l.Rows.Start, filediff.NewSide))
+	writePane(&ln, lay.Right, right, s.HScroll, s.caretOn(file, l.Rows.Start, filediff.NewSide))
 	ln.end(plain)
 }
 
 // writeUnified writes a line of the unified view: the old line number,
 // then a pane of the line's side with the new one. A changed row's halves
 // take the tones of a deletion and an insertion, as their words are marked.
-func writeUnified(ln *line, s *state, l view.Line) {
-	left, right := sides(s.Snapshot, l.Rows.Start)
+func writeUnified(ln *line, s *state, lay layout, file int, l view.Line) {
+	left, right := sides(s.snapOf(file), l.Rows.Start)
 	sl, old := right, left.index
 	// A whole row shows the caret from either side: it keeps the side it
 	// had side by side.
@@ -61,14 +62,14 @@ func writeUnified(ln *line, s *state, l view.Line) {
 		w, sl, old = filediff.NewSide, right, -1
 		sl.tone, sl.mark = insertedTone, "+"
 	case view.Whole:
-		if s.halfSide(l) == filediff.OldSide {
+		if s.halfSide(file, l) == filediff.OldSide {
 			sl.text, sl.points, sl.runs = left.text, left.points, left.runs
 		}
 	}
 	gutter := paneStyle(sl.tone, gutterRole)
 	ln.spaces(1, gutter)
-	writeNumber(ln, old, s.Layout.Left.Digits, gutter)
-	writePane(ln, pane{Width: ln.free, Digits: s.Layout.Right.Digits}, sl, s.HScroll, s.caretOn(l.Rows.Start, w))
+	writeNumber(ln, old, lay.Left.Digits, gutter)
+	writePane(ln, pane{Width: ln.free, Digits: lay.Right.Digits}, sl, s.HScroll, s.caretOn(file, l.Rows.Start, w))
 	ln.end(plain)
 }
 
@@ -81,15 +82,15 @@ func writeNumber(ln *line, index, digits int, st style) {
 	ln.number(index+1, digits, st)
 }
 
-// caretOn is the caret if it is on side w of row, else none.
-func (s *state) caretOn(row int, w filediff.Which) caret {
+// caretOn is the caret if it is on side w of row of file, else none.
+func (s *state) caretOn(file, row int, w filediff.Which) caret {
 	c := s.Caret
-	c.On = c.On && c.Row == row && c.Side == w
+	c.On = c.On && c.File == file && c.Row == row && c.Side == w
 	return c
 }
 
 // sides is how row i of snap shows on either side.
-func sides(snap filediff.Snapshot, i int) (left, right sideLine) {
+func sides(snap *filediff.Snapshot, i int) (left, right sideLine) {
 	d := snap.Diff
 	row := d.Rows[i]
 	left, right = sideLine{index: row.Left, mark: " "}, sideLine{index: row.Right, mark: " "}

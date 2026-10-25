@@ -18,7 +18,8 @@ import (
 var Module = fx.Module("usecase",
 	fx.Provide(
 		fx.Annotate(newChangesets, fx.As(new(in.ChangesetLoader)), fx.As(new(in.ChangesetReloader))),
-		fx.Annotate(newFileDiffs, fx.As(new(in.FileDiffLoader))),
+		fx.Annotate(newFileDiffs, fx.As(new(in.FileDiffLoader)), fx.As(fx.Self())),
+		fx.Annotate(newStreams, fx.As(new(in.StreamLoader))),
 		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 		fx.Annotate(newWatches, fx.As(new(in.WatchStarter)), fx.As(new(in.WatchUpdates))),
 	),
@@ -38,6 +39,12 @@ func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, st ou
 	f := NewFileDiffs(b, w, st, h, languages, max, panics)
 	runWorker(lc, f)
 	return f
+}
+
+func newStreams(lc fx.Lifecycle, f *FileDiffs, panics supervise.PanicFunc) *Streams {
+	s := NewStreams(f, panics)
+	runWorker(lc, s)
+	return s
 }
 
 // runWorker runs a use case's worker from start to stop.

@@ -16,7 +16,7 @@ type Pos struct {
 // context or layout: the anchor stays, and the top line becomes the one
 // that holds it, within the bounds of the lines.
 func Switch(lines []Line, pos Pos, height int) Pos {
-	pos.Scroll = clampScroll(lines, LineFor(lines, pos.AnchorRow, pos.AnchorHalf), height)
+	pos.Scroll = clampScroll(len(lines), LineFor(lines, pos.AnchorRow, pos.AnchorHalf), height)
 	return pos
 }
 
@@ -29,7 +29,7 @@ func Navigate(lines []Line, pos Pos, scroll, height int) Pos {
 	if len(lines) == 0 {
 		return Pos{AnchorRow: pos.AnchorRow}
 	}
-	scroll = clampScroll(lines, scroll, height)
+	scroll = clampScroll(len(lines), scroll, height)
 	moved := scroll != pos.Scroll
 	pos.Scroll = scroll
 	if top := lines[scroll]; moved && (!top.Fold || !top.Contains(pos.AnchorRow)) {
@@ -38,9 +38,10 @@ func Navigate(lines []Line, pos Pos, scroll, height int) Pos {
 	return pos
 }
 
-// clampScroll keeps the last page full: the top line stops where the last
-// line reaches the bottom of height lines. Only Scroll is bounded, never the
-// anchor, so that a view that is shorter for a while gives the place back.
-func clampScroll(lines []Line, scroll, height int) int {
-	return max(min(scroll, len(lines)-max(height, 1)), 0)
+// clampScroll keeps the last page full: the top line of n stops where the
+// last line reaches the bottom of height lines. Only Scroll is bounded,
+// never the anchor, so that a view that is shorter for a while gives the
+// place back.
+func clampScroll(n, scroll, height int) int {
+	return max(min(scroll, n-max(height, 1)), 0)
 }

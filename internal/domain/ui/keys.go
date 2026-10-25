@@ -32,6 +32,7 @@ const (
 	Reload
 	ToggleView
 	ToggleLayout
+	ToggleStream
 	NextChange
 	PrevChange
 	NextFile
@@ -113,7 +114,7 @@ func actionNames() [Actions]string {
 		Down: "down", Up: "up", HalfPageDown: "half_page_down", HalfPageUp: "half_page_up",
 		PageDown: "page_down", PageUp: "page_up", Top: "top", Bottom: "bottom",
 		Quit: "quit", Reload: "reload", ToggleView: "toggle_view", ToggleLayout: "toggle_layout",
-		NextChange: "next_change", PrevChange: "prev_change", NextFile: "next_file", PrevFile: "prev_file",
+		ToggleStream: "toggle_stream", NextChange: "next_change", PrevChange: "prev_change", NextFile: "next_file", PrevFile: "prev_file",
 		ScrollLeft: "scroll_left", ScrollRight: "scroll_right", ToggleFiles: "toggle_files", StartCaret: "start_caret",
 		Open: "open", Back: "back", PrevFolder: "prev_folder", NextFolder: "next_folder",
 		LeaveCaret: "leave_caret", CaretDown: "caret_down", CaretUp: "caret_up",
@@ -128,7 +129,7 @@ func defaultKeys() [Actions][]string {
 		Down: {"j", "down"}, Up: {"k", "up"}, HalfPageDown: {"ctrl+d"}, HalfPageUp: {"ctrl+u"},
 		PageDown: {"pgdown", "space"}, PageUp: {"pgup"}, Top: {"g", "home"}, Bottom: {"G", "end"},
 		Quit: {"q", "esc", "ctrl+c"}, Reload: {"r"}, ToggleView: {"f"}, ToggleLayout: {"u"},
-		NextChange: {"n"}, PrevChange: {"p"}, NextFile: {"tab", "]"}, PrevFile: {"shift+tab", "["},
+		ToggleStream: {"s"}, NextChange: {"n"}, PrevChange: {"p"}, NextFile: {"tab", "]"}, PrevFile: {"shift+tab", "["},
 		ScrollLeft: {"h", "left"}, ScrollRight: {"l", "right"}, ToggleFiles: {"b"}, StartCaret: {"i"},
 		Open: {"enter"}, Back: {"esc"}, PrevFolder: {"["}, NextFolder: {"]"},
 		LeaveCaret: {"i", "esc"}, CaretDown: {"j", "down"}, CaretUp: {"k", "up"},

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"container/list"
+	"sync"
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
@@ -26,9 +27,11 @@ type cached struct {
 	late     bool
 }
 
-// cache keeps the most recently used file diffs within its bounds. Only the
-// worker uses it, so it has no lock.
+// cache keeps the most recently used file diffs within its bounds. The
+// workers of FileDiffs and Streams share it; its lock is never held
+// across I/O.
 type cache struct {
+	mu      sync.Mutex
 	entries *lru[change.ChangedFile, *cached]
 }
 
@@ -36,11 +39,17 @@ func newCache(maxEntries int, maxBytes int64) *cache {
 	return &cache{entries: newLRU[change.ChangedFile, *cached](maxEntries, maxBytes)}
 }
 
-func (c *cache) get(f change.ChangedFile) (*cached, bool) { return c.entries.get(f) }
+func (c *cache) get(f change.ChangedFile) (*cached, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.entries.get(f)
+}
 
 // put stores e. An entry larger than the whole budget is not kept: it would
 // evict everything else and itself.
 func (c *cache) put(e *cached) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if e.size > c.entries.maxBytes {
 		c.entries.remove(e.snapshot.File)
 		return
@@ -48,7 +57,11 @@ func (c *cache) put(e *cached) {
 	c.entries.put(e.snapshot.File, e, e.size)
 }
 
-func (c *cache) remove(f change.ChangedFile) { c.entries.remove(f) }
+func (c *cache) remove(f change.ChangedFile) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries.remove(f)
+}
 
 // lru keeps values by key within a count and a sum of their sizes, the
 // least recently used going first. It has no lock; its owner has one or

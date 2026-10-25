@@ -3,14 +3,16 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"seam/internal/supervise"
 )
 
 // worker runs the jobs of one use case on a single goroutine. A request
-// replaces the one still waiting, so a burst of requests leaves at most one
-// job running and one waiting. Updates wait until drained; the signal is set
+// replaces those still waiting, so a burst of requests leaves one job
+// running and at most what the last one asked for waiting: one request
+// from submit, or the list from want, run in order. Updates wait until drained; the signal is set
 // after each one is published, never blocking. A use case embeds it for
 // Start, Stop, Signal and Drain.
 type worker[R, U any] struct {
@@ -28,7 +30,7 @@ type worker[R, U any] struct {
 	signal chan struct{}
 
 	mu      sync.Mutex
-	waiting *R
+	waiting []R
 	running *R
 	cancel  context.CancelFunc
 	updates []U
@@ -81,9 +83,33 @@ func (w *worker[R, U]) submit(r R) {
 		w.publishLocked(w.failedUpdate(r, w.err))
 		return
 	}
-	w.waiting = &r
+	w.waiting = []R{r}
 	if w.running != nil && w.supersedes(*w.running, r) {
 		w.cancel()
+	}
+	notify(w.wake)
+}
+
+// want replaces the waiting requests with rs, to run in order. The running
+// job goes on if rs holds a request same as it, which is then not run
+// again; otherwise it is cancelled.
+func (w *worker[R, U]) want(rs []R, same func(running, r R) bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.err != nil {
+		for _, r := range rs {
+			w.publishLocked(w.failedUpdate(r, w.err))
+		}
+		return
+	}
+	// A copy, as the caller may reuse rs.
+	w.waiting = slices.Clone(rs)
+	if w.running != nil {
+		running := *w.running
+		w.waiting = slices.DeleteFunc(w.waiting, func(r R) bool { return same(running, r) })
+		if len(w.waiting) == len(rs) {
+			w.cancel()
+		}
 	}
 	notify(w.wake)
 }
@@ -93,9 +119,7 @@ func (w *worker[R, U]) submit(r R) {
 func (w *worker[R, U]) drop(match func(R) bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.waiting != nil && match(*w.waiting) {
-		w.waiting = nil
-	}
+	w.waiting = slices.DeleteFunc(w.waiting, match)
 	if w.running != nil && match(*w.running) {
 		w.cancel()
 	}
@@ -124,16 +148,16 @@ func (w *worker[R, U]) loop(ctx context.Context) {
 // nothing: it was superseded, or the worker is stopping.
 func (w *worker[R, U]) runNext(ctx context.Context) bool {
 	w.mu.Lock()
-	r := w.waiting
-	if r == nil {
+	if len(w.waiting) == 0 {
 		w.mu.Unlock()
 		return false
 	}
+	r := w.waiting[0]
 	jobCtx, cancel := context.WithCancel(ctx)
-	w.waiting, w.running, w.cancel = nil, r, cancel
+	w.waiting, w.running, w.cancel = w.waiting[1:], &r, cancel
 	w.mu.Unlock()
 
-	u := w.do(jobCtx, *r)
+	u := w.do(jobCtx, r)
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -145,16 +169,17 @@ func (w *worker[R, U]) runNext(ctx context.Context) bool {
 	return true
 }
 
-// fail answers the running and the waiting request with the failure, and
+// fail answers the running and the waiting requests with the failure, and
 // every later one, as the group runs no more jobs.
 func (w *worker[R, U]) fail(f supervise.Failure) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.err = fmt.Errorf("%w: %v", w.failedErr, f.Value)
-	for _, r := range []*R{w.running, w.waiting} {
-		if r != nil {
-			w.publishLocked(w.failedUpdate(*r, w.err))
-		}
+	if w.running != nil {
+		w.publishLocked(w.failedUpdate(*w.running, w.err))
+	}
+	for _, r := range w.waiting {
+		w.publishLocked(w.failedUpdate(r, w.err))
 	}
 	w.running, w.waiting = nil, nil
 }

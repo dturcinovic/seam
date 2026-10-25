@@ -117,7 +117,7 @@ func TestAFailedCheckoutShowsInTheFooter(t *testing.T) {
 
 	assert.True(t, strings.HasSuffix(footerLine(m), "HEAD: checkout failed"), footerLine(m))
 	assert.False(t, m.s.Hover.Waiting, "nothing to wait for")
-	assert.False(t, m.s.sideHoverable(filediff.OldSide))
+	assert.False(t, m.s.sideHoverable(0, filediff.OldSide))
 }
 
 func TestTheCaretGoesToTheOtherSide(t *testing.T) {
@@ -132,8 +132,8 @@ func TestTheCaretGoesToTheOtherSide(t *testing.T) {
 
 	require.Equal(t, 1, f.hover.HoverCallCount())
 	assert.Equal(t, hover.Position{Req: 1, Commit: baseCommit(t), Path: "a.go", Version: 1, Line: 0, Byte: 1}, f.hover.HoverArgsForCall(0))
-	assert.True(t, m.s.caretOn(0, filediff.OldSide).On, "drawn on the left")
-	assert.False(t, m.s.caretOn(0, filediff.NewSide).On, "not on the right")
+	assert.True(t, m.s.caretOn(0, 0, filediff.OldSide).On, "drawn on the left")
+	assert.False(t, m.s.caretOn(0, 0, filediff.NewSide).On, "not on the right")
 	m, _ = typed(m, "o")
 	assert.Equal(t, filediff.NewSide, m.s.Caret.Side)
 }

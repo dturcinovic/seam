@@ -13,23 +13,15 @@ import (
 // shown. Statuses come per instance, whether its file is shown or not, so
 // one shown again has its status at once.
 type lspState struct {
-	// Left and Right are the instances that serve the sides of the file
-	// shown; zero for none, which has no status.
-	Left, Right lang.Instance
+	// servers serve the sides of the single file shown; zero for none,
+	// which has no status. The stream keeps those of each file it holds.
+	servers
 	// Side is the side asked about last, whose server the footer names.
 	Side   filediff.Which
 	Status map[lang.Instance]hover.ServerStatus
 	// Checkouts are how far the checkouts of commits have come, whose
 	// documents have no server before.
 	Checkouts map[change.ObjectID]hover.ServerStatus
-}
-
-// shown is the instance that serves side w.
-func (l *lspState) shown(w filediff.Which) lang.Instance {
-	if w == filediff.OldSide {
-		return l.Left
-	}
-	return l.Right
 }
 
 // track tells the servers of the file just shown: both its sides, or that
@@ -39,6 +31,16 @@ func (m *model) track() {
 	snap := &m.s.Snapshot
 	m.s.LSP.Left, m.s.LSP.Right = m.tracked(snap.LeftDoc), m.tracked(snap.RightDoc)
 	if path := snap.File.NewPath; snap.RightDoc.Path == "" && path != "" {
+		m.p.Docs.Untrack(hover.DocKey{Path: path})
+	}
+}
+
+// trackStream tells the servers of file of the stream, just loaded, as
+// track does for the file shown.
+func (m *model) trackStream(file int) {
+	h := m.s.Stream.Held[file]
+	h.servers = servers{m.tracked(h.snap.LeftDoc), m.tracked(h.snap.RightDoc)}
+	if path := h.snap.File.NewPath; h.snap.RightDoc.Path == "" && path != "" {
 		m.p.Docs.Untrack(hover.DocKey{Path: path})
 	}
 }
@@ -58,12 +60,22 @@ func (m *model) retrack(u hover.Update) {
 	if u.Kind != hover.CheckoutChanged || u.Status != hover.Ready {
 		return
 	}
-	snap := &m.s.Snapshot
-	if snap.LeftDoc.Commit == u.Commit {
-		m.s.LSP.Left = m.tracked(snap.LeftDoc)
+	if !m.s.Stream.On {
+		m.retrackFile(&m.s.Snapshot, &m.s.LSP.servers, u.Commit)
+		return
 	}
-	if snap.RightDoc.Commit == u.Commit {
-		m.s.LSP.Right = m.tracked(snap.RightDoc)
+	for _, h := range m.s.Stream.Held {
+		m.retrackFile(&h.snap, &h.servers, u.Commit)
+	}
+}
+
+// retrackFile asks for the servers of the sides of snap from commit.
+func (m *model) retrackFile(snap *filediff.Snapshot, sv *servers, commit change.ObjectID) {
+	if snap.LeftDoc.Commit == commit {
+		sv.Left = m.tracked(snap.LeftDoc)
+	}
+	if snap.RightDoc.Commit == commit {
+		sv.Right = m.tracked(snap.RightDoc)
 	}
 }
 
@@ -103,18 +115,32 @@ func (l *lspState) update(u hover.Update) {
 // hoverable says that a server may answer hovers over a side of the file
 // shown.
 func (s *state) hoverable() bool {
-	return s.sideHoverable(filediff.OldSide) || s.sideHoverable(filediff.NewSide)
+	if !s.Stream.On {
+		return s.fileHoverable(s.Current)
+	}
+	// Any file of the stream may be under the mouse, not only the top one.
+	for f := range s.Stream.Held {
+		if s.fileHoverable(f) {
+			return true
+		}
+	}
+	return false
 }
 
-// sideHoverable says that a server serves side w and is neither missing
-// nor failed, or may once w's commit is checked out, which a hover starts.
-func (s *state) sideHoverable(w filediff.Which) bool {
+func (s *state) fileHoverable(file int) bool {
+	return s.sideHoverable(file, filediff.OldSide) || s.sideHoverable(file, filediff.NewSide)
+}
+
+// sideHoverable says that a server serves side w of file and is neither
+// missing nor failed, or may once w's commit is checked out, which a hover
+// starts.
+func (s *state) sideHoverable(file int, w filediff.Which) bool {
 	l := &s.LSP
-	if inst := l.shown(w); inst != (lang.Instance{}) {
+	if inst := s.instanceOf(file, w); inst != (lang.Instance{}) {
 		st := l.Status[inst]
 		return st != hover.Missing && st != hover.ServerFailed
 	}
-	d := s.Snapshot.Doc(w)
+	d := s.snapOf(file).Doc(w)
 	st := l.Checkouts[d.Commit]
 	return d.Path != "" && !d.Commit.IsZero() && st != hover.Ready && st != hover.ServerFailed
 }
@@ -122,7 +148,8 @@ func (s *state) sideHoverable(w filediff.Which) bool {
 // named is the side whose server the footer names: the one asked about
 // last, the right one before, or the one with a document at all.
 func (s *state) named() filediff.Which {
-	if s.LSP.Side == filediff.OldSide && s.Snapshot.LeftDoc.Path != "" || s.Snapshot.RightDoc.Path == "" {
+	snap := s.snapOf(s.Current)
+	if s.LSP.Side == filediff.OldSide && snap.LeftDoc.Path != "" || snap.RightDoc.Path == "" {
 		return filediff.OldSide
 	}
 	return filediff.NewSide
@@ -135,7 +162,7 @@ func (s *state) named() filediff.Which {
 func lspText(s *state) string {
 	l := &s.LSP
 	w := s.named()
-	inst, doc := l.shown(w), s.Snapshot.Doc(w)
+	inst, doc := s.instanceOf(s.Current, w), s.snapOf(s.Current).Doc(w)
 	text := serverText(inst, l.Status[inst], doc)
 	if inst == (lang.Instance{}) && !doc.Commit.IsZero() {
 		text = checkoutText(l.Checkouts[doc.Commit])

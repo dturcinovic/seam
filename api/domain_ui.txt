@@ -58,6 +58,7 @@ const (
 	Reload
 	ToggleView
 	ToggleLayout
+	ToggleStream
 	NextChange
 	PrevChange
 	NextFile
@@ -234,6 +235,8 @@ type Settings struct {
 	// SplitMinWidth is the narrowest diff, in columns, that AutoLayout
 	// shows side by side; zero never unifies.
 	SplitMinWidth int
+	// View is the view the viewer starts in.
+	View View
 }
     Settings are how the viewer looks and takes keys. The zero value is not
     valid; use NewSettings or DefaultSettings.
@@ -243,4 +246,20 @@ func DefaultSettings() Settings
 
 func NewSettings(s Settings) (Settings, error)
     NewSettings checks the bounds of s and returns it.
+
+type View uint8
+    View is what the viewer shows of the files.
+
+const (
+	FileView View = iota
+	StreamView
+)
+    The views. FileView shows one file at a time, StreamView all of them one
+    below the other.
+
+func ParseView(name string) (View, error)
+    ParseView is the view named name.
+
+func (v View) String() string
+    String is the name of v in the configuration file.
 

@@ -40,17 +40,9 @@ type FileDiffs struct {
 	max         limits.FileSize
 	budget      time.Duration
 
-	// Only the worker touches these.
 	cache    *cache
 	seed     maphash.Seed
-	versions map[string]version
-}
-
-// version is the last text of a path's right side, by checksum, so a
-// reload can tell whether the text changed even after the cache dropped it.
-type version struct {
-	n   hover.DocVersion
-	sum uint64
+	versions *versions
 }
 
 // NewFileDiffs returns the use case over its ports. Its worker runs between
@@ -60,11 +52,14 @@ func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, s out.WorktreeStatter,
 		blobs: b, worktree: w, stats: s, highlighter: h, languages: languages, max: max, budget: diffBudget,
 		cache:    newCache(cacheEntries, cacheBytes),
 		seed:     maphash.MakeSeed(),
-		versions: make(map[string]version),
+		versions: newVersions(),
 	}
-	f.worker = newWorker("filediff", filediff.ErrLoaderFailed, panics, f.load, supersedes,
-		func(r filediff.Request, err error) filediff.Update { return filediff.Update{Gen: r.Gen, Err: err} })
+	f.worker = newWorker("filediff", filediff.ErrLoaderFailed, panics, f.load, supersedes, failedLoad)
 	return f
+}
+
+func failedLoad(r filediff.Request, err error) filediff.Update {
+	return filediff.Update{Gen: r.Gen, File: r.File, Err: err}
 }
 
 // supersedes cancels the running load for another file, or for a fresh
@@ -79,18 +74,18 @@ func (f *FileDiffs) Load(r filediff.Request) { f.submit(r) }
 func (f *FileDiffs) load(ctx context.Context, r filediff.Request) filediff.Update {
 	if !r.Fresh {
 		if s, ok := f.fromCache(ctx, r); ok {
-			return filediff.Update{Gen: r.Gen, Snapshot: s}
+			return filediff.Update{Gen: r.Gen, File: r.File, Snapshot: s}
 		}
 	}
 	e, err := f.compute(ctx, r)
 	if err != nil {
-		return filediff.Update{Gen: r.Gen, Err: err}
+		return filediff.Update{Gen: r.Gen, File: r.File, Err: err}
 	}
 	// Colours cut short by time are not kept: the next visit may have it.
 	if !e.late {
 		f.cache.put(e)
 	}
-	return filediff.Update{Gen: r.Gen, Snapshot: e.snapshot}
+	return filediff.Update{Gen: r.Gen, File: r.File, Snapshot: e.snapshot}
 }
 
 // fromCache returns the cached snapshot unless the worktree file has a new
@@ -112,7 +107,7 @@ func (f *FileDiffs) fromCache(ctx context.Context, r filediff.Request) (filediff
 	// The path may have had other text since, under another key: its
 	// version must not go back.
 	if r.ReadsWorktree() && s.RightDoc.Path != "" {
-		s.RightDoc.Version = f.version(r.File.NewPath, e.sum)
+		s.RightDoc.Version = f.versions.of(r.File.NewPath, e.sum)
 	}
 	return s, true
 }
@@ -179,7 +174,7 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	switch {
 	case r.ReadsWorktree():
 		e.sum = maphash.String(f.seed, new)
-		s.RightDoc = hover.Document{Path: s.File.NewPath, Lang: newLang, Version: f.version(s.File.NewPath, e.sum), Text: new}
+		s.RightDoc = hover.Document{Path: s.File.NewPath, Lang: newLang, Version: f.versions.of(s.File.NewPath, e.sum), Text: new}
 	case r.Comparison.Right.Kind() == change.KindCommit && s.File.NewPath != "":
 		s.RightDoc = hover.Document{Commit: r.Comparison.Right.ID(), Path: s.File.NewPath, Lang: newLang, Version: commitVersion, Text: new}
 	}
@@ -233,15 +228,4 @@ func asText(side filediff.Which, data []byte, err error) (string, *filediff.Noti
 		return "", n, err
 	}
 	return string(data), nil, nil
-}
-
-// version returns the path's version for the text with checksum sum,
-// raising it if the text differs from the last one shown.
-func (f *FileDiffs) version(path string, sum uint64) hover.DocVersion {
-	v, ok := f.versions[path]
-	if !ok || v.sum != sum {
-		v = version{n: v.n + 1, sum: sum}
-		f.versions[path] = v
-	}
-	return v.n
 }

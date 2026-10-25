@@ -280,6 +280,10 @@ func (s *state) scrollList(n int) {
 // unless it is open already, and gives the focus back to the diff.
 func (s *state) openCursor() (filediff.Request, bool) {
 	s.List.blur()
+	if s.Stream.On {
+		s.streamJump(s.List.Cursor)
+		return filediff.Request{}, false
+	}
 	if s.List.Cursor == s.Current {
 		return filediff.Request{}, false
 	}
