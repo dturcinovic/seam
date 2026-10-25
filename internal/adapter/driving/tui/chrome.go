@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
 	"seam/internal/domain/ui"
 	"seam/internal/domain/view"
@@ -106,6 +107,15 @@ func shownText(p string) string {
 	return strings.ReplaceAll(p, "\n", "␤")
 }
 
+// pathText is how the headers name f: a file renamed or copied names where
+// it comes from too.
+func pathText(f change.ChangedFile) string {
+	if f.OldPath != "" && f.NewPath != "" && f.OldPath != f.NewPath {
+		return shownText(f.OldPath) + " → " + shownText(f.NewPath)
+	}
+	return shownText(f.Path())
+}
+
 // header names the file, where it stands in the list, the view and how many
 // differences it has, as IntelliJ's diff does.
 func header(s *state) string {
@@ -120,7 +130,7 @@ func header(s *state) string {
 	if visit {
 		h = fmt.Sprintf("visit  %s  not changed", shownText(f.Path()))
 	} else {
-		h = fmt.Sprintf("%d/%d  %s %s  %s", s.Current+1, len(s.Files), f.Status, shownText(f.Path()), modeName(s.Mode))
+		h = fmt.Sprintf("%d/%d  %s %s  %s", s.Current+1, len(s.Files), f.Status, pathText(f), modeName(s.Mode))
 		if s.Layout.Unified {
 			h += " unified"
 		}
