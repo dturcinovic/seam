@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -16,10 +15,6 @@ import (
 	"github.com/dturcinovic/seam/internal/config"
 	"github.com/dturcinovic/seam/internal/domain/change"
 )
-
-// version is stamped by `task build`. A plain `go build` leaves it empty, and
-// the binary then reports the VCS revision instead of claiming a release.
-var version = "" //nolint:gochecknoglobals // set through -ldflags -X, which needs a variable
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -79,30 +74,4 @@ index or HEAD changes.`,
 	cmd.Flags().StringVar(&flags.MaxFileSize, "max-file-size", "", "largest side of a file to load, in bytes or with K, M or G (default 8M)")
 	cmd.Flags().StringVar(&flags.HeapProfile, "pprof", "", "write a heap profile to this file when seam ends")
 	return cmd
-}
-
-func versionString() string {
-	if version != "" {
-		return version
-	}
-	bi, ok := debug.ReadBuildInfo()
-	if !ok {
-		return "dev"
-	}
-	commit, modified := "", false
-	for _, s := range bi.Settings {
-		switch s.Key {
-		case "vcs.revision":
-			commit = s.Value
-		case "vcs.modified":
-			modified = s.Value == "true"
-		}
-	}
-	switch {
-	case commit == "":
-		return "dev"
-	case modified:
-		return commit + "-dirty"
-	}
-	return commit
 }

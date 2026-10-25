@@ -1,0 +1,42 @@
+version: 2
+
+project_name: seam
+
+builds:
+  - main: ./cmd/seam
+    binary: seam
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Tag }}
+    goos: [linux]
+    goarch: [amd64, arm64]
+
+archives:
+  - formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - README.md
+      - LICENSE
+      - docs/*.md
+
+checksum:
+  name_template: checksums.txt
+
+nfpms:
+  - package_name: seam
+    file_name_template: '{{ .ConventionalFileName }}'
+    vendor: Damir Turcinovic
+    maintainer: Damir Turcinovic <damir.turcinovic@googlemail.com>
+    homepage: https://github.com/dturcinovic/seam
+    description: Side-by-side diff viewer for the terminal with type info from the language server
+    license: MIT
+    formats: [deb, rpm]
+    dependencies:
+      - git
+
+changelog:
+  use: git
+  sort: asc
