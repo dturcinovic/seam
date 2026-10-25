@@ -27,7 +27,7 @@ func writeStreamLine(b *strings.Builder, s *state, th *theme, bl bodyLine) {
 func fileHead(s *state, file int) string {
 	f := s.Files[file]
 	var b strings.Builder
-	fmt.Fprintf(&b, " %s %s", f.Status, shownText(f.Path()))
+	fmt.Fprintf(&b, " %s %s", f.Status, pathText(f))
 	if f.Counts.Known {
 		fmt.Fprintf(&b, "  +%d -%d", f.Counts.Added, f.Counts.Deleted)
 	}

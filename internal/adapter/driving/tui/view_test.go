@@ -282,3 +282,11 @@ func TestASpanInsideAGraphemeMarksIt(t *testing.T) {
 	th := newTheme(ui.Dark())
 	assert.Contains(t, render(s, th), th.open[textStyle(changedTone, syntax.Plain, true)]+"👍")
 }
+
+func TestARenamedFileNamesWhereItComesFrom(t *testing.T) {
+	file := change.ChangedFile{Status: change.Renamed, OldPath: "daemon/lock.go", NewPath: "protocol/lock.go"}
+	s := shown(t, []change.ChangedFile{file}, 120, 5, filediff.Snapshot{})
+
+	assert.Contains(t, header(s), "R daemon/lock.go → protocol/lock.go")
+	assert.True(t, strings.HasPrefix(fileHead(s, 0), " R daemon/lock.go → protocol/lock.go"), "in the stream too")
+}
