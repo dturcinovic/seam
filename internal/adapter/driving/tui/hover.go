@@ -23,7 +23,8 @@ type hoverState struct {
 	Seq uint64
 	// LastReq is the last ReqID handed out; Inflight the one waited for,
 	// zero for none. Waiting is a request the server was not ready for,
-	// asked again once it is.
+	// asked again once it is, or that came back empty, asked again once
+	// the server's work ends.
 	LastReq  hover.ReqID
 	Inflight hover.ReqID
 	Waiting  bool
@@ -138,11 +139,12 @@ func (s *state) hoverSubmitted(sub hover.Submit) {
 
 // hoverUpdate takes news from the servers: the answer waited for opens
 // the popup, if it is about the text on screen; the server of the side
-// asked about, or its checkout, becoming ready makes retry ask again.
+// asked about, or its checkout, becoming ready makes retry ask again, as
+// does the end of its work for an answer that came empty.
 func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 	h := &s.Hover
 	switch u.Kind {
-	case hover.StatusChanged, hover.CheckoutChanged:
+	case hover.StatusChanged, hover.CheckoutChanged, hover.ProgressChanged:
 		if !h.Waiting {
 			return false
 		}
@@ -154,8 +156,16 @@ func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 			return false
 		}
 		h.Inflight = 0
-		if u.Outcome == hover.Text {
+		switch u.Outcome {
+		case hover.Text:
 			h.Popup = s.openPopup(u.Content, h.X, h.Y)
+		case hover.Empty:
+			// A server knows little before its work, as indexing, ends; it
+			// may answer before it even reports the work. Servers that
+			// run one piece of work after another end each, so it is asked
+			// again after every one.
+			h.Waiting = true
+		case hover.Error, hover.TimedOut:
 		}
 	case hover.DefinitionDone:
 	}
@@ -214,6 +224,8 @@ func (s *state) readyFor(u hover.Update, t hoverTarget) (retry, waiting bool) {
 			return false, true
 		}
 		return u.Status == hover.Ready, u.Status != hover.ServerFailed
+	case hover.ProgressChanged:
+		return u.Progress == (hover.Progress{}) && u.Instance == s.instanceOf(t.File, t.Side), true
 	case hover.HoverDone, hover.DefinitionDone:
 	}
 	return false, true

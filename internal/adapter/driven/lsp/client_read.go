@@ -43,8 +43,13 @@ func (c *client) dispatch(m message) {
 		}
 		c.push(frame{body: body})
 	case m.isNotification():
-		if m.Method == "window/logMessage" || m.Method == "window/showMessage" {
+		switch m.Method {
+		case "window/logMessage", "window/showMessage":
 			c.log.Debug("server message", zap.String("method", m.Method), zap.ByteString("params", m.Params))
+		case "$/progress":
+			if p, changed := c.works.take(m.Params); changed {
+				c.sink.progress(c.inst, p)
+			}
 		}
 	default:
 		c.answered(m)

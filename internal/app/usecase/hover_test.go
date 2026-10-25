@@ -144,11 +144,12 @@ func TestOnlyTheAnswerToTheLastRequestIsHandedOn(t *testing.T) {
 	h.Hover(hover.Position{Req: 1, Path: "a.go", Version: 1})
 	h.Hover(hover.Position{Req: 2, Path: "a.go", Version: 1})
 	status := hover.Update{Kind: hover.StatusChanged, Instance: gopls(), Status: hover.Ready}
+	progress := hover.Update{Kind: hover.ProgressChanged, Instance: gopls(), Progress: hover.Progress{Title: "indexing"}}
 
-	f.report(done(1), status, done(2))
+	f.report(done(1), status, progress, done(2))
 
-	got := testsupport.Collect(t, h, func(u []hover.Update) bool { return len(u) >= 2 })
-	assert.Equal(t, []hover.Update{status, done(2)}, got)
+	got := testsupport.Collect(t, h, func(u []hover.Update) bool { return len(u) >= 3 })
+	assert.Equal(t, []hover.Update{status, progress, done(2)}, got)
 }
 
 // TestAnAnswerBeforeHoverReturnsIsKept: the server may answer, and the

@@ -141,3 +141,26 @@ func TestAFileGoneFromTheChangesetIsUntracked(t *testing.T) {
 	require.Equal(t, 1, docs.UntrackCallCount())
 	assert.Equal(t, hover.DocKey{Path: "a.go"}, docs.UntrackArgsForCall(0))
 }
+
+func progress(i lang.Instance, title string, pct int) hover.Update {
+	return hover.Update{Kind: hover.ProgressChanged, Instance: i, Progress: hover.Progress{Title: title, Percent: pct, Known: pct >= 0}}
+}
+
+func TestTheFooterTellsOfTheWorkOfTheServer(t *testing.T) {
+	m, fl, _ := startModel(t, "a.go")
+	m, docs := showDoc(t, m, fl, "a.go")
+	docs.TrackReturns(gopls(), true)
+	m, _ = showDoc(t, m, fl, "a.go")
+	m = lspSays(m, status(gopls(), hover.Ready))
+
+	m = lspSays(m, progress(gopls(), "indexing", 40))
+	assert.True(t, strings.HasSuffix(footerLine(m), "… gopls: indexing 40%"), footerLine(m))
+	m = lspSays(m, progress(gopls(), "loading", -1))
+	assert.True(t, strings.HasSuffix(footerLine(m), "… gopls: loading"), footerLine(m))
+
+	m = lspSays(m, hover.Update{Kind: hover.ProgressChanged, Instance: gopls()})
+	assert.True(t, strings.HasSuffix(footerLine(m), "… gopls"), "the work ended")
+
+	m = lspSays(m, progress(gopls(), "indexing", 40), status(gopls(), hover.Starting))
+	assert.True(t, strings.HasSuffix(footerLine(m), "… gopls starting…"), "work shows only while the server is ready")
+}

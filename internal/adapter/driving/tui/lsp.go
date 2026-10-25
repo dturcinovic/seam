@@ -2,6 +2,7 @@ package tui
 
 import (
 	"path"
+	"strconv"
 
 	"seam/internal/domain/change"
 	"seam/internal/domain/filediff"
@@ -19,6 +20,8 @@ type lspState struct {
 	// Side is the side asked about last, whose server the footer names.
 	Side   filediff.Which
 	Status map[lang.Instance]hover.ServerStatus
+	// Progress is the work each instance reports under way.
+	Progress map[lang.Instance]hover.Progress
 	// Checkouts are how far the checkouts of commits have come, whose
 	// documents have no server before.
 	Checkouts map[change.ObjectID]hover.ServerStatus
@@ -103,6 +106,15 @@ func (l *lspState) update(u hover.Update) {
 			l.Status = make(map[lang.Instance]hover.ServerStatus)
 		}
 		l.Status[u.Instance] = u.Status
+	case hover.ProgressChanged:
+		if l.Progress == nil {
+			l.Progress = make(map[lang.Instance]hover.Progress)
+		}
+		if u.Progress == (hover.Progress{}) {
+			delete(l.Progress, u.Instance)
+		} else {
+			l.Progress[u.Instance] = u.Progress
+		}
 	case hover.CheckoutChanged:
 		if l.Checkouts == nil {
 			l.Checkouts = make(map[change.ObjectID]hover.ServerStatus)
@@ -164,6 +176,9 @@ func lspText(s *state) string {
 	w := s.named()
 	inst, doc := s.instanceOf(s.Current, w), s.snapOf(s.Current).Doc(w)
 	text := serverText(inst, l.Status[inst], doc)
+	if p, ok := l.Progress[inst]; ok && l.Status[inst] == hover.Ready {
+		text += ": " + progressText(p)
+	}
 	if inst == (lang.Instance{}) && !doc.Commit.IsZero() {
 		text = checkoutText(l.Checkouts[doc.Commit])
 	}
@@ -175,6 +190,14 @@ func lspText(s *state) string {
 		src = s.Comparison.Left
 	}
 	return shownText(src.String()) + ": " + text
+}
+
+// progressText is work a server reports, as "indexing 40%".
+func progressText(p hover.Progress) string {
+	if !p.Known {
+		return shownText(p.Title)
+	}
+	return shownText(p.Title) + " " + strconv.Itoa(p.Percent) + "%"
 }
 
 func serverText(inst lang.Instance, st hover.ServerStatus, d hover.Document) string {
