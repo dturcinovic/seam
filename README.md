@@ -35,6 +35,22 @@ file, and lets you move through them.
 
 ## Install
 
+Each [release](https://github.com/dturcinovic/seam/releases) has a static
+binary for Linux on `amd64` and `arm64`, which needs nothing else but git:
+
+```bash
+# Debian, Ubuntu
+sudo apt install ./seam_<version>_amd64.deb
+# Fedora and other rpm systems
+sudo dnf install ./seam-<version>-1.x86_64.rpm
+# Any Linux: unpack and put seam on the PATH
+tar -xzf seam_<version>_linux_amd64.tar.gz seam && mv seam ~/.local/bin/
+```
+
+`checksums.txt` in the release holds the SHA-256 of each file.
+
+With Go 1.27:
+
 ```bash
 go install github.com/dturcinovic/seam/cmd/seam@latest
 ```
@@ -44,6 +60,8 @@ Or from a clone, with [Task](https://taskfile.dev):
 ```bash
 task build    # bin/seam
 ```
+
+`seam --version` names the release, the commit and its date.
 
 ## Quick start
 
