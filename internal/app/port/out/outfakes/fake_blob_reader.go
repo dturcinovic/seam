@@ -3,10 +3,11 @@ package outfakes
 
 import (
 	"context"
-	"seam/internal/app/port/out"
-	"seam/internal/domain/change"
-	"seam/internal/domain/limits"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 type FakeBlobReader struct {

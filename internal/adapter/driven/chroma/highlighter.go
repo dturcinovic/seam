@@ -10,9 +10,9 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"go.uber.org/zap"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 // Highlighter implements out.Highlighter with chroma. It keeps no state

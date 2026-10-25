@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // inRepo makes a repository with two commits, a staged and an unstaged

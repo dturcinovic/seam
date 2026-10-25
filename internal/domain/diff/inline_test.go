@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/diff"
 )
 
 // pieces cuts content into what lies outside and inside the spans, in turn:

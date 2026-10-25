@@ -1,4 +1,4 @@
-package syntax // import "seam/internal/domain/syntax"
+package syntax // import "github.com/dturcinovic/seam/internal/domain/syntax"
 
 Package syntax describes highlighted text as kinds of token per stretch of a
 line. It knows no lexer and no colour: a lexer reports the kinds, the TUI picks

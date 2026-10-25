@@ -3,7 +3,7 @@ package out
 import (
 	"context"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 //counterfeiter:generate . ChangeWatcher

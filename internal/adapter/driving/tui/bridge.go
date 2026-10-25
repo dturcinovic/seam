@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // bridgeStop bounds stopping the bridge, counted from the call: once the

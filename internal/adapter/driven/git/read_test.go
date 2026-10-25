@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/limits"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 func size(t *testing.T, n int64) limits.FileSize {

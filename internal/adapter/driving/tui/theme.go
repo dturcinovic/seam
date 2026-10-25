@@ -6,8 +6,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"seam/internal/domain/syntax"
-	"seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 )
 
 // style names what a stretch of the screen shows; the theme gives it its

@@ -16,15 +16,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"seam/internal/adapter/driven/configfile"
-	"seam/internal/app/port/in"
-	"seam/internal/config"
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/observability"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/observability"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // TestTheGraphStopsInTimeWithAStubbornServer runs the session's graph with
@@ -84,7 +84,7 @@ func stopOrder(t *testing.T, log string) []string {
 		if !strings.Contains(line, `"msg":"OnStop hook executing"`) {
 			continue
 		}
-		_, caller, _ := strings.Cut(line, `"caller":"seam/internal/`)
+		_, caller, _ := strings.Cut(line, `"caller":"github.com/dturcinovic/seam/internal/`)
 		caller, _, _ = strings.Cut(caller, `"`)
 		if strings.HasPrefix(caller, "adapter/") {
 			order = append(order, path.Base(caller))
@@ -131,7 +131,7 @@ func fileAt(t *testing.T, cs change.Changeset, path string) change.ChangedFile {
 func buildFakelsp(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "fakelsp")
-	out, err := exec.CommandContext(t.Context(), "go", "build", "-o", path, "seam/internal/adapter/driven/lsp/cmd/fakelsp").CombinedOutput()
+	out, err := exec.CommandContext(t.Context(), "go", "build", "-o", path, "github.com/dturcinovic/seam/internal/adapter/driven/lsp/cmd/fakelsp").CombinedOutput()
 	require.NoError(t, err, string(out))
 	return path
 }

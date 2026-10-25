@@ -11,11 +11,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // The bounds of the pool; see the plan's section on limiting instances.

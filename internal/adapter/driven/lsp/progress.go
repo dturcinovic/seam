@@ -6,7 +6,7 @@ import (
 	"math"
 	"slices"
 
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // untitled stands in for the title of work a server begins without one:

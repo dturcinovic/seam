@@ -7,10 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/app/port/in"
-	"seam/internal/domain/change"
-	"seam/internal/domain/ui"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Ports are the incoming ports the TUI calls while it runs.

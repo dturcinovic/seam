@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/app/port/out/outfakes"
-	"seam/internal/app/usecase"
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/app/port/out/outfakes"
+	"github.com/dturcinovic/seam/internal/app/usecase"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // repo is the content behind the fakes: blobs by id, worktree files by path.

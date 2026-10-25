@@ -1,8 +1,8 @@
 package usecase
 
 import (
-	"seam/internal/domain/filediff"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Streams implements in.StreamLoader. It loads one file after another on

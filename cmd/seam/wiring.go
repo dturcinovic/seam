@@ -6,15 +6,15 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 
-	"seam/internal/adapter/driven/chroma"
-	"seam/internal/adapter/driven/configfile"
-	"seam/internal/adapter/driven/fswatch"
-	"seam/internal/adapter/driven/git"
-	"seam/internal/adapter/driven/lsp"
-	"seam/internal/app/port/out"
-	"seam/internal/app/usecase"
-	"seam/internal/config"
-	"seam/internal/observability"
+	"github.com/dturcinovic/seam/internal/adapter/driven/chroma"
+	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
+	"github.com/dturcinovic/seam/internal/adapter/driven/fswatch"
+	"github.com/dturcinovic/seam/internal/adapter/driven/git"
+	"github.com/dturcinovic/seam/internal/adapter/driven/lsp"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/app/usecase"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/observability"
 )
 
 // options is the graph of one session. It is the only place that knows use

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"seam/internal/domain/change"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // The parts of a line of the file list: a blank at either edge, and before

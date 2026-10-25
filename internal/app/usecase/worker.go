@@ -6,7 +6,7 @@ import (
 	"slices"
 	"sync"
 
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // worker runs the jobs of one use case on a single goroutine. A request

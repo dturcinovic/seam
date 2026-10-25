@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 func TestBuilder(t *testing.T) {

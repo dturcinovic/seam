@@ -3,8 +3,8 @@ package tui
 import (
 	"strings"
 
-	"seam/internal/domain/hover"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // The bounds of the popup, frame included: no wider than a line of text

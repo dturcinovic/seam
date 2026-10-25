@@ -1,6 +1,6 @@
 package in
 
-import "seam/internal/domain/filediff"
+import "github.com/dturcinovic/seam/internal/domain/filediff"
 
 //counterfeiter:generate . FileDiffLoader
 

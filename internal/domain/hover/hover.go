@@ -1,8 +1,8 @@
 package hover
 
 import (
-	"seam/internal/domain/change"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // DocVersion counts the texts a document has had in a session. It rises

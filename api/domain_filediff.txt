@@ -1,4 +1,4 @@
-package filediff // import "seam/internal/domain/filediff"
+package filediff // import "github.com/dturcinovic/seam/internal/domain/filediff"
 
 Package filediff describes loading the diff of one file in the background: the
 request with its generation, the snapshot the UI shows, the notices that explain

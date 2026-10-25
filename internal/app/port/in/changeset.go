@@ -3,7 +3,7 @@ package in
 import (
 	"context"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // ChangesetLoader loads the files that differ in a comparison. It is called

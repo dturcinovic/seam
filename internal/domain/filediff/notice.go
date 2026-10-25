@@ -3,7 +3,7 @@ package filediff
 import (
 	"errors"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // NoticeKind is what a notice reports.

@@ -1,6 +1,6 @@
 package view
 
-import "seam/internal/domain/diff"
+import "github.com/dturcinovic/seam/internal/domain/diff"
 
 // Half is which side of its row a line shows.
 type Half int

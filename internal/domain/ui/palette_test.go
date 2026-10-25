@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/syntax"
-	"seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 )
 
 func TestEveryColourHasAName(t *testing.T) {

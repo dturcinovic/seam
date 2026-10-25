@@ -15,8 +15,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"seam/internal/domain/change"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // ownerMarker marks a session directory as seam's: one without it is never

@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 func newInternal(t *testing.T, log *zap.Logger) *Highlighter {

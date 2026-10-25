@@ -2,10 +2,11 @@
 package infakes
 
 import (
-	"seam/internal/app/port/in"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
 	"sync"
+
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 type FakeDocumentTracker struct {

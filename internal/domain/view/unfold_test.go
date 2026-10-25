@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 func TestUnfold(t *testing.T) {

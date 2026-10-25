@@ -3,7 +3,7 @@ package usecase
 import (
 	"sync"
 
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // versions are the last texts of the paths' right sides, by checksum, so a

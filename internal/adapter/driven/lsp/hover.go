@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // part is one piece of a hover's contents as the server sent it: Markdown,

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // WatchPaths implements out.WatchPathsReader.

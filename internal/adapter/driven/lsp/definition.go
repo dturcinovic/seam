@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // location is the part of a Location or a LocationLink seam reads: where

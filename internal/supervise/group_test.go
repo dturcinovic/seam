@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 func TestMain(m *testing.M) {

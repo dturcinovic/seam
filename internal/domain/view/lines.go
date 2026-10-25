@@ -3,7 +3,7 @@ package view
 import (
 	"sort"
 
-	"seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/diff"
 )
 
 // Mode says which rows a view shows.

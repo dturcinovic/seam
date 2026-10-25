@@ -3,8 +3,8 @@ package out
 import (
 	"context"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 //counterfeiter:generate . RevisionResolver

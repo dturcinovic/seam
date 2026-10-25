@@ -5,10 +5,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/view"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // hoverState is the hover under the mouse: the target it rests on, the

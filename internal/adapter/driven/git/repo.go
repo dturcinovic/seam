@@ -12,8 +12,8 @@ import (
 	"strings"
 	"sync"
 
-	"seam/internal/domain/change"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // Config locates the repository and seam's checkouts of it.

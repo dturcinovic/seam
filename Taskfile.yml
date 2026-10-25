@@ -11,6 +11,7 @@ env:
   CGO_ENABLED: '0'
 
 vars:
+  MODULE: github.com/dturcinovic/seam
   BINARY: seam
   MAIN_PKG: ./cmd/seam
   # Run with `go run pkg@version` rather than a go.mod tool directive, whose
@@ -22,7 +23,7 @@ vars:
   COVER_PROFILE: bin/cover.out
   # Packages held to MIN_COVERAGE each; a package with no statements (only
   # doc.go) has nothing to cover and is left out.
-  COVER_PACKAGES: seam/internal/domain seam/internal/app/usecase
+  COVER_PACKAGES: "{{.MODULE}}/internal/domain {{.MODULE}}/internal/app/usecase"
   MIN_COVERAGE: 85
 
 tasks:
@@ -135,7 +136,7 @@ tasks:
         set -e
         rm -rf {{.DIR}} && mkdir -p {{.DIR}}
         for pkg in $(go list ./internal/app/port/... ./internal/domain/... | grep -v 'fakes$'); do
-          name=$(echo "${pkg#seam/internal/}" | tr / _)
+          name=$(echo "${pkg#{{.MODULE}}/internal/}" | tr / _)
           go doc -all "$pkg" > "{{.DIR}}/$name.txt"
         done
 
@@ -170,7 +171,7 @@ tasks:
       # seam itself has no license yet; the check is about what it pulls in.
       # go-licenses logs warnings through klog, which no flag silences; they
       # start with W and a date, followed by an indented or path line.
-      - go tool go-licenses check --ignore seam --ignore github.com/alecthomas/chroma/v2 ./... 2> >(grep -v -E '^W[0-9]{4} |^/' >&2)
+      - go tool go-licenses check --ignore {{.MODULE}} --ignore github.com/alecthomas/chroma/v2 ./... 2> >(grep -v -E '^W[0-9]{4} |^/' >&2)
 
   build:
     desc: Build the static binary

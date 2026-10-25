@@ -12,9 +12,9 @@ import (
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
 
-	"seam/internal/adapter/driven/fswatch"
-	"seam/internal/domain/change"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/adapter/driven/fswatch"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 func TestMain(m *testing.M) {

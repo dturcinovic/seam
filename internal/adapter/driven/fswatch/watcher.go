@@ -14,8 +14,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 
-	"seam/internal/app/port/out"
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // Watcher implements out.ChangeWatcher.

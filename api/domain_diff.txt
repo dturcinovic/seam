@@ -1,4 +1,4 @@
-package diff // import "seam/internal/domain/diff"
+package diff // import "github.com/dturcinovic/seam/internal/domain/diff"
 
 Package diff compares two versions of a file line by line and aligns them side
 by side: equal lines pair up, a block of changed lines pairs up as far as both

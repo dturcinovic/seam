@@ -3,10 +3,10 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/hover"
-	"seam/internal/domain/ui"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // Update applies a message. The port calls in it never block, so they run

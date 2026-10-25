@@ -1,4 +1,4 @@
-package limits // import "seam/internal/domain/limits"
+package limits // import "github.com/dturcinovic/seam/internal/domain/limits"
 
 Package limits holds the bounds seam keeps on what it reads and keeps in memory,
 as types that check themselves. It does not enforce them; the readers and caches

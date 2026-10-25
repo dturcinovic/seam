@@ -3,9 +3,9 @@ package tui
 import (
 	"strings"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // markGlyph is the stroke the scrollbar shows beside a change.

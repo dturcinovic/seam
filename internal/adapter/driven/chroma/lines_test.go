@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 func TestAMultiLineCommentStaysAComment(t *testing.T) {

@@ -3,8 +3,8 @@ package tui
 import (
 	"strconv"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
 )
 
 // chrome is the lines the view spends outside the panes: header and footer.

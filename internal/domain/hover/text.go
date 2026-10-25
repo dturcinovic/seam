@@ -3,8 +3,8 @@ package hover
 import (
 	"errors"
 
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 // ErrColourerFailed is why answers with code come uncoloured once

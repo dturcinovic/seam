@@ -12,15 +12,15 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	"seam/internal/adapter/driven/configfile"
-	"seam/internal/adapter/driven/git"
-	"seam/internal/adapter/driving/tui"
-	"seam/internal/app/port/in"
-	"seam/internal/config"
-	"seam/internal/domain/change"
-	"seam/internal/domain/ui"
-	"seam/internal/observability"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
+	"github.com/dturcinovic/seam/internal/adapter/driven/git"
+	"github.com/dturcinovic/seam/internal/adapter/driving/tui"
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/observability"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 // stopBudget bounds the whole shutdown, all OnStop hooks together.

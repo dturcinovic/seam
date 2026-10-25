@@ -11,7 +11,7 @@ import (
 	"sync"
 	"syscall"
 
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // errMissing is a server whose program is not installed.

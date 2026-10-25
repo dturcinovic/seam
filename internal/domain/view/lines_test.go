@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // fileDiff is a diff of n rows with the given changed blocks; the views only

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"seam/internal/adapter/driven/git"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/adapter/driven/git"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 func TestMain(m *testing.M) {

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 func TestNewFileSize(t *testing.T) {

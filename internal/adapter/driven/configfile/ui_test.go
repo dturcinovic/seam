@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/adapter/driven/configfile"
-	"seam/internal/domain/limits"
-	"seam/internal/domain/syntax"
-	"seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 )
 
 func loadFile(t *testing.T, text string) configfile.File {

@@ -3,9 +3,9 @@ package usecase
 import (
 	"context"
 
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 // highlightSide finds the tokens of one side's text in l, of lines lines, and

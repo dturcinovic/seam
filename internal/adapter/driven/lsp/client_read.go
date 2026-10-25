@@ -9,8 +9,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
 // readLoop reads until the connection ends. It returns on EOF or when the

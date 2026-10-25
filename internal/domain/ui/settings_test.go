@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 )
 
 func TestDefaultSettings(t *testing.T) {

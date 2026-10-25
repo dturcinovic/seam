@@ -11,9 +11,9 @@ import (
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
 
-	"seam/internal/domain/hover"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 // fakelspEnv names the test server's path, built once for the package

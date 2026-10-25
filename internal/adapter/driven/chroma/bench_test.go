@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"seam/internal/domain/lang"
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 // BenchmarkGoFile tokenises a Go file of 5000 lines; the plan wants it

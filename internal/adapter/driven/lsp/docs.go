@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // docSet is the documents an instance's server is to have open, with the

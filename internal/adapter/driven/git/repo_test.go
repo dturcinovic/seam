@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"seam/internal/adapter/driven/git"
-	"seam/internal/domain/change"
-	"seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/adapter/driven/git"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/limits"
 )
 
 // load resolves the comparison's commits and lists what git diffs. Adding

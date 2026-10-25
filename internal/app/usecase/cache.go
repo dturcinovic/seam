@@ -4,8 +4,8 @@ import (
 	"container/list"
 	"sync"
 
-	"seam/internal/domain/change"
-	"seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
 )
 
 // The bounds of the file diff cache. Both hold at once: many small files

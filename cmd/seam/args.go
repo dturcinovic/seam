@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // comparison maps the command line to the sides to compare.

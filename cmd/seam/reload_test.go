@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"seam/internal/adapter/driven/configfile"
-	"seam/internal/app/port/in"
-	"seam/internal/config"
-	"seam/internal/domain/change"
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/lang"
-	"seam/internal/domain/limits"
-	"seam/internal/observability"
-	"seam/internal/testsupport"
+	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
+	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/change"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/lang"
+	"github.com/dturcinovic/seam/internal/domain/limits"
+	"github.com/dturcinovic/seam/internal/observability"
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 // load loads r through the port and returns its update, which must not

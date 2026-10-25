@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"seam/internal/domain/ui"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 )
 
 type uiEntry struct {

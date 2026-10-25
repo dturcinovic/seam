@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strconv"
 
-	"seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
 )
 
 // ErrInvalidColour is a colour value that is no colour.

@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"seam/internal/domain/hover"
-	"seam/internal/supervise"
+	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/supervise"
 )
 
 type pendingKind int

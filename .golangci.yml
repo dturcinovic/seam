@@ -157,7 +157,7 @@ linters:
             - "!$test"
           allow:
             - $gostd
-            - seam/internal/domain
+            - github.com/dturcinovic/seam/internal/domain
           deny:
             # $gostd admits the whole standard library, and some of it carries
             # a layer along.
@@ -178,8 +178,8 @@ linters:
             - "!$test"
           allow:
             - $gostd
-            - seam/internal/domain
-            - seam/internal/app/port/in
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/in
 
         port-out-nur-domain:
           list-mode: strict
@@ -188,8 +188,8 @@ linters:
             - "!$test"
           allow:
             - $gostd
-            - seam/internal/domain
-            - seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
 
         # Tests are left out: they need testify, the fakes and testsupport.
         # module.go has a rule of its own because it needs fx.
@@ -204,12 +204,12 @@ linters:
             - $gostd
             # Bounded concurrency only; it brings no layer along.
             - golang.org/x/sync/errgroup
-            - seam/internal/domain
-            - seam/internal/app/port/in
-            - seam/internal/app/port/out
-            - seam/internal/app/usecase
-            - seam/internal/supervise
-            - seam/internal/textcell
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/in
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/app/usecase
+            - github.com/dturcinovic/seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/textcell
           deny:
             - pkg: net
               desc: a use case holds a port, not a connection
@@ -226,9 +226,9 @@ linters:
           allow:
             - $gostd
             - go.uber.org/fx
-            - seam/internal/domain
-            - seam/internal/app
-            - seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app
+            - github.com/dturcinovic/seam/internal/supervise
 
         # Bounds of every driven adapter, its tests included and before it has
         # a rule of its own. Which packages its code may import is its strict
@@ -239,13 +239,13 @@ linters:
           files:
             - "**/internal/adapter/driven/**"
           deny:
-            - pkg: seam/internal/adapter/driving
+            - pkg: github.com/dturcinovic/seam/internal/adapter/driving
               desc: driven adapters are called, they do not drive
-            - pkg: seam/internal/app/usecase
+            - pkg: github.com/dturcinovic/seam/internal/app/usecase
               desc: a driven adapter is called by use cases, it does not call them
-            - pkg: seam/internal/app/port/in
+            - pkg: github.com/dturcinovic/seam/internal/app/port/in
               desc: a driven adapter implements outgoing ports only
-            - pkg: seam/internal/config
+            - pkg: github.com/dturcinovic/seam/internal/config
               desc: an adapter gets its settings supplied by the composition root
 
         driven-git:
@@ -257,10 +257,10 @@ linters:
             - $gostd
             - go.uber.org/fx
             - go.uber.org/zap
-            - seam/internal/domain
-            - seam/internal/app/port/out
-            - seam/internal/supervise
-            - seam/internal/adapter/driven/git
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/adapter/driven/git
 
         driven-chroma:
           list-mode: strict
@@ -271,10 +271,10 @@ linters:
             - $gostd
             - go.uber.org/fx
             - go.uber.org/zap
-            - seam/internal/domain
-            - seam/internal/app/port/out
-            - seam/internal/supervise
-            - seam/internal/adapter/driven/chroma
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/adapter/driven/chroma
             - github.com/alecthomas/chroma/v2
 
         driven-lsp:
@@ -286,10 +286,10 @@ linters:
             - $gostd
             - go.uber.org/fx
             - go.uber.org/zap
-            - seam/internal/domain
-            - seam/internal/app/port/out
-            - seam/internal/supervise
-            - seam/internal/adapter/driven/lsp
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/adapter/driven/lsp
 
         driven-fswatch:
           list-mode: strict
@@ -300,9 +300,9 @@ linters:
             - $gostd
             - go.uber.org/fx
             - go.uber.org/zap
-            - seam/internal/domain
-            - seam/internal/app/port/out
-            - seam/internal/adapter/driven/fswatch
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/adapter/driven/fswatch
             - github.com/fsnotify/fsnotify
 
         driven-configfile:
@@ -314,10 +314,10 @@ linters:
             - $gostd
             - go.uber.org/fx
             - go.uber.org/zap
-            - seam/internal/domain
-            - seam/internal/app/port/out
-            - seam/internal/supervise
-            - seam/internal/adapter/driven/configfile
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/adapter/driven/configfile
             - github.com/pelletier/go-toml/v2
 
         driving-tui:
@@ -330,11 +330,11 @@ linters:
             - charm.land/bubbletea/v2
             - charm.land/lipgloss/v2
             - go.uber.org/zap
-            - seam/internal/domain
-            - seam/internal/app/port/in
-            - seam/internal/supervise
-            - seam/internal/textcell
-            - seam/internal/adapter/driving/tui
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/in
+            - github.com/dturcinovic/seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/textcell
+            - github.com/dturcinovic/seam/internal/adapter/driving/tui
 
         supervise-nur-stdlib:
           list-mode: strict
@@ -343,7 +343,7 @@ linters:
             - "!$test"
           allow:
             - $gostd
-            - seam/internal/supervise
+            - github.com/dturcinovic/seam/internal/supervise
 
         textcell-nur-ansi:
           list-mode: strict
@@ -353,7 +353,7 @@ linters:
           allow:
             - $gostd
             - github.com/charmbracelet/x/ansi
-            - seam/internal/textcell
+            - github.com/dturcinovic/seam/internal/textcell
 
         ui-nur-im-tui:
           list-mode: lax
@@ -386,9 +386,9 @@ linters:
             - "**/internal/config/**"
             - "**/internal/observability/**"
           deny:
-            - pkg: seam/internal/adapter
+            - pkg: github.com/dturcinovic/seam/internal/adapter
               desc: adapters import these packages, not the other way round
-            - pkg: seam/internal/app
+            - pkg: github.com/dturcinovic/seam/internal/app
               desc: use cases import these packages, not the other way round
 
         testsupport-nur-in-tests:
@@ -397,5 +397,5 @@ linters:
             - "$all"
             - "!$test"
           deny:
-            - pkg: seam/internal/testsupport
+            - pkg: github.com/dturcinovic/seam/internal/testsupport
               desc: test helpers must not end up in the binary

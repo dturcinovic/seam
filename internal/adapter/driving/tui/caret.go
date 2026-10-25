@@ -5,9 +5,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/view"
-	"seam/internal/textcell"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/textcell"
 )
 
 // caret is the keyboard's stand-in for the mouse, for terminals that send

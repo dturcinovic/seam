@@ -3,10 +3,10 @@ package tui
 import (
 	"strings"
 
-	"seam/internal/domain/diff"
-	"seam/internal/domain/filediff"
-	"seam/internal/domain/syntax"
-	"seam/internal/domain/view"
+	"github.com/dturcinovic/seam/internal/domain/diff"
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/syntax"
+	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
 // sideLine is what one pane shows of a row: the line's index in its side,
