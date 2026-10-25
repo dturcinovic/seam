@@ -65,24 +65,13 @@ func TestAHoverOnTheOldSideIsAnsweredFromACheckout(t *testing.T) {
 	assert.Equal(t, 2, strings.Count(repo.Git("worktree", "list"), "\n"), "the checkout")
 	require.NoError(t, stop())
 	assert.Equal(t, 1, strings.Count(repo.Git("worktree", "list"), "\n"), "no checkout left")
-	assert.Empty(t, filesIn(t, filepath.Join(filepath.Dir(log), "worktrees")), "nor anything of it")
+	store, err := os.ReadDir(filepath.Join(filepath.Dir(log), "worktrees"))
+	require.NoError(t, err)
+	assert.Empty(t, store, "nor anything of it, its repository's directory neither")
 }
 
 func statusOf(i lang.Instance, s hover.ServerStatus) func([]hover.Update) bool {
 	return func(us []hover.Update) bool {
 		return slices.ContainsFunc(us, func(u hover.Update) bool { return u.Instance == i && u.Status == s })
 	}
-}
-
-// filesIn are the files under dir, directories left out.
-func filesIn(t *testing.T, dir string) []string {
-	t.Helper()
-	var files []string
-	require.NoError(t, filepath.WalkDir(dir, func(p string, e os.DirEntry, err error) error {
-		if err == nil && !e.IsDir() {
-			files = append(files, p)
-		}
-		return err
-	}))
-	return files
 }

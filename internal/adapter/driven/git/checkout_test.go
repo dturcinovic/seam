@@ -1,6 +1,7 @@
 package git_test
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -94,7 +95,7 @@ func TestACheckoutHasTheCommitsFilesAndGoesWithClose(t *testing.T) {
 	require.NoError(t, c.Close(t.Context()))
 
 	assert.Equal(t, []string{r.Dir}, r.worktrees())
-	assert.Len(t, r.files(t), 1, "only the repository's directory is left: %v", r.files(t))
+	assert.Empty(t, r.files(t), "not even the repository's directory is left")
 	_, err = c.Checkout(t.Context(), r.first)
 	assert.ErrorIs(t, err, git.ErrClosed)
 }
@@ -110,7 +111,7 @@ func TestAFailedCheckoutLeavesNothing(t *testing.T) {
 	require.Error(t, err)
 	require.NoError(t, c.Close(t.Context()))
 	assert.Equal(t, []string{r.Dir}, r.worktrees())
-	assert.Len(t, r.files(t), 1, "%v", r.files(t))
+	assert.Empty(t, r.files(t))
 }
 
 // With these set, TestCheckoutCrashHelper is a seam that checks out a
@@ -152,7 +153,7 @@ func TestCleanRemovesTheCheckoutsOfACrashedSession(t *testing.T) {
 	require.NoError(t, c.Close(t.Context()))
 
 	assert.Equal(t, []string{r.Dir}, r.worktrees())
-	assert.Len(t, r.files(t), 1, "%v", r.files(t))
+	assert.Empty(t, r.files(t))
 }
 
 func TestCleanLeavesRunningSessionsAndForeignDirectories(t *testing.T) {
@@ -173,8 +174,51 @@ func TestCleanLeavesRunningSessionsAndForeignDirectories(t *testing.T) {
 	require.NoError(t, c.Close(t.Context()))
 
 	assert.FileExists(t, filepath.Join(dir, "a.txt"))
+	assert.FileExists(t, filepath.Dir(dir)+".lock")
 	assert.DirExists(t, filepath.Join(foreign, r.second.String()))
 	assert.ElementsMatch(t, []string{r.Dir, dir, own}, r.worktrees())
+}
+
+func TestTheRepositorysDirectoryLeftEmptyIsRemoved(t *testing.T) {
+	tests := map[string]func(*git.Checkouts, context.Context) error{
+		"by Clean": (*git.Checkouts).Clean,
+		// One whose session failed to open may have made it.
+		"by Close without a session": (*git.Checkouts).Close,
+	}
+	for name, remove := range tests {
+		t.Run(name, func(t *testing.T) {
+			r := newCheckoutRepo(t)
+			c := r.checkouts()
+			dir, err := c.Checkout(t.Context(), r.first)
+			require.NoError(t, err)
+			require.NoError(t, c.Close(t.Context()))
+			// As an older seam left it.
+			require.NoError(t, os.Mkdir(filepath.Dir(filepath.Dir(dir)), 0o700))
+
+			require.NoError(t, remove(r.checkouts(), t.Context()))
+
+			assert.Empty(t, r.files(t))
+		})
+	}
+}
+
+func TestCheckoutsLeftByCloseKeepTheirMarkerForTheNextClean(t *testing.T) {
+	r := newCheckoutRepo(t)
+	c := r.checkouts()
+	dir, err := c.Checkout(t.Context(), r.first)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_ = c.Close(ctx) // Out of time: what it could not remove is the point.
+
+	require.DirExists(t, dir)
+	require.FileExists(t, filepath.Join(filepath.Dir(dir), ".seam-owner"))
+	next := r.checkouts()
+	require.NoError(t, next.Clean(t.Context()))
+	require.NoError(t, next.Close(t.Context()))
+	assert.Equal(t, []string{r.Dir}, r.worktrees())
+	assert.Empty(t, r.files(t))
 }
 
 func TestACheckoutRunsNoHooks(t *testing.T) {
