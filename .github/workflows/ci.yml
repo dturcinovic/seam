@@ -2,6 +2,8 @@ name: ci
 
 on:
   push:
+    # Every branch, but no tag: a tag runs the same check in release.yml.
+    branches: ['**']
   pull_request:
 
 permissions:

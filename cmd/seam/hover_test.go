@@ -68,7 +68,11 @@ func TestTheMouseRestingOnCodeShowsItsHover(t *testing.T) {
 			require.NoError(t, err)
 			out := &screen{}
 			typeKeys, wait := runTUI(t, ports, cs, out)
-			require.Eventually(t, func() bool { return out.shows("fake") }, testsupport.Guard, 10*time.Millisecond, "the server of a.go")
+			// A motion over the view before a.go is laid out hovers nothing;
+			// one before its server is ready is asked again once it is. The
+			// server's name is no sign: the renderer writes only the cells
+			// that change, so "fake" may never appear in one piece.
+			require.Eventually(t, func() bool { return out.shows("func f()") }, testsupport.Guard, 10*time.Millisecond, "a.go laid out")
 
 			// Any motion, no button, at the p of package: the right pane's
 			// text starts at column 46, one-based, below the header.
@@ -104,7 +108,8 @@ func TestAHoverShowsItsMarkdown(t *testing.T) {
 	require.NoError(t, err)
 	out := &screen{}
 	typeKeys, wait := runTUI(t, ports, cs, out)
-	require.Eventually(t, func() bool { return out.shows("fake") }, testsupport.Guard, 10*time.Millisecond, "the server of a.go")
+	// Why a.go and not the server's name: see TestTheMouseRestingOnCodeShowsItsHover.
+	require.Eventually(t, func() bool { return out.shows("func f()") }, testsupport.Guard, 10*time.Millisecond, "a.go laid out")
 
 	typeKeys("\x1b[<35;47;2M")
 
