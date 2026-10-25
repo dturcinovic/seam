@@ -11,18 +11,19 @@ import (
 )
 
 // caret is the keyboard's stand-in for the mouse, for terminals that send
-// no motion: a grapheme of Side, at Byte of that side's line of Row. A row
-// rather than a line of the view, so it stays put when the view changes
-// around it.
+// no motion: a grapheme of Side, at Byte of that side's line of Row of
+// File. A row rather than a line of the view, so it stays put when the
+// view changes around it.
 type caret struct {
 	On   bool
 	Side filediff.Which
+	File int
 	Row  int
 	Byte int
 }
 
 // spot is a grapheme the caret may stand on: c of the text of line of the
-// view, with its column checkpoints.
+// body, with its column checkpoints.
 type spot struct {
 	line   int
 	text   string
@@ -30,25 +31,27 @@ type spot struct {
 	c      textcell.Cell
 }
 
-// caretText is the text of line of the view, if the caret may stand on
-// it: a line hovers may ask about, with text, not a fold.
+// caretText is the text of line of the body, if the caret may stand on
+// it: a line hovers may ask about, with text, not a fold or a header.
 func (s *state) caretText(line int) (string, []filediff.Checkpoint, bool) {
-	if line < 0 || line >= len(s.Lines) || s.Lines[line].Fold {
+	file, l, ok := s.rowLine(line)
+	if !ok || l.Fold {
 		return "", nil, false
 	}
-	text, points, ok := s.hoverLine(s.caretSide(line), s.Lines[line].Rows.Start)
+	text, points, ok := s.hoverLine(file, s.lineSide(file, l, s.Caret.Side), l.Rows.Start)
 	return text, points, ok && text != ""
 }
 
 // caretSide is the side the caret stands on on line, see lineSide.
 func (s *state) caretSide(line int) filediff.Which {
-	return s.lineSide(s.Lines[line], s.Caret.Side)
+	file, l, _ := s.rowLine(line)
+	return s.lineSide(file, l, s.Caret.Side)
 }
 
 // caretLine is the first line from i on, going by dir and stopping short
 // of stop, that the caret may stand on.
 func (s *state) caretLine(i, dir, stop int) (int, bool) {
-	for ; i != stop && i >= 0 && i < len(s.Lines); i += dir {
+	for ; i != stop && i >= 0 && i < s.lineCount(); i += dir {
 		if _, _, ok := s.caretText(i); ok {
 			return i, true
 		}
@@ -122,7 +125,7 @@ func (s *state) caretStep(p spot, dir int) (q spot, crossed, ok bool) {
 
 // spot is where the caret stands; ok is false if it is on no line shown.
 func (s *state) spot() (spot, bool) {
-	line, ok := s.shownLine(s.Caret.Row)
+	line, ok := s.shownLine(s.Caret.File, s.Caret.Row)
 	if !s.Caret.On || !ok {
 		return spot{}, false
 	}
@@ -132,23 +135,25 @@ func (s *state) spot() (spot, bool) {
 	return s.spotAt(line, s.Caret.Byte), true
 }
 
-// shownLine is the line of the view that shows row, on the caret's side if
-// the unified view splits it; ok is false for a row folded away.
-func (s *state) shownLine(row int) (int, bool) {
+// shownLine is the line of the body that shows row of file, on the caret's
+// side if the unified view splits it; ok is false for a row folded away
+// and a file not laid out.
+func (s *state) shownLine(file, row int) (int, bool) {
 	h := view.NewHalf
 	if s.Caret.Side == filediff.OldSide {
 		h = view.OldHalf
 	}
-	i := view.LineFor(s.Lines, row, h)
-	if i >= len(s.Lines) || s.Lines[i].Fold || s.Lines[i].Rows.Start != row {
+	lines := s.linesOf(file)
+	i := view.LineFor(lines, row, h)
+	if i >= len(lines) || lines[i].Fold || lines[i].Rows.Start != row {
 		return 0, false
 	}
-	return i, true
+	return s.bodyIndex(file, i), true
 }
 
-// onScreen says line of the view is on the screen.
+// onScreen says line of the body is on the screen.
 func (s *state) onScreen(line int) bool {
-	return line >= s.Pos.Scroll && line < s.Pos.Scroll+s.Layout.shown()
+	return line >= s.top() && line < s.top()+s.Layout.shown()
 }
 
 // startCaret puts the caret on the first text of the screen, from the
@@ -156,10 +161,10 @@ func (s *state) onScreen(line int) bool {
 // document.
 func (s *state) startCaret() {
 	s.Caret.Side = filediff.NewSide
-	if s.Snapshot.RightDoc.Path == "" {
+	if s.snapOf(s.Current).RightDoc.Path == "" {
 		s.Caret.Side = filediff.OldSide
 	}
-	line, ok := s.caretLine(s.Pos.Scroll, 1, s.Pos.Scroll+s.Layout.shown())
+	line, ok := s.caretLine(s.top(), 1, s.top()+s.Layout.shown())
 	if !ok {
 		return
 	}
@@ -205,7 +210,7 @@ func (s *state) otherSide() {
 // row to its other, at the same column. Whole rows and rows of one half
 // have no other side to go to.
 func (s *state) otherHalf(p spot) {
-	l := s.Lines[p.line]
+	file, l, _ := s.rowLine(p.line)
 	h := view.OldHalf
 	switch l.Half {
 	case view.Whole:
@@ -214,10 +219,12 @@ func (s *state) otherHalf(p spot) {
 		h = view.NewHalf
 	case view.NewHalf:
 	}
-	i := view.LineFor(s.Lines, l.Rows.Start, h)
-	if s.Lines[i].Half != h || s.Lines[i].Rows.Start != l.Rows.Start {
+	lines := s.linesOf(file)
+	i := view.LineFor(lines, l.Rows.Start, h)
+	if lines[i].Half != h || lines[i].Rows.Start != l.Rows.Start {
 		return
 	}
+	i = s.bodyIndex(file, i)
 	if _, _, ok := s.caretText(i); ok {
 		s.moveCaret(s.spotAtCol(i, p.c.Col))
 	}
@@ -225,13 +232,14 @@ func (s *state) otherHalf(p spot) {
 
 // moveCaret puts the caret on p and brings it into view.
 func (s *state) moveCaret(p spot) {
-	s.Caret = caret{On: true, Side: s.caretSide(p.line), Row: s.Lines[p.line].Rows.Start, Byte: p.c.Start}
-	if h := s.Layout.shown(); p.line < s.Pos.Scroll {
+	file, l, _ := s.rowLine(p.line)
+	s.Caret = caret{On: true, Side: s.lineSide(file, l, s.Caret.Side), File: file, Row: l.Rows.Start, Byte: p.c.Start}
+	if h := s.Layout.shown(); p.line < s.top() {
 		s.scrollTo(p.line)
-	} else if p.line >= s.Pos.Scroll+h {
+	} else if p.line >= s.top()+h {
 		s.scrollTo(p.line - h + 1)
 	}
-	from, to := s.Layout.text(s.Caret.Side)
+	from, to := s.layoutOf(file).text(s.Caret.Side)
 	switch w := to - from; {
 	case w <= 0:
 	case p.c.Col < s.HScroll:
@@ -331,11 +339,11 @@ func (s *state) keepCaret() {
 		s.Caret.Side, s.Caret.Byte = s.caretSide(p.line), s.keepColumn(p).c.Start
 		return
 	}
-	top, bottom := s.Pos.Scroll, s.Pos.Scroll+s.Layout.shown()
+	top, bottom := s.top(), s.top()+s.Layout.shown()
 	if bottom <= top {
 		return
 	}
-	col, line := p.c.Col, view.LineForRow(s.Lines, s.Caret.Row)
+	col, line := p.c.Col, s.rowIndex(s.Caret.File, s.Caret.Row)
 	from := min(max(line, top), bottom-1)
 	l, found := s.caretLine(from, 1, bottom)
 	if !found {
@@ -344,7 +352,8 @@ func (s *state) keepCaret() {
 	switch {
 	case found:
 		q := s.keepColumn(s.spotAtCol(l, col))
-		s.Caret.Side, s.Caret.Row, s.Caret.Byte = s.caretSide(l), s.Lines[l].Rows.Start, q.c.Start
+		file, row, _ := s.rowLine(l)
+		s.Caret.Side, s.Caret.File, s.Caret.Row, s.Caret.Byte = s.lineSide(file, row, s.Caret.Side), file, row.Rows.Start, q.c.Start
 	case ok:
 		s.Caret.Byte = p.c.Start
 	default:
@@ -355,7 +364,8 @@ func (s *state) keepCaret() {
 // keepColumn is the grapheme of p's line nearest p within the columns of
 // its pane's text, or p if none of them shows.
 func (s *state) keepColumn(p spot) spot {
-	from, to := s.Layout.text(s.Caret.Side)
+	file, _, _ := s.rowLine(p.line)
+	from, to := s.layoutOf(file).text(s.Caret.Side)
 	left, right := s.HScroll, s.HScroll+to-from
 	if right <= left || !cut(p.c, left, right) {
 		return p
@@ -376,6 +386,6 @@ func (s *state) caretCell(p spot) (x, y int, ok bool) {
 	if !s.onScreen(p.line) {
 		return 0, 0, false
 	}
-	from, _ := s.Layout.text(s.Caret.Side)
-	return from + p.c.Col - s.HScroll, bodyTop + p.line - s.Pos.Scroll, true
+	from, _ := s.layoutOf(s.Caret.File).text(s.Caret.Side)
+	return from + p.c.Col - s.HScroll, bodyTop + p.line - s.top(), true
 }

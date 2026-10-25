@@ -34,6 +34,7 @@ func viewHints() []hint {
 		firstKeys("quit", ui.Quit), firstKeys("reload", ui.Reload), firstKeys("full/hunks", ui.ToggleView),
 		firstKeys("unified/split", ui.ToggleLayout),
 		firstKeys("change", ui.NextChange, ui.PrevChange), firstKeys("file", ui.NextFile, ui.PrevFile),
+		firstKeys("stream", ui.ToggleStream),
 		firstKeys("scroll", ui.Down, ui.Up), firstKeys("sideways", ui.ScrollLeft, ui.ScrollRight),
 		firstKeys("files", ui.ToggleFiles), firstKeys("caret", ui.StartCaret),
 	}
@@ -116,23 +117,32 @@ func header(s *state) string {
 	if s.Layout.Unified {
 		h += " unified"
 	}
+	if s.Stream.On {
+		h += "  stream"
+	}
 	switch {
 	case s.Watching:
 		h += "  watch"
 	case s.WatchFailed:
 		h += "  watch failed"
 	}
+	snap, loaded := s.loadedOf(s.Current)
 	switch {
-	case !s.Loaded && s.Err != nil:
+	case !loaded && s.loadErr(s.Current) != nil:
 		return h + "  failed"
-	case !s.Loaded:
+	case !loaded:
 		return h + "  loading…"
 	}
-	h += fmt.Sprintf("  %d differences", len(s.Snapshot.Diff.Changes))
-	for _, n := range s.Snapshot.Notices {
-		h += "  " + noticeText(n)
+	return h + fmt.Sprintf("  %d differences", len(snap.Diff.Changes)) + noticesText(snap.Notices)
+}
+
+// noticesText is the notices, each after two blanks.
+func noticesText(ns []filediff.Notice) string {
+	var b strings.Builder
+	for _, n := range ns {
+		b.WriteString("  " + noticeText(n))
 	}
-	return h
+	return b.String()
 }
 
 // placeholder stands in the first line when there are no lines to show.

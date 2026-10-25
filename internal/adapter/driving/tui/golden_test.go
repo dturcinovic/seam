@@ -66,8 +66,23 @@ func fixtures(t *testing.T) []fixture {
 	}
 	return append([]fixture{
 		{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}, {"list", list}, {"list-focused", focused},
-		{"unified-hunks", unifiedHunks}, {"unified-full", unifiedFull},
+		{"unified-hunks", unifiedHunks}, {"unified-full", unifiedFull}, {"stream", streamFixture(t)},
 	}, unicode...)
+}
+
+// streamFixture is the stream of three files whose second is not loaded
+// yet: it stands in with the lines its counts promise.
+func streamFixture(t *testing.T) *state {
+	t.Helper()
+	s := streamed(t, streamFiles(3), 100, 30)
+	d := twentyRows(t)
+	rs, _ := s.streamWant()
+	for _, r := range rs {
+		if r.File.Path() != "f001.go" {
+			s.streamApply([]filediff.Update{{Gen: r.Gen, File: r.File, Snapshot: filediff.Snapshot{File: r.File, Diff: d}}})
+		}
+	}
+	return s
 }
 
 // TestGolden renders each fixture with the real theme. cat shows a golden

@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 // fakePorts are fakes of every port the TUI calls.
 func fakePorts() Ports {
 	return Ports{
-		Files: &infakes.FakeFileDiffLoader{}, Reload: &infakes.FakeChangesetReloader{},
+		Files: &infakes.FakeFileDiffLoader{}, Stream: &infakes.FakeStreamLoader{}, Reload: &infakes.FakeChangesetReloader{},
 		Docs: &infakes.FakeDocumentTracker{}, LSP: &infakes.FakeLSPUpdates{}, Hover: &infakes.FakeHoverer{},
 		Watch: &infakes.FakeWatchUpdates{},
 	}

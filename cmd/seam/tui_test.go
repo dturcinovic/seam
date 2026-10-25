@@ -92,7 +92,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 		fx.Supply(limits.DefaultFileSize, lang.Defaults()),
 		usecase.Module,
 		fx.NopLogger,
-		fx.Populate(&ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch, &loader),
+		fx.Populate(&ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch, &loader),
 	)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))

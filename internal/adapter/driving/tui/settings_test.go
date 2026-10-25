@@ -50,7 +50,7 @@ func TestOwnKeysReplaceTheDefaults(t *testing.T) {
 	_, _ = typed(m, "tab")
 	assert.Equal(t, 2, fl.LoadCallCount(), "tab no longer does")
 
-	assert.Equal(t, "x quit  f full/hunks  u unified/split  n/p change  ctrl+n/shift+tab file  j/k scroll  h/l sideways  b files  i caret", footerLine(m),
+	assert.Equal(t, "x quit  f full/hunks  u unified/split  n/p change  ctrl+n/shift+tab file  s stream  j/k scroll  h/l sideways  b files  i", footerLine(m),
 		"the footer names the own keys and drops the action without one")
 }
 

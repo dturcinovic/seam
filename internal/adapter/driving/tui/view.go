@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"seam/internal/domain/view"
 )
 
 // sgrPerLine is a guess at the bytes of style switches in a line, so the
@@ -34,7 +36,7 @@ func render(s *state, th *theme) string {
 	if l.Height == 1 {
 		return b.String()
 	}
-	start, end := thumb(len(s.Lines), s.Pos.Scroll, l.Body)
+	start, end := thumb(s.lineCount(), s.top(), l.Body)
 	p := s.Hover.Popup
 	for i := range l.shown() {
 		b.WriteByte('\n')
@@ -66,9 +68,11 @@ func writeBodyLine(b *strings.Builder, s *state, th *theme, i int, onThumb bool)
 	if l.List > 0 {
 		writeEntry(b, s, th, i)
 	}
-	switch j := s.Pos.Scroll + i; {
-	case j < len(s.Lines):
-		writeRow(b, s, th, s.Lines[j])
+	switch bl, ok := s.bodyAt(s.top() + i); {
+	case ok && bl.spot == view.OnRow:
+		writeRow(b, s, th, bl.file, bl.line)
+	case ok:
+		writeStreamLine(b, s, th, bl)
 	case i == 0:
 		writeText(b, s, th, placeholder(s), plain, l.panes())
 	default:

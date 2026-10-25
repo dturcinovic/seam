@@ -35,6 +35,8 @@ type hoverState struct {
 // so its rows, may differ.
 type screenKey struct {
 	pos            view.Pos
+	stream         view.StreamPos
+	streamGen      filediff.Gen
 	mode           view.Mode
 	hScroll, lines int
 	layout         layout
@@ -44,7 +46,7 @@ type screenKey struct {
 }
 
 func (s *state) screenKey() screenKey {
-	return screenKey{s.Pos, s.Mode, s.HScroll, len(s.Lines), s.Layout, s.Cells, s.LoadGen, s.Loaded}
+	return screenKey{s.Pos, s.Stream.Pos, s.Stream.Gen, s.Mode, s.HScroll, s.lineCount(), s.Layout, s.Cells, s.LoadGen, s.Loaded}
 }
 
 // hoverDue is the tick that ends the mouse's rest on target Seq.
@@ -61,7 +63,7 @@ func (s *state) hoverMove(x, y int) (cancel hover.ReqID, due bool) {
 	}
 	// A target left has an empty Word, which holds no grapheme.
 	t, ok := s.targetAt(x, y, h.Target)
-	if ok && h.On && t.Side == h.Target.Side && t.Line == h.Target.Line && t.Word == h.Target.Word {
+	if ok && h.On && t.File == h.Target.File && t.Side == h.Target.Side && t.Line == h.Target.Line && t.Word == h.Target.Word {
 		// The popup opens where the mouse rests, not where it came in.
 		if !h.Popup.Open {
 			h.X, h.Y = x, y
@@ -106,7 +108,7 @@ func (s *state) hoverAsk(seq uint64) (hover.Position, bool) {
 	h.LastReq++
 	h.Inflight, h.Waiting = h.LastReq, false
 	s.LSP.Side = h.Target.Side
-	d := s.Snapshot.Doc(h.Target.Side)
+	d := s.snapOf(h.Target.File).Doc(h.Target.Side)
 	return hover.Position{Req: h.Inflight, Commit: d.Commit, Path: d.Path, Version: d.Version, Line: h.Target.Line, Byte: h.Target.Byte}, true
 }
 
@@ -134,16 +136,16 @@ func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 	h := &s.Hover
 	switch u.Kind {
 	case hover.StatusChanged:
-		return h.Waiting && u.Status == hover.Ready && u.Instance == s.LSP.shown(h.Target.Side)
+		return h.Waiting && u.Status == hover.Ready && u.Instance == s.instanceOf(h.Target.File, h.Target.Side)
 	case hover.CheckoutChanged:
-		if !h.Waiting || u.Commit != s.Snapshot.Doc(h.Target.Side).Commit {
+		if !h.Waiting || u.Commit != s.snapOf(h.Target.File).Doc(h.Target.Side).Commit {
 			return false
 		}
 		// A checkout that failed brings no server to wait for.
 		h.Waiting = u.Status != hover.ServerFailed
 		return u.Status == hover.Ready
 	case hover.HoverDone:
-		if u.Req == 0 || u.Req != h.Inflight || u.Version != s.Snapshot.Doc(h.Target.Side).Version {
+		if u.Req == 0 || u.Req != h.Inflight || u.Version != s.snapOf(h.Target.File).Doc(h.Target.Side).Version {
 			return false
 		}
 		h.Inflight = 0
@@ -178,7 +180,8 @@ func (m *model) hoverAtCaret() {
 		return
 	}
 	w := m.s.caretSide(p.line)
-	if t, ok := targetOn(w, lineOf(m.s.Snapshot.Diff.Rows[m.s.Caret.Row], w), p.text, p.c, hoverTarget{}); ok {
+	c := m.s.Caret
+	if t, ok := targetOn(c.File, w, lineOf(m.s.snapOf(c.File).Diff.Rows[c.Row], w), p.text, p.c, hoverTarget{}); ok {
 		cancel, seq := m.s.hoverNow(t, x, y)
 		m.cancel(cancel)
 		m.ask(seq)

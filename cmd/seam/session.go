@@ -56,7 +56,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 		panics     supervise.PanicFunc
 	)
 	app := fx.New(append(options(cfg, logger, root, file),
-		fx.Populate(&changesets, &watches, &ports.Files, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch, &panics))...)
+		fx.Populate(&changesets, &watches, &ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Watch, &panics))...)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}

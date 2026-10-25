@@ -5,4 +5,4 @@
 [38;2;122;122;122m 16   [m11                                         [38;2;122;122;122m│ 16   [m11                                         [48;2;74;74;74m [m
 [38;2;122;122;122m 17   [mfunc main() {                              [38;2;122;122;122m│ 17   [mfunc main() {                              [38;2;97;175;239;48;2;74;74;74m━[m
 [38;2;122;122;122;48;2;31;47;71m 18 ~ [m[48;2;31;47;71m    fmt.Println("a finding[m[48;2;47;79;128m,[m[48;2;31;47;71m an investigatio[m[38;2;122;122;122m│[m[38;2;122;122;122;48;2;31;47;71m 18 ~ [m[48;2;31;47;71m    fmt.Println("a finding [m[48;2;47;79;128mand [m[48;2;31;47;71man investiga[m[38;2;97;175;239m━[m
-[38;2;122;122;122mq quit  r reload  f full/hunks  u unified/split  n/p change  tab/shift+tab file  j/k scroll  h/l sid[m
+[38;2;122;122;122mq quit  r reload  f full/hunks  u unified/split  n/p change  tab/shift+tab file  s stream  j/k scrol[m

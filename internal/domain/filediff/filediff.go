@@ -68,8 +68,11 @@ func (h Highlights) ApproxBytes() int64 {
 }
 
 // Update is the outcome of a request: the snapshot, or Err if loading failed.
+// File is the file asked for, set either way, as the stream asks for many
+// at once.
 type Update struct {
 	Gen      Gen
+	File     change.ChangedFile
 	Snapshot Snapshot
 	Err      error
 }

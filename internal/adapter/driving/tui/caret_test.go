@@ -68,33 +68,33 @@ func TestTheCaretMovesByWords(t *testing.T) {
 		at = append(at, m.s.Caret)
 	}
 	assert.Equal(t, []caret{
-		{true, filediff.NewSide, 0, 4}, {true, filediff.NewSide, 0, 5}, {true, filediff.NewSide, 0, 12}, {true, filediff.NewSide, 0, 13}, {true, filediff.NewSide, 0, 14}, {true, filediff.NewSide, 1, 0}, {true, filediff.NewSide, 2, 0},
+		{true, filediff.NewSide, 0, 0, 4}, {true, filediff.NewSide, 0, 0, 5}, {true, filediff.NewSide, 0, 0, 12}, {true, filediff.NewSide, 0, 0, 13}, {true, filediff.NewSide, 0, 0, 14}, {true, filediff.NewSide, 0, 1, 0}, {true, filediff.NewSide, 0, 2, 0},
 	}, at, "w: the dot, Println, (, x, ), the next lines")
 
 	m, _ = typed(m, "b", "b", "b")
-	assert.Equal(t, caret{true, filediff.NewSide, 0, 13}, m.s.Caret, "b: back over the line's end")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 0, 13}, m.s.Caret, "b: back over the line's end")
 	m, _ = typed(m, "b", "b", "b", "b", "b", "b")
-	assert.Equal(t, caret{true, filediff.NewSide, 0, 1}, m.s.Caret, "b stops at the first word")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 0, 1}, m.s.Caret, "b stops at the first word")
 
 	m, _ = typed(m, "w", "w", "e")
-	assert.Equal(t, caret{true, filediff.NewSide, 0, 11}, m.s.Caret, "e: the end of Println")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 0, 11}, m.s.Caret, "e: the end of Println")
 	m, _ = typed(m, "e")
-	assert.Equal(t, caret{true, filediff.NewSide, 0, 12}, m.s.Caret, "e: a word of one")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 0, 12}, m.s.Caret, "e: a word of one")
 }
 
 func TestTheCaretMovesByLinesAndGraphemes(t *testing.T) {
 	m, _ := hoverModel(t)
 	m, _ = typed(m, "i", "l", "l", "l", "l")
-	assert.Equal(t, caret{true, filediff.NewSide, 0, 5}, m.s.Caret, "l: one grapheme on")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 0, 5}, m.s.Caret, "l: one grapheme on")
 
 	m, _ = typed(m, "j")
-	assert.Equal(t, caret{true, filediff.NewSide, 1, 0}, m.s.Caret, "j: the line's end, as it is shorter")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 1, 0}, m.s.Caret, "j: the line's end, as it is shorter")
 	m, _ = typed(m, "down", "down", "j")
-	assert.Equal(t, caret{true, filediff.NewSide, 3, 0}, m.s.Caret, "not into the fold")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 3, 0}, m.s.Caret, "not into the fold")
 	m, _ = typed(m, "k", "up", "k", "k")
-	assert.Equal(t, caret{true, filediff.NewSide, 0, 0}, m.s.Caret, "k: the same column, the tab's")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 0, 0}, m.s.Caret, "k: the same column, the tab's")
 	m, _ = typed(m, "h", "left")
-	assert.Equal(t, caret{true, filediff.NewSide, 0, 0}, m.s.Caret, "h stops at the start")
+	assert.Equal(t, caret{true, filediff.NewSide, 0, 0, 0}, m.s.Caret, "h stops at the start")
 	assert.False(t, m.s.List.Focus || m.s.Layout.List > 0, "the keys were the caret's")
 }
 
@@ -102,7 +102,7 @@ func TestTheCaretSkipsRowsWithoutRightText(t *testing.T) {
 	d := diff.Compute(t.Context(), diff.Split("a\nb\n\nc\n"), diff.Split("a\n\nc\n"))
 	s := shown(t, files("a.go"), 80, 10+chrome, worktreeDoc(filediff.Snapshot{Diff: d}))
 	s.startCaret()
-	require.Equal(t, caret{true, filediff.NewSide, 0, 0}, s.Caret)
+	require.Equal(t, caret{true, filediff.NewSide, 0, 0, 0}, s.Caret)
 
 	s.caretUpDown(1)
 

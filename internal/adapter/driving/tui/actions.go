@@ -49,6 +49,10 @@ func (s *state) unload() {
 
 // step opens the file n places away, staying at either end of the list.
 func (s *state) step(n int) (filediff.Request, bool) {
+	if s.Stream.On {
+		s.streamStep(n)
+		return filediff.Request{}, false
+	}
 	i := min(max(s.Current+n, 0), len(s.Files)-1)
 	if i == s.Current {
 		return filediff.Request{}, false
@@ -66,7 +70,7 @@ func (s *state) apply(u filediff.Update) (shown bool) {
 		s.Err = u.Err
 		return false
 	}
-	s.Snapshot, s.Loaded, s.Err = u.Snapshot, true, nil
+	s.Snapshot, s.Loaded, s.Err, s.ShownGen = u.Snapshot, true, nil, u.Gen
 	s.relayout()
 	return true
 }
@@ -102,20 +106,33 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 		s.Err = u.Err
 		return filediff.Request{}, false
 	}
+	before := s.Files
 	shown, had := s.file()
 	old := s.Current
 	// A commit or a checkout may have moved the commits, and the files'
 	// loads must ask for the new ones.
 	s.Comparison = u.Changeset.Comparison
 	s.setFiles(u.Changeset.Files)
+	if s.Stream.On {
+		// Before place, which may lay the stream out anew: its files must
+		// already have their new indexes.
+		s.streamReloaded(before)
+	}
 	// open places the screen anew only for another file, and the list's
 	// width and whether it shows depend on the files.
 	s.place(s.Layout.Width, s.Layout.Height)
 	s.List.Cursor = min(s.List.Cursor, max(len(s.Files)-1, 0))
+	if s.Stream.On {
+		s.layStream()
+		s.List.keep(s.Current, s.listLines())
+		return filediff.Request{}, false
+	}
 	s.Current = slices.IndexFunc(s.Files, func(f change.ChangedFile) bool { return had && f.Path() == shown.Path() })
 	if s.Current >= 0 {
 		// The same file stays current, so open does not bring it into
-		// view, though files before it may have come or gone.
+		// view, though files before it may have come or gone; nor does it
+		// drop the caret, which goes with its file.
+		s.Caret.File = s.Current
 		r, ok := s.open(s.Current, true)
 		s.List.keep(s.Current, s.listLines())
 		return r, ok
@@ -135,6 +152,10 @@ func (s *state) resize(width, height int) {
 	laid := s.place(width, height)
 	s.List.keep(s.Current, s.listLines())
 	if laid {
+		return
+	}
+	if s.Stream.On {
+		s.switchStream()
 		return
 	}
 	if s.Layout.Body != body {
@@ -176,6 +197,10 @@ func (s *state) show(lines []view.Line) {
 
 // mark derives the scrollbar's marks from Lines at the body's height.
 func (s *state) mark() {
+	if s.Stream.On {
+		s.Marks = streamMarks(s, s.Layout.Body)
+		return
+	}
 	s.Marks = changeMarks(s.Snapshot.Diff, s.Lines, s.Layout.Body)
 }
 
@@ -213,7 +238,7 @@ func (s *state) toggleMode() {
 
 // scrollBy moves the top line by n lines.
 func (s *state) scrollBy(n int) {
-	s.scrollTo(s.Pos.Scroll + n)
+	s.scrollTo(s.top() + n)
 }
 
 // useCells takes the way the terminal counts columns, which the list's
@@ -232,24 +257,50 @@ func pageLines(height int, half bool) int {
 	return height
 }
 
-// nextChange brings the first change below the top line to the top.
+// nextChange brings the first change below the top line to the top, in
+// this file or, in the stream, a later one.
 func (s *state) nextChange() {
-	for _, c := range s.Snapshot.Diff.Changes {
-		if line := view.LineForRow(s.Lines, c.Start); line > s.Pos.Scroll {
-			s.scrollTo(line)
-			return
+	first, end := s.bodyFiles()
+	for f := max(s.Current, first); f < end; f++ {
+		for _, line := range s.changeLines(f) {
+			if line > s.top() {
+				s.scrollTo(line)
+				return
+			}
 		}
 	}
 }
 
-// prevChange brings the last change above the top line to the top.
+// prevChange brings the last change above the top line to the top, in
+// this file or, in the stream, an earlier one.
 func (s *state) prevChange() {
-	for _, c := range slices.Backward(s.Snapshot.Diff.Changes) {
-		if line := view.LineForRow(s.Lines, c.Start); line < s.Pos.Scroll {
-			s.scrollTo(line)
-			return
+	first, _ := s.bodyFiles()
+	for f := s.Current; f >= first; f-- {
+		for _, line := range slices.Backward(s.changeLines(f)) {
+			if line < s.top() {
+				s.scrollTo(line)
+				return
+			}
 		}
 	}
+}
+
+// changeLines are the lines of the body where the changes of file start.
+// In the stream a file not laid out, or one without changes, counts by
+// its header, so that n stops at every file.
+func (s *state) changeLines(file int) []int {
+	lines, snap := s.linesOf(file), s.snapOf(file)
+	if len(lines) == 0 || len(snap.Diff.Changes) == 0 {
+		if s.Stream.On {
+			return []int{s.Stream.View.Start(file)}
+		}
+		return nil
+	}
+	out := make([]int, len(snap.Diff.Changes))
+	for i, c := range snap.Diff.Changes {
+		out[i] = s.bodyIndex(file, view.LineForRow(lines, c.Start))
+	}
+	return out
 }
 
 // shiftH moves the panes sideways by n steps, never left of the start.
@@ -264,6 +315,10 @@ func (s *state) unfoldAt(x, y int) {
 	if !ok {
 		return
 	}
+	if s.Stream.On {
+		s.streamUnfold(s.top() + i)
+		return
+	}
 	lines, pos := view.Unfold(s.Lines, s.Pos, s.Pos.Scroll+i)
 	// Unfold hands back the same lines when there was no fold, and then
 	// the marks stand.
@@ -274,6 +329,10 @@ func (s *state) unfoldAt(x, y int) {
 }
 
 func (s *state) scrollTo(line int) {
+	if s.Stream.On {
+		s.streamScrollTo(line)
+		return
+	}
 	s.Pos = view.Navigate(s.Lines, s.Pos, line, s.bodyHeight())
 }
 
@@ -288,10 +347,10 @@ func (s *state) relayout() {
 // layLines lays out the diff in Mode, unified if Layout is, and keeps the
 // anchor row on the screen.
 func (s *state) layLines() {
-	lines := view.Lines(s.Snapshot.Diff, s.Mode, s.Context)
-	if s.Layout.Unified {
-		lines = view.Unify(s.Snapshot.Diff, lines)
+	if s.Stream.On {
+		s.layStream()
+		return
 	}
-	s.show(lines)
+	s.show(s.linesFor(&s.Snapshot))
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }

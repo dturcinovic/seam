@@ -11,11 +11,12 @@ import (
 	"seam/internal/textcell"
 )
 
-// hoverTarget is the grapheme under the mouse: Line of Side and the
-// grapheme's first Byte in that line. Word is the bytes of the identifier
+// hoverTarget is the grapheme under the mouse: Line of Side of File and
+// the grapheme's first Byte in that line. Word is the bytes of the identifier
 // around it, or of the grapheme alone, so moving within one identifier
 // asks no new question.
 type hoverTarget struct {
+	File       int
 	Side       filediff.Which
 	Line, Byte int
 	Word       diff.Span
@@ -33,44 +34,45 @@ const wordReach = 1 << 10
 // hoverLine find nothing.
 func (s *state) targetAt(x, y int, prev hoverTarget) (hoverTarget, bool) {
 	i, ok := s.Layout.bodyLine(x, y)
-	if !ok || s.Pos.Scroll+i >= len(s.Lines) {
-		return hoverTarget{}, false
-	}
-	l := s.Lines[s.Pos.Scroll+i]
-	if l.Fold {
-		return hoverTarget{}, false
-	}
-	w, ok := s.Layout.sideAt(x)
 	if !ok {
 		return hoverTarget{}, false
 	}
-	w = s.lineSide(l, w)
-	text, points, ok := s.hoverLine(w, l.Rows.Start)
+	file, l, ok := s.rowLine(s.top() + i)
+	if !ok || l.Fold {
+		return hoverTarget{}, false
+	}
+	lay := s.layoutOf(file)
+	w, ok := lay.sideAt(x)
 	if !ok {
 		return hoverTarget{}, false
 	}
-	from, to := s.Layout.text(w)
+	w = s.lineSide(file, l, w)
+	text, points, ok := s.hoverLine(file, w, l.Rows.Start)
+	if !ok {
+		return hoverTarget{}, false
+	}
+	from, to := lay.text(w)
 	skip, end := s.HScroll, s.HScroll+to-from
 	cells := seek(text, points, skip+x-from, s.Cells)
 	c, ok := cells.Next()
 	if !ok || cut(c, skip, end) {
 		return hoverTarget{}, false
 	}
-	return targetOn(w, lineOf(s.Snapshot.Diff.Rows[l.Rows.Start], w), text, c, prev)
+	return targetOn(file, w, lineOf(s.snapOf(file).Diff.Rows[l.Rows.Start], w), text, c, prev)
 }
 
 // lineSide is the side of line l that w points at: w itself side by side,
 // but in the unified view, where both sides share the columns, the line's.
-func (s *state) lineSide(l view.Line, w filediff.Which) filediff.Which {
+func (s *state) lineSide(file int, l view.Line, w filediff.Which) filediff.Which {
 	if s.Layout.Unified {
-		return s.halfSide(l)
+		return s.halfSide(file, l)
 	}
 	return w
 }
 
 // halfSide is the side line l of the unified view shows: its half's, or for
 // a whole row the new side, unless only the old one has a document.
-func (s *state) halfSide(l view.Line) filediff.Which {
+func (s *state) halfSide(file int, l view.Line) filediff.Which {
 	switch l.Half {
 	case view.OldHalf:
 		return filediff.OldSide
@@ -78,27 +80,28 @@ func (s *state) halfSide(l view.Line) filediff.Which {
 		return filediff.NewSide
 	case view.Whole:
 	}
-	if s.Snapshot.RightDoc.Path == "" {
+	if s.snapOf(file).RightDoc.Path == "" {
 		return filediff.OldSide
 	}
 	return filediff.NewSide
 }
 
-// hoverLine is the text of side w of row and its column checkpoints, if
+// hoverLine is the text of side w of row of file and its column checkpoints, if
 // hovers may ask about it: the side has a document, as one from the index
 // has not, and the line is no longer than hover.MaxLine.
-func (s *state) hoverLine(w filediff.Which, row int) (string, []filediff.Checkpoint, bool) {
-	d := s.Snapshot.Diff
-	if s.Snapshot.Doc(w).Path == "" || row < 0 || row >= len(d.Rows) {
+func (s *state) hoverLine(file int, w filediff.Which, row int) (string, []filediff.Checkpoint, bool) {
+	snap := s.snapOf(file)
+	d := snap.Diff
+	if snap.Doc(w).Path == "" || row < 0 || row >= len(d.Rows) {
 		return "", nil, false
 	}
 	i := lineOf(d.Rows[row], w)
 	if i < 0 {
 		return "", nil, false
 	}
-	lines, columns := d.New.Lines, s.Snapshot.Columns.New
+	lines, columns := d.New.Lines, snap.Columns.New
 	if w == filediff.OldSide {
-		lines, columns = d.Old.Lines, s.Snapshot.Columns.Old
+		lines, columns = d.Old.Lines, snap.Columns.Old
 	}
 	text := diff.Content(lines[i])
 	if len(text) > hover.MaxLine {
@@ -115,21 +118,21 @@ func lineOf(r diff.Row, w filediff.Which) int {
 	return r.Right
 }
 
-// targetOn is what a hover asks about grapheme c of line of side w, of
-// text; nothing on blanks and stand-ins.
-func targetOn(w filediff.Which, line int, text string, c textcell.Cell, prev hoverTarget) (hoverTarget, bool) {
+// targetOn is what a hover asks about grapheme c of line of side w of
+// file, of text; nothing on blanks and stand-ins.
+func targetOn(file int, w filediff.Which, line int, text string, c textcell.Cell, prev hoverTarget) (hoverTarget, bool) {
 	first, _ := utf8.DecodeRuneInString(text[c.Start:])
 	if c.Replaced || unicode.IsSpace(first) {
 		return hoverTarget{}, false
 	}
 	word := diff.Span{Start: c.Start, End: c.End}
 	switch {
-	case prev.Side == w && prev.Line == line && prev.Word.Start <= c.Start && c.Start < prev.Word.End:
+	case prev.File == file && prev.Side == w && prev.Line == line && prev.Word.Start <= c.Start && c.Start < prev.Word.End:
 		word = prev.Word
 	case identifier(first):
 		word = identifierAround(text, c.Start, c.End)
 	}
-	return hoverTarget{Side: w, Line: line, Byte: c.Start, Word: word}, true
+	return hoverTarget{File: file, Side: w, Line: line, Byte: c.Start, Word: word}, true
 }
 
 func identifier(r rune) bool {

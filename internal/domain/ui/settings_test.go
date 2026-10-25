@@ -18,6 +18,7 @@ func TestDefaultSettings(t *testing.T) {
 	assert.Equal(t, 300*time.Millisecond, s.HoverDelay)
 	assert.Equal(t, ui.AutoLayout, s.Layout)
 	assert.Equal(t, 120, s.SplitMinWidth)
+	assert.Equal(t, ui.FileView, s.View)
 }
 
 func TestNewSettings(t *testing.T) {
@@ -29,11 +30,13 @@ func TestNewSettings(t *testing.T) {
 		{"least", func(s *ui.Settings) { s.ContextLines, s.HoverDelay, s.SplitMinWidth = 0, 0, 0 }, true},
 		{"most", func(s *ui.Settings) { s.ContextLines, s.HoverDelay, s.SplitMinWidth = 1000, 5*time.Second, 1000 }, true},
 		{"unified", func(s *ui.Settings) { s.Layout = ui.UnifiedLayout }, true},
+		{"stream", func(s *ui.Settings) { s.View = ui.StreamView }, true},
 		{"negative context", func(s *ui.Settings) { s.ContextLines = -1 }, false},
 		{"too much context", func(s *ui.Settings) { s.ContextLines = 1001 }, false},
 		{"negative delay", func(s *ui.Settings) { s.HoverDelay = -time.Millisecond }, false},
 		{"too long a delay", func(s *ui.Settings) { s.HoverDelay = 5*time.Second + 1 }, false},
 		{"no layout", func(s *ui.Settings) { s.Layout = 3 }, false},
+		{"no view", func(s *ui.Settings) { s.View = 2 }, false},
 		{"negative width", func(s *ui.Settings) { s.SplitMinWidth = -1 }, false},
 		{"too wide", func(s *ui.Settings) { s.SplitMinWidth = 1001 }, false},
 	}
@@ -64,5 +67,17 @@ func TestLayoutNames(t *testing.T) {
 	assert.Equal(t, "unified", ui.UnifiedLayout.String())
 	assert.Equal(t, "Layout(3)", ui.Layout(3).String())
 	_, err := ui.ParseLayout("Unified")
+	assert.ErrorIs(t, err, ui.ErrInvalidSetting)
+}
+
+func TestViewNames(t *testing.T) {
+	for _, v := range []ui.View{ui.FileView, ui.StreamView} {
+		got, err := ui.ParseView(v.String())
+		require.NoError(t, err)
+		assert.Equal(t, v, got)
+	}
+	assert.Equal(t, "stream", ui.StreamView.String())
+	assert.Equal(t, "View(2)", ui.View(2).String())
+	_, err := ui.ParseView("all")
 	assert.ErrorIs(t, err, ui.ErrInvalidSetting)
 }

@@ -17,6 +17,7 @@ import (
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // tea.Model prescribes it
 	before, caret := m.s.screenKey(), m.s.Caret
 	m, cmd := m.update(msg)
+	m.want()
 	m.s.keepCaret()
 	if m.s.screenKey() != before || m.s.Caret != caret {
 		m.dropHover()
@@ -43,29 +44,47 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 	case hoverDue:
 		m.ask(msg.Seq)
 	case fileDiffsReady:
-		for _, u := range m.p.Files.Drain() {
-			if m.s.apply(u) {
-				m.track()
-			}
-		}
+		m.onFileDiffs()
+	case streamReady:
+		m.onStream()
 	case lspUpdated:
 		m.onLSP()
 	case watchUpdated:
 		m.onWatch()
 	case changesetReady:
-		for _, u := range m.p.Reload.Drain() {
-			before := m.s.Files
-			m.load(m.s.reloaded(u))
-			for _, path := range gone(before, m.s.Files) {
-				m.p.Docs.Untrack(hover.DocKey{Path: path})
-			}
-		}
-		if m.s.WatchAgain && !m.s.Reloading {
-			m.s.WatchAgain = false
-			m.watchReload()
-		}
+		m.onChangesets()
 	}
 	return m, nil
+}
+
+func (m *model) onFileDiffs() {
+	for _, u := range m.p.Files.Drain() {
+		if m.s.apply(u) {
+			m.track()
+		}
+	}
+}
+
+func (m *model) onStream() {
+	for _, f := range m.s.streamApply(m.p.Stream.Drain()) {
+		m.trackStream(f)
+	}
+}
+
+// onChangesets takes the reloads, and starts the one a change the watcher
+// saw meanwhile waits for.
+func (m *model) onChangesets() {
+	for _, u := range m.p.Reload.Drain() {
+		before := m.s.Files
+		m.load(m.s.reloaded(u))
+		for _, path := range gone(before, m.s.Files) {
+			m.p.Docs.Untrack(hover.DocKey{Path: path})
+		}
+	}
+	if m.s.WatchAgain && !m.s.Reloading {
+		m.s.WatchAgain = false
+		m.watchReload()
+	}
 }
 
 // onWatch takes the watcher's news. A change reloads as r does, which
@@ -153,7 +172,7 @@ func (m *model) onCaretAction(a ui.Action) {
 func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 	s := &m.s
 	if mo, ok := motionOf(a); ok {
-		s.scrollBy(mo.steps(len(s.Lines), s.bodyHeight()))
+		s.scrollBy(mo.steps(s.lineCount(), s.bodyHeight()))
 		return m, nil
 	}
 	switch a { //nolint:exhaustive // the layer takes the view's actions only
@@ -173,6 +192,12 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		s.toggleMode()
 	case ui.ToggleLayout:
 		s.toggleLayout()
+	case ui.ToggleStream:
+		m.load(s.toggleStream())
+		if !s.Stream.On {
+			// The stream's loads would hold up the file now asked for.
+			m.p.Stream.Want(nil)
+		}
 	case ui.ScrollLeft:
 		s.shiftH(-1)
 	case ui.ScrollRight:
