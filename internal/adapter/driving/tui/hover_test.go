@@ -186,6 +186,52 @@ func TestAServerNotReadyIsAskedAgainOnceReady(t *testing.T) {
 	assert.True(t, m.s.Hover.Popup.Open)
 }
 
+func TestAnEmptyAnswerDuringTheServersWorkIsAskedAgainAfterIt(t *testing.T) {
+	m, f := hoverModel(t)
+	m = answer(m, progress(gopls(), "indexing", 40))
+	m = rest(t, m, 9)
+
+	m = answer(m, hover.Update{Kind: hover.HoverDone, Req: 1, Version: 1, Outcome: hover.Empty})
+	m = answer(m, hover.Update{Kind: hover.ProgressChanged, Instance: lang.Instance{Server: "gopls", Root: "other"}})
+	require.Equal(t, 1, f.hover.HoverCallCount(), "not the server of the file shown")
+	m = answer(m, hover.Update{Kind: hover.ProgressChanged, Instance: gopls()})
+
+	require.Equal(t, 2, f.hover.HoverCallCount())
+	m = answer(m, text(2, "func fmt.Println"))
+	assert.True(t, m.s.Hover.Popup.Open)
+}
+
+// TestAnEmptyAnswerIsAskedAgainAfterEachWork: intelephense answers a
+// hover right after it starts, before it reports its indexing, and
+// rust-analyzer runs one piece of work after another.
+func TestAnEmptyAnswerIsAskedAgainAfterEachWork(t *testing.T) {
+	m, f := hoverModel(t)
+	m = rest(t, m, 9)
+	m = answer(m, hover.Update{Kind: hover.HoverDone, Req: 1, Version: 1, Outcome: hover.Empty})
+
+	m = answer(m, progress(gopls(), "fetching", -1), hover.Update{Kind: hover.ProgressChanged, Instance: gopls()})
+	require.Equal(t, 2, f.hover.HoverCallCount())
+	m = answer(m, hover.Update{Kind: hover.HoverDone, Req: 2, Version: 1, Outcome: hover.Empty})
+	m = answer(m, progress(gopls(), "indexing", 0), hover.Update{Kind: hover.ProgressChanged, Instance: gopls()})
+	require.Equal(t, 3, f.hover.HoverCallCount())
+
+	m = answer(m, text(3, "func fmt.Println"))
+	answer(m, progress(gopls(), "cargo check", -1), hover.Update{Kind: hover.ProgressChanged, Instance: gopls()})
+	assert.Equal(t, 3, f.hover.HoverCallCount(), "an answer with text waits for nothing")
+}
+
+func TestLeavingTheTargetStopsWaitingForTheWork(t *testing.T) {
+	m, f := hoverModel(t)
+	m = answer(m, progress(gopls(), "indexing", 40))
+	m = rest(t, m, 9)
+	m = answer(m, hover.Update{Kind: hover.HoverDone, Req: 1, Version: 1, Outcome: hover.Empty})
+
+	m, _ = send(m, tea.MouseMotionMsg{X: 0, Y: 0})
+	answer(m, hover.Update{Kind: hover.ProgressChanged, Instance: gopls()})
+
+	assert.Equal(t, 1, f.hover.HoverCallCount())
+}
+
 func TestRefusedRequestsWaitForNothing(t *testing.T) {
 	for _, sub := range []hover.Submit{hover.Unsupported, hover.Stale, hover.Busy, hover.Failed} {
 		m, f := hoverModel(t)

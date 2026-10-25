@@ -43,20 +43,34 @@ type clientSink struct {
 	c *client
 }
 
-// status checks and reports under one lock, so a client replaced meanwhile
-// cannot slip a status in after its successor's.
 func (s clientSink) status(i lang.Instance, st hover.ServerStatus) {
-	s.e.mu.Lock()
-	if s.e.current[i] != s.c {
-		s.e.mu.Unlock()
-		return
-	}
-	s.e.statusLocked(i, st)
-	s.e.mu.Unlock()
-	notify(s.e.signal)
+	s.report(i, func() bool { s.e.statusLocked(i, st); return true })
 }
 
 func (s clientSink) result(u hover.Update) { s.e.result(u) }
+
+// progress reports only while the client is ready: its reader goes on
+// reading while it stops, and work after Stopped would stay on screen.
+func (s clientSink) progress(i lang.Instance, p hover.Progress) {
+	s.report(i, func() bool {
+		if s.c.status() != hover.Ready {
+			return false
+		}
+		s.e.progressLocked(i, p)
+		return true
+	})
+}
+
+// report checks and reports under one lock, so a client replaced meanwhile
+// cannot slip an update in after its successor's.
+func (s clientSink) report(i lang.Instance, add func() bool) {
+	s.e.mu.Lock()
+	added := s.e.current[i] == s.c && add()
+	s.e.mu.Unlock()
+	if added {
+		notify(s.e.signal)
+	}
+}
 
 func (e *events) status(i lang.Instance, s hover.ServerStatus) {
 	e.mu.Lock()
@@ -65,12 +79,31 @@ func (e *events) status(i lang.Instance, s hover.ServerStatus) {
 	notify(e.signal)
 }
 
-// statusLocked replaces a status of i not yet drained with s.
+// statusLocked replaces a status of i not yet drained with s. Its work
+// ends with the connection; said here, as Stopped may be replaced by a
+// restart's Ready before the viewer drains it.
 func (e *events) statusLocked(i lang.Instance, s hover.ServerStatus) {
 	e.pending = slices.DeleteFunc(e.pending, func(u hover.Update) bool {
 		return u.Kind == hover.StatusChanged && u.Instance == i
 	})
 	e.pending = append(e.pending, hover.Update{Kind: hover.StatusChanged, Instance: i, Status: s})
+	if s == hover.Stopped || s == hover.ServerFailed {
+		e.progressLocked(i, hover.Progress{})
+	}
+}
+
+// progressLocked adds p for i. It replaces a report of work just before
+// it, so a viewer that drains late finds no pile of percentages; the end
+// of work is kept, as a hover waiting for it asks again then, and nothing
+// moves past an answer.
+func (e *events) progressLocked(i lang.Instance, p hover.Progress) {
+	if n := len(e.pending); n > 0 {
+		last := e.pending[n-1]
+		if last.Kind == hover.ProgressChanged && last.Instance == i && last.Progress != (hover.Progress{}) {
+			e.pending = e.pending[:n-1]
+		}
+	}
+	e.pending = append(e.pending, hover.Update{Kind: hover.ProgressChanged, Instance: i, Progress: p})
 }
 
 func (e *events) result(u hover.Update) {

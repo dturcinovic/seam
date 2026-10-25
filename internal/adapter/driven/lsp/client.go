@@ -35,10 +35,11 @@ var (
 	errExited      = errors.New("server exited")
 )
 
-// sink takes what a client has to report. Neither call may block.
+// sink takes what a client has to report. No call may block.
 type sink interface {
 	status(i lang.Instance, s hover.ServerStatus)
 	result(u hover.Update)
+	progress(i lang.Instance, p hover.Progress)
 }
 
 // desiredDoc is a document as the server is to see it.
@@ -66,6 +67,7 @@ type client struct {
 	languages lang.Table
 	dir       string
 	ws        workspace
+	works     works
 	docs      *docSet
 	starter   starter
 	// sink is set by the pool before start.

@@ -113,7 +113,19 @@ const (
 	// DefinitionDone sets Req, Version, Outcome and, for Text, Target and
 	// Targets, how many the server named: Target is the first of them.
 	DefinitionDone
+	// ProgressChanged sets Instance and Progress: the work the instance
+	// reports now, the zero value once none is left.
+	ProgressChanged
 )
+
+// Progress is work a server reports while it goes on, as indexing. The
+// zero value is none; work under way always has a Title.
+type Progress struct {
+	Title string
+	// Percent is how far it has come, if Known.
+	Percent int
+	Known   bool
+}
 
 // Location is where a definition lies: line Line, counted from 0, of Path
 // in the tree of Commit, the worktree for none. Outside says that it lies
@@ -142,4 +154,6 @@ type Update struct {
 
 	Target  Location
 	Targets int
+
+	Progress Progress
 }

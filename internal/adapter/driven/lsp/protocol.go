@@ -155,7 +155,7 @@ func initializeParams(pid int, w workspace, options map[string]any) map[string]a
 				"synchronization": map[string]any{"didSave": false, "willSave": false, "dynamicRegistration": false},
 			},
 			"workspace": map[string]any{"configuration": true, "workspaceFolders": true},
-			"window":    map[string]any{"workDoneProgress": false},
+			"window":    map[string]any{"workDoneProgress": true},
 		},
 	}
 	if options != nil {
