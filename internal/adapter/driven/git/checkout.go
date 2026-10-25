@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"syscall"
 
@@ -139,16 +140,19 @@ func (c *Checkouts) Close(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.closed = true
-	if c.session == nil {
-		return err
+	if c.session != nil {
+		c.removeSession(ctx, c.session.dir)
+		c.prune(ctx)
+		err = errors.Join(err, c.session.unlock())
 	}
-	c.removeSession(ctx, c.session.dir)
-	c.prune(ctx)
-	return errors.Join(err, c.session.unlock())
+	// Also without a session: one that failed to open may have made base.
+	c.removeBase()
+	return err
 }
 
 // Clean removes the checkouts of every session of this repository that has
-// ended: whose directory has the marker and whose lock can be taken.
+// ended: whose directory has the marker and whose lock can be taken. Then
+// it removes the repository's directory, if that leaves it empty.
 func (c *Checkouts) Clean(ctx context.Context) error {
 	if c.base == "" {
 		return nil
@@ -183,7 +187,22 @@ func (c *Checkouts) Clean(ctx context.Context) error {
 	if cleaned {
 		c.prune(ctx)
 	}
+	c.removeBase()
 	return nil
+}
+
+// removeBase removes the directory of this repository's sessions once the
+// last of them is gone. rmdir removes only an empty directory and decides
+// that at once, so the lock of a session being made keeps it; os.Remove
+// would unlink a symlink whatever it points to. ENOTEMPTY counts as
+// os.ErrExist.
+func (c *Checkouts) removeBase() {
+	if c.base == "" {
+		return
+	}
+	if err := syscall.Rmdir(c.base); err != nil && !errors.Is(err, os.ErrExist) && !errors.Is(err, os.ErrNotExist) {
+		c.log.Warn("remove checkout directory", zap.String("dir", c.base), zap.Error(err))
+	}
 }
 
 // removeSession removes the checkouts in dir, then dir itself, its marker
@@ -198,6 +217,11 @@ func (c *Checkouts) removeSession(ctx context.Context, dir string) {
 		if e.Name() != ownerMarker {
 			c.removeCheckout(ctx, filepath.Join(dir, e.Name()))
 		}
+	}
+	left, err := os.ReadDir(dir)
+	if err != nil || slices.ContainsFunc(left, func(e os.DirEntry) bool { return e.Name() != ownerMarker }) {
+		c.log.Info("checkouts left for a later session", zap.String("dir", dir), zap.Error(err))
+		return
 	}
 	for _, path := range []string{filepath.Join(dir, ownerMarker), dir} {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -238,15 +262,12 @@ func owned(dir string) bool {
 // marker. The lock comes first, so Clean never sees an unlocked session
 // that is still being made.
 func openSession(base, root string) (*session, error) {
-	if err := os.MkdirAll(base, 0o700); err != nil {
-		return nil, fmt.Errorf("make checkout directory: %w", err)
-	}
 	var id [8]byte
 	_, _ = rand.Read(id[:]) // crypto/rand.Read never fails.
 	dir := filepath.Join(base, hex.EncodeToString(id[:]))
-	lock, err := os.OpenFile(dir+".lock", os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+	lock, err := makeLock(dir + ".lock")
 	if err != nil {
-		return nil, fmt.Errorf("make session lock: %w", err)
+		return nil, err
 	}
 	s := &session{dir: dir, lock: lock}
 	if err := tryLock(lock); err != nil {
@@ -259,6 +280,32 @@ func openSession(base, root string) (*session, error) {
 		return nil, errors.Join(fmt.Errorf("mark session directory: %w", err), os.Remove(dir), s.unlock())
 	}
 	return s, nil
+}
+
+// makeLock makes the lock file name of a new session, and the directory
+// base it lies in. A session of this repository that ends removes base
+// once it is empty, which it may be between making it and the lock: then
+// base is made anew.
+func makeLock(name string) (*os.File, error) {
+	base := filepath.Dir(name)
+	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {
+		return nil, fmt.Errorf("make checkout directory: %w", err)
+	}
+	for range 10 {
+		// Not MkdirAll: it fails when base is made and removed again
+		// while it looks.
+		if err := os.Mkdir(base, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+			return nil, fmt.Errorf("make checkout directory: %w", err)
+		}
+		lock, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+		if err == nil {
+			return lock, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("make session lock: %w", err)
+		}
+	}
+	return nil, fmt.Errorf("make session lock: %s was removed each time", base)
 }
 
 // takeLock locks the lock of the session at dir, if no running session
