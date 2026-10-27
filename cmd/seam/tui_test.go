@@ -104,7 +104,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 		usecase.Module,
 		fx.NopLogger,
 		fx.Populate(&ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch,
-			&ports.NoteWriter, &ports.NoteReader, &ports.NoteUpdates, &loader),
+			&ports.NoteWriter, &ports.NoteReader, &ports.NoteOverview, &ports.NoteUpdates, &loader),
 	)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))

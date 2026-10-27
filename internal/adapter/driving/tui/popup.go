@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/dturcinovic/seam/internal/domain/hover"
+	"github.com/dturcinovic/seam/internal/domain/note"
 )
 
 // The bounds of the popup, frame included: no wider than a line of text
@@ -19,14 +20,15 @@ const popupFrame = 2
 // popupTab is how many blanks a tab takes, see lineBuilder.
 const popupTab = "    "
 
-// popup is the answer of a hover on screen, or the notes at a line: its
-// text wrapped to its box. Notes is that line, nil for a hover, opened at
-// NotesX, NotesY.
+// popup is the answer of a hover on screen, the notes at a line, or one
+// note: its text wrapped to its box. Notes is that line, nil otherwise,
+// opened at NotesX, NotesY; Note the one note, for x.
 type popup struct {
 	Open           bool
 	Lines          []popupLine
 	Notes          *noteLine
 	NotesX, NotesY int
+	Note           note.ID
 	box
 }
 

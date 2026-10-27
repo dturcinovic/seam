@@ -24,7 +24,7 @@ func fakePorts() Ports {
 		Files: &infakes.FakeFileDiffLoader{}, Stream: &infakes.FakeStreamLoader{}, Reload: &infakes.FakeChangesetReloader{},
 		Docs: &infakes.FakeDocumentTracker{}, LSP: &infakes.FakeLSPUpdates{}, Hover: &infakes.FakeHoverer{}, Define: &infakes.FakeDefiner{},
 		Watch:      &infakes.FakeWatchUpdates{},
-		NoteWriter: &infakes.FakeNoteWriter{}, NoteReader: &infakes.FakeNoteReader{}, NoteUpdates: &infakes.FakeNoteUpdates{},
+		NoteWriter: &infakes.FakeNoteWriter{}, NoteReader: &infakes.FakeNoteReader{}, NoteOverview: &infakes.FakeNoteOverview{}, NoteUpdates: &infakes.FakeNoteUpdates{},
 	}
 }
 

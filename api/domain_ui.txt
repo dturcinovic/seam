@@ -71,6 +71,7 @@ const (
 	AddNote
 	NextNote
 	PrevNote
+	Notes
 
 	Open
 	Back

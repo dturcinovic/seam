@@ -111,6 +111,7 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 	shown, had := s.file()
 	// Their file indexes are of the files before.
 	s.Jump.Target, s.Jump.Waiting = nil, nil
+	s.Notes.Find = noteFind{}
 	old := s.Current
 	// A commit or a checkout may have moved the commits, and the files'
 	// loads must ask for the new ones.
@@ -194,6 +195,7 @@ func (s *state) place(width, height int) (laid bool) {
 	}
 	s.scrollList(0)
 	s.layoutField()
+	s.layoutOverview()
 	s.refreshNotePopup()
 	return laid
 }
@@ -203,6 +205,7 @@ func (s *state) place(width, height int) (laid bool) {
 func (s *state) setFiles(files []change.ChangedFile) {
 	s.Files = sortByFolder(files)
 	s.List.index(s.Files, s.Cells)
+	s.indexSides()
 }
 
 // show is the one way to change Lines, so the scrollbar's marks follow.

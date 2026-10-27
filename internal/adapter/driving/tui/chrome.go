@@ -38,6 +38,7 @@ func viewHints() []hint {
 		firstKeys("stream", ui.ToggleStream),
 		firstKeys("scroll", ui.Down, ui.Up), firstKeys("sideways", ui.ScrollLeft, ui.ScrollRight),
 		firstKeys("files", ui.ToggleFiles), firstKeys("caret", ui.StartCaret), firstKeys("back", ui.JumpBack),
+		firstKeys("notes", ui.Notes),
 	}
 }
 
@@ -59,10 +60,19 @@ func caretHints() []hint {
 	}
 }
 
+// overviewHints remind of the keys of the notes' overview, which takes
+// the file list's; x is the popups', see overviewKey.
+func overviewHints() []hint {
+	return []hint{
+		firstKeys("open", ui.Open), firstKeys("move", ui.Down, ui.Up), firstKeys("first/last", ui.Top, ui.Bottom),
+		firstKeys("close", ui.Back),
+	}
+}
+
 // keyTexts are the reminders of the keys of the view, the focused file
-// list and the caret.
+// list, the caret and the notes' overview.
 type keyTexts struct {
-	view, list, caret string
+	view, list, caret, overview string
 }
 
 func newKeyTexts(k ui.Keymap) keyTexts {
@@ -70,6 +80,8 @@ func newKeyTexts(k ui.Keymap) keyTexts {
 		view:  keyText(k, ui.ViewLayer, viewHints()),
 		list:  keyText(k, ui.ListLayer, listHints()),
 		caret: keyText(k, ui.CaretLayer, caretHints()),
+		overview: keyText(k, ui.ListLayer, overviewHints()) + "  " +
+			keyText(k, ui.PopupLayer, []hint{firstKeys("resolve", ui.ResolveNote)}),
 	}
 }
 
@@ -194,6 +206,9 @@ func footer(s *state) (string, style) {
 		return fieldHints, footerStyle
 	}
 	notes := s.notesText()
+	if s.Notes.Overview.Open {
+		return notes + s.KeyText.overview, footerStyle
+	}
 	if s.List.Focus {
 		return notes + s.KeyText.list, footerStyle
 	}

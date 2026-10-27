@@ -108,9 +108,14 @@ func (s *state) noteMarkAt(x, y int) (noteLine, bool) {
 	return noteLine{}, false
 }
 
-// resolveNote resolves the first note of the notes popup.
+// resolveNote resolves the note of the popup, or the first of a line's.
 func (m *model) resolveNote() {
 	p := m.s.Hover.Popup
+	if p.Note != "" {
+		m.dropHover()
+		m.resolve(p.Note)
+		return
+	}
 	if p.Notes == nil {
 		return
 	}
@@ -118,6 +123,12 @@ func (m *model) resolveNote() {
 	if len(spots) == 0 {
 		return
 	}
-	m.p.NoteWriter.Resolve(spots[0].Note.ID)
+	m.resolve(spots[0].Note.ID)
+}
+
+// resolve marks note id done; the book's change brings the marks and
+// lists up to date.
+func (m *model) resolve(id note.ID) {
+	m.p.NoteWriter.Resolve(id)
 	m.s.Note = "note resolved"
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -18,7 +19,8 @@ type NotesSettings struct {
 	File string
 }
 
-// Notes implements in.NoteWriter, in.NoteReader and in.NoteUpdates. One
+// Notes implements in.NoteWriter, in.NoteReader, in.NoteOverview and
+// in.NoteUpdates. One
 // goroutine reads, places and changes the book, in the order asked; a
 // change from another process, which the watcher reports, reloads it
 // before the next job.
@@ -97,21 +99,31 @@ func (n *Notes) Place(k note.SnapshotKey, lines []string) {
 	n.submit(noteJob{key: k, lines: lines})
 }
 
-// noteJob is a change of the book, named op, or else the placement of the
-// notes of a side.
+// Overview implements in.NoteOverview.
+func (n *Notes) Overview() {
+	n.submit(noteJob{overview: true})
+}
+
+// noteJob is a change of the book, named op, the overview, or else the
+// placement of the notes of a side.
 type noteJob struct {
 	op     note.Op
 	change func(*note.Book) error
+
+	overview bool
 
 	key   note.SnapshotKey
 	lines []string
 }
 
 // answer is the job's update without the book: a change failed with err,
-// a placement found nothing.
+// an overview has none, a placement found nothing.
 func (j noteJob) answer(err error) note.Update {
-	if j.change != nil {
+	switch {
+	case j.change != nil:
 		return note.Update{Kind: note.Done, Op: j.op, Err: err}
+	case j.overview:
+		return note.Update{Kind: note.Overview, Err: err}
 	}
 	return note.Update{Kind: note.Placed, Key: j.key}
 }
@@ -142,6 +154,10 @@ func (n *Notes) submit(j noteJob) {
 }
 
 func (n *Notes) run(ctx context.Context, j noteJob) {
+	if j.overview {
+		n.publish(note.Update{Kind: note.Overview, Notes: slices.Clone(n.book.Notes), Err: n.bookErr})
+		return
+	}
 	if j.change == nil {
 		n.publish(note.Update{Kind: note.Placed, Key: j.key, Spots: n.spots(j.key, j.lines)})
 		return

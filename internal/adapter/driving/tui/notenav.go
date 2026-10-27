@@ -3,12 +3,25 @@ package tui
 import (
 	"slices"
 
-	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/diff"
 	"github.com/dturcinovic/seam/internal/domain/filediff"
-	"github.com/dturcinovic/seam/internal/domain/note"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 	"github.com/dturcinovic/seam/internal/domain/view"
 )
+
+// onNoteAction does an action of the view on notes.
+func (m *model) onNoteAction(a ui.Action) {
+	switch a { //nolint:exhaustive // the view's actions on notes only
+	case ui.AddNote:
+		m.addNote()
+	case ui.NextNote:
+		m.load(m.s.seekNote(1))
+	case ui.PrevNote:
+		m.load(m.s.seekNote(-1))
+	case ui.Notes:
+		m.openOverview()
+	}
+}
 
 // noteField does what the note's owner makes of a key in the field.
 func (m *model) noteField(r fieldResult) {
@@ -132,20 +145,10 @@ func (s *state) seekPlaced() {
 // openNotesIn is how many open notes the book has on a side of file i of
 // the comparison.
 func (s *state) openNotesIn(i int) int {
-	f := s.Files[i]
-	left, lok := note.OriginOf(s.Comparison.Left)
-	right, rok := note.OriginOf(s.Comparison.Right)
-	newPath := f.NewPath
-	if s.Comparison.Right.Kind() == change.KindPath {
-		// A file on disk takes notes where it lies in the worktree.
-		right, rok, newPath = note.Origin{Kind: change.KindWorktree}, f.WorktreePath != "", f.WorktreePath
-	}
 	n := 0
-	if lok && f.OldPath != "" {
-		n += s.Notes.Open[headKey{left, f.OldPath}]
-	}
-	if rok && newPath != "" {
-		n += s.Notes.Open[headKey{right, newPath}]
+	hs, k := s.headsOf(i)
+	for _, h := range hs[:k] {
+		n += s.Notes.Open[h.Key]
 	}
 	return n
 }

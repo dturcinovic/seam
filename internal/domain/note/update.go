@@ -31,6 +31,9 @@ const (
 	// cannot be read or is not watched, nil once it is again. Live is
 	// whether changes from elsewhere show.
 	StoreStatus
+	// Overview sets Notes, every note of the book, resolved ones too, or
+	// Err, why there is none.
+	Overview
 )
 
 // Spot is a note and its place in a side.
@@ -60,4 +63,6 @@ type Update struct {
 
 	Heads []Head
 	Live  bool
+
+	Notes []Note
 }
