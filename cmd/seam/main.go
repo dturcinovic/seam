@@ -38,20 +38,28 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 func newRootCommand() *cobra.Command {
 	var flags config.Flags
-	var staged, watch bool
+	var staged, watch, showVersion bool
 	cmd := &cobra.Command{
-		Use:     "seam [<rev> [<rev>]]",
-		Short:   "Side-by-side diff viewer with type info from the language server",
-		Version: versionString(),
+		Use:   "seam [<rev> [<rev>]]",
+		Short: "Side-by-side diff viewer with type info from the language server",
 		Long: `Without arguments seam compares HEAD with the worktree, untracked files
 included. One revision replaces HEAD, two compare two commits, and --staged
 compares HEAD with the index. --watch reloads whenever the worktree, the
 index or HEAD changes.`,
-		Args: cobra.MaximumNArgs(2),
+		// --version takes no arguments into account, as cobra's own does not.
+		Args: func(cmd *cobra.Command, args []string) error {
+			if showVersion {
+				return nil
+			}
+			return cobra.MaximumNArgs(2)(cmd, args)
+		},
 		// Errors are printed once by run; usage only on --help.
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if showVersion {
+				return printVersion(cmd.Context(), flags, cmd.OutOrStdout())
+			}
 			c, err := comparison(args, staged)
 			if err != nil {
 				return err
@@ -65,7 +73,7 @@ index or HEAD changes.`,
 			if err != nil {
 				return err
 			}
-			return session(cmd.Context(), cfg, c, watch, cmd.OutOrStdout())
+			return session(cmd.Context(), cfg, c, watch, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	}
 	cmd.Flags().BoolVarP(&flags.Verbose, "verbose", "v", false, "log at debug level")
@@ -73,5 +81,22 @@ index or HEAD changes.`,
 	cmd.Flags().BoolVarP(&watch, "watch", "w", false, "reload when the worktree, the index or HEAD changes")
 	cmd.Flags().StringVar(&flags.MaxFileSize, "max-file-size", "", "largest side of a file to load, in bytes or with K, M or G (default 8M)")
 	cmd.Flags().StringVar(&flags.HeapProfile, "pprof", "", "write a heap profile to this file when seam ends")
+	// Not cobra's own --version, which prints before the configuration is
+	// known: the notice of a newer release needs it.
+	cmd.Flags().BoolVar(&showVersion, "version", false, "print the version")
 	return cmd
+}
+
+// printVersion prints the version and the notice of a newer release, if the
+// last check found one; as in a session, failing to write the notice fails
+// nothing.
+func printVersion(ctx context.Context, flags config.Flags, stdout io.Writer) error {
+	b := thisBuild()
+	if _, err := fmt.Fprintln(stdout, "seam version "+b.String()); err != nil {
+		return err
+	}
+	if line, ok := releaseNotice(ctx, flags, b.release()); ok {
+		_, _ = fmt.Fprintln(stdout, line)
+	}
+	return nil
 }

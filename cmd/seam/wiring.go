@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 
 	"go.uber.org/fx"
@@ -10,10 +11,13 @@ import (
 	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
 	"github.com/dturcinovic/seam/internal/adapter/driven/fswatch"
 	"github.com/dturcinovic/seam/internal/adapter/driven/git"
+	"github.com/dturcinovic/seam/internal/adapter/driven/github"
 	"github.com/dturcinovic/seam/internal/adapter/driven/lsp"
+	"github.com/dturcinovic/seam/internal/adapter/driven/statefile"
 	"github.com/dturcinovic/seam/internal/app/port/out"
 	"github.com/dturcinovic/seam/internal/app/usecase"
 	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/release"
 	"github.com/dturcinovic/seam/internal/observability"
 )
 
@@ -21,13 +25,18 @@ import (
 // cases and adapters at once. The language servers' stderr goes next to the
 // log.
 func options(cfg config.Config, logger *observability.Logger, root string, file configfile.File) []fx.Option {
+	running := thisBuild().release()
 	return []fx.Option{
 		fx.Supply(cfg, logger, git.Config{Root: root, Checkouts: cfg.Checkouts}, lsp.Config{Root: root, LogDir: filepath.Dir(cfg.LogFile), MaxInstances: file.MaxInstances}, cfg.FileSizeLimit(), file.Languages),
+		fx.Supply(usecase.ReleaseSettings{Running: running, Ask: cfg.UpdateCheck}, statefile.Config{ReleaseFile: cfg.ReleaseFile},
+			github.Config{BaseURL: cfg.UpdateURL, Repo: repo, Agent: "seam/" + running.String()}),
 		observability.Module,
 		git.Module,
 		chroma.Module,
 		lsp.Module,
 		fswatch.Module,
+		statefile.Module,
+		github.Module,
 		usecase.Module,
 		// fx stops in the reverse order of construction. Nothing ties the
 		// language servers to git, so this builds git and its checkouts
@@ -39,4 +48,28 @@ func options(cfg config.Config, logger *observability.Logger, root string, file 
 		// the concrete one.
 		fx.WithLogger(func(l *observability.Logger) fxevent.Logger { return observability.NewFxLogger(l) }),
 	}
+}
+
+// releaseNotice is the notice --version adds, from the last check alone: it
+// builds no graph and asks no one. Whatever cannot be read only costs the
+// notice, so it stops as soon as there can be none.
+func releaseNotice(ctx context.Context, flags config.Flags, running release.Version) (string, bool) {
+	if running.IsZero() {
+		return "", false
+	}
+	cfg, err := config.Load(flags)
+	if err != nil || !cfg.UpdateCheck {
+		return "", false
+	}
+	file, err := configfile.Load(cfg.ConfigFile)
+	if err != nil {
+		return "", false
+	}
+	cfg = cfg.Settle(file.MaxFileSize, file.UpdateCheck)
+	settings := usecase.ReleaseSettings{Running: running, Ask: cfg.UpdateCheck}
+	latest, ok := usecase.NewerRelease(ctx, settings, statefile.New(statefile.Config{ReleaseFile: cfg.ReleaseFile}))
+	if !ok {
+		return "", false
+	}
+	return release.Notice(running, latest, updateCommand()), true
 }

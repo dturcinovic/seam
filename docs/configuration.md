@@ -7,9 +7,9 @@ A key that is set replaces the default; one that is not keeps it. A
 misspelt key or a broken file stops seam with the file, line and reason, so
 a typo never goes unnoticed.
 
-The file has six tables: [`[servers]` and `[languages]`](#language-servers-and-languages)
+The file has seven tables: [`[servers]` and `[languages]`](#language-servers-and-languages)
 for hover, [`[ui]`](#viewer) for the view, [`[limits]`](#limits),
-[`[colors]`](#colours) and [`[keys]`](#keys).
+[`[colors]`](#colours), [`[keys]`](#keys) and [`[updates]`](#updates).
 
 ## Language servers and languages
 
@@ -183,3 +183,13 @@ same key in one place are an error.
 | popup | `close_popup` | `esc` |
 
 What the actions do is in [Usage](usage.md).
+
+## Updates
+
+```toml
+[updates]
+check = false            # never ask for a newer release
+```
+
+What the check does, and `SEAM_NO_UPDATE_CHECK` for machines without a
+configuration file, is in [Usage](usage.md#newer-releases).
