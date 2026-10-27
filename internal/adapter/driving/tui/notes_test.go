@@ -221,9 +221,11 @@ func TestPlacedNotesShowInTheGutter(t *testing.T) {
 	// The mark stands in the middle of its columns.
 	right := m.s.Layout.Left.Width + separatorWidth + 1
 	mark := func(line int) string { return string([]rune(lines[bodyTop+line])[right]) }
-	assert.Equal(t, "?", mark(1))
+	assert.Equal(t, "◆", mark(1))
 	assert.Equal(t, "╎", mark(2), "the note's further lines")
-	assert.Equal(t, "!", mark(5))
+	assert.Contains(t, lines[bodyTop+3], "?   text of q", "its line below its last one")
+	assert.Equal(t, "◆", mark(6))
+	assert.Contains(t, lines[bodyTop+7], "!   text of f")
 	assert.Equal(t, " ", mark(0))
 	assert.Contains(t, footerLine(m), "notes 1 not placed")
 }
@@ -320,7 +322,7 @@ func TestMGoesFromNoteToNote(t *testing.T) {
 	m, _ = typed(m, "m")
 	assert.Equal(t, 19, m.s.top())
 	m, _ = typed(m, "m")
-	assert.Equal(t, 29, m.s.top())
+	assert.Equal(t, 30, m.s.top(), "past the line of the note before")
 	m, _ = typed(m, "M")
 	assert.Equal(t, 19, m.s.top())
 }
@@ -347,7 +349,7 @@ func TestMReachesNotesOnTheLastPage(t *testing.T) {
 	require.Less(t, top, 69, "the last page cannot scroll the note to the top")
 	assert.Equal(t, 69, m.s.Notes.At)
 	m, _ = typed(m, "m")
-	assert.Equal(t, 74, m.s.Notes.At, "the next m goes on from the note, not from the top")
+	assert.Equal(t, 75, m.s.Notes.At, "the next m goes on from the note, not from the top")
 	m, _ = typed(m, "m")
 	assert.Contains(t, footerLine(m), "no further notes")
 	m, _ = typed(m, "M")
@@ -390,7 +392,7 @@ func TestTheNoteMWentToCountsOnlyInItsLayout(t *testing.T) {
 	m.s.Notes.At = 9
 	m.s.Notes.AtLaid.mode = view.Hunks
 	m, _ = typed(m, "m")
-	assert.Equal(t, 9, m.s.Notes.At, "from the top, as a line of another layout is no place to go on from")
+	assert.Equal(t, 10, m.s.Notes.At, "from the top, as a line of another layout is no place to go on from")
 	assert.NotContains(t, footerLine(m), "no further notes")
 }
 

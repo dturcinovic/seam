@@ -355,7 +355,7 @@ func (s *state) unfoldLine(i int) {
 	// the marks stand.
 	if len(lines) != len(s.Lines) {
 		s.Pos = pos
-		s.show(lines)
+		s.layNotes(s.Current, lines)
 	}
 }
 
@@ -382,6 +382,6 @@ func (s *state) layLines() {
 		s.layStream()
 		return
 	}
-	s.show(s.linesFor(&s.Snapshot))
+	s.show(s.linesFor(s.Current, &s.Snapshot))
 	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
 }

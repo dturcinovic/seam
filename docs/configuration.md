@@ -171,6 +171,7 @@ same key in one place are an error.
 | | `next_note` | `m` |
 | | `prev_note` | `M` |
 | | `notes` | `N` |
+| | `note_lines` | `C` |
 | file list | `open` | `enter` |
 | | `back` | `esc` |
 | | `prev_folder` | `[` |

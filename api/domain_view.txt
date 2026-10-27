@@ -24,6 +24,9 @@ func LineForRow(lines []Line, row int) int
     unified block repeat rows of its old halves before them, so they count as
     reaching as far as those: that keeps the search's key from falling.
 
+func NotesBelow(lines []Line, i int) int
+    NotesBelow is how many note lines follow line i.
+
 func RowAt(lines []Line, i int) int
     RowAt is the row of line i, the first one for a fold; i must index lines.
 
@@ -56,8 +59,18 @@ type Line struct {
 	// Has unexported fields.
 }
     Line is one line of a view: a single row, or with Fold a range of unchanged
-    rows shown as one line. Half says which side of its row the line shows;
-    only Unify splits a row.
+    rows shown as one line, or a note's line below one of those, see Annotate.
+    Half says which side of its row the line shows; only Unify splits a row.
+
+func Annotate(lines []Line, notes []NoteAt) []Line
+    Annotate is lines with a note line below the line each of notes names,
+    in the order given, and without the note lines lines had. A note in a fold
+    stands below the fold, so that the hunk view shows it too. It runs last,
+    on lines laid out by Lines, Unify and Unfold: those take no note lines.
+
+    A note line repeats the rows and half of the line it follows. The search for
+    a row then finds that line first, never the note line, and the run of halves
+    of a unified block goes on past it.
 
 func Lines(d diff.FileDiff, m Mode, context int) []Line
     Lines lays out d in mode m, in Hunks with context rows around each change.
@@ -70,6 +83,9 @@ func Unify(d diff.FileDiff, lines []Line) []Line
 
 func (l Line) Contains(row int) bool
     Contains reports whether the line shows or folds row.
+
+func (l Line) Note() (ref int, ok bool)
+    Note is the caller's Ref of a note line; ok is false for any other line.
 
 type Mode int
     Mode says which rows a view shows.
@@ -84,17 +100,27 @@ const (
     The modes of a view. The zero value is not set and shows every row,
     as hiding nothing is the safe choice.
 
+type NoteAt struct {
+	Row  int
+	Half Half
+	Ref  int
+}
+    NoteAt asks for a note line below the line that shows Half of Row; Ref is
+    the caller's, handed back by Line.Note.
+
 type Pos struct {
-	AnchorRow  int
-	AnchorHalf Half
-	Scroll     int
+	AnchorRow   int
+	AnchorHalf  Half
+	AnchorBelow int
+	Scroll      int
 }
     Pos is where a view stands. AnchorRow is the row the view keeps across a
     change of view, and AnchorHalf its half, as the unified view may show a row
-    twice; Scroll is the index of the top line. Switch derives Scroll from the
-    anchor, Navigate the anchor from Scroll. The scroll position alone would not
-    do: a row the hunk view folds away would be lost on the way from the full
-    view and back.
+    twice; AnchorBelow counts the note lines below that row's line the top line
+    is, while they show. Scroll is the index of the top line. Switch derives
+    Scroll from the anchor, Navigate the anchor from Scroll. The scroll position
+    alone would not do: a row the hunk view folds away would be lost on the way
+    from the full view and back.
 
 func Navigate(lines []Line, pos Pos, scroll, height int) Pos
     Navigate moves the top line to scroll, within the bounds of the lines, and
@@ -186,16 +212,18 @@ type StreamLine struct {
     an index into its lines with OnRow and into its estimate with OnGuess.
 
 type StreamPos struct {
-	File       int
-	Spot       Spot
-	AnchorRow  int
-	AnchorHalf Half
-	Scroll     int
+	File        int
+	Spot        Spot
+	AnchorRow   int
+	AnchorHalf  Half
+	AnchorBelow int
+	Scroll      int
 }
-    StreamPos is where a stream stands. File, Spot, AnchorRow and AnchorHalf are
-    the anchor: with OnRow a row and its half as in Pos, with OnGuess a line of
-    the file's estimate, which Switch turns into a row once the file is laid
-    out. Scroll is the index of the top line of the whole stream.
+    StreamPos is where a stream stands. File, Spot, AnchorRow, AnchorHalf and
+    AnchorBelow are the anchor: with OnRow a row, its half and the note lines
+    below it as in Pos, with OnGuess a line of the file's estimate, which Switch
+    turns into a row once the file is laid out. Scroll is the index of the top
+    line of the whole stream.
 
 func StreamPosFor(file int, pos Pos) StreamPos
     StreamPosFor is the place in a stream of pos in file: its anchor on top,

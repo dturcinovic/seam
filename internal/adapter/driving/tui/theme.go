@@ -44,6 +44,12 @@ const (
 	findingFrameStyle
 	questionChipStyle
 	findingChipStyle
+	// The text of a note's line below the code, in its kind's colour, dim
+	// where it likely belongs there.
+	questionTextStyle
+	findingTextStyle
+	questionDimTextStyle
+	findingDimTextStyle
 	// The scrollbar styles come in one pair per tone, see scrollStyle; the
 	// file list's follow, see listStyle.
 	firstScrollStyle
@@ -71,6 +77,7 @@ func (st style) standIn() style {
 		return popupStandIn
 	case separatorStyle, foldStyle, popupFrameStyle, caretStyle, plainStandIn, headerStandIn, footerStandIn, errorStandIn, popupStandIn,
 		questionFrameStyle, findingFrameStyle, questionChipStyle, findingChipStyle,
+		questionTextStyle, findingTextStyle, questionDimTextStyle, findingDimTextStyle,
 		firstScrollStyle, firstListStyle, firstPaneStyle, firstPopupCodeStyle:
 	}
 	if st >= firstPopupCodeStyle && st < firstPopupCodeStyle+style(syntax.Kinds) {
@@ -176,11 +183,12 @@ const (
 	// changed stretch; both are dimmed rather than coloured by kind.
 	standInRole
 	inlineStandInRole
-	// noteRole is a note's mark in the gutter; the kind roles mark the
-	// lines of a note being written, in its kind's colour.
-	noteRole
+	// The kind roles are a note's marks in the gutter in its kind's colour,
+	// dim where it likely belongs there.
 	questionRole
 	findingRole
+	questionDimRole
+	findingDimRole
 	textRole
 	// inlineRole is a changed stretch within a changed line.
 	inlineRole = textRole + role(syntax.Kinds)
@@ -251,13 +259,17 @@ func addPopupStyles(all map[style]lipgloss.Style, popup lipgloss.Style, c palett
 	}
 }
 
-// addFieldStyles adds the frames and filled kinds of a note's field.
+// addFieldStyles adds the frames and filled kinds of a note's field, and
+// the text of a note's line.
 func addFieldStyles(all map[style]lipgloss.Style, popup lipgloss.Style, c palette) {
 	all[questionFrameStyle] = popup.Foreground(c(ui.QuestionFg))
 	all[findingFrameStyle] = popup.Foreground(c(ui.FindingFg))
 	chip := popup.Bold(true).Foreground(c(ui.PopupBg))
 	all[questionChipStyle] = chip.Background(c(ui.QuestionFg))
 	all[findingChipStyle] = chip.Background(c(ui.FindingFg))
+	question, finding := lipgloss.NewStyle().Foreground(c(ui.QuestionFg)), lipgloss.NewStyle().Foreground(c(ui.FindingFg))
+	all[questionTextStyle], all[findingTextStyle] = question, finding
+	all[questionDimTextStyle], all[findingDimTextStyle] = question.Faint(true), finding.Faint(true)
 }
 
 func lipglossStyles(c palette) map[style]lipgloss.Style {
@@ -320,9 +332,10 @@ func addPaneStyles(all map[style]lipgloss.Style, base lipgloss.Style, c palette)
 			gutter = normal
 		}
 		all[paneStyle(tone(t), gutterRole)] = gutter
-		all[paneStyle(tone(t), noteRole)] = normal.Foreground(c(ui.DirFg)).Bold(true)
 		all[paneStyle(tone(t), questionRole)] = normal.Foreground(c(ui.QuestionFg)).Bold(true)
 		all[paneStyle(tone(t), findingRole)] = normal.Foreground(c(ui.FindingFg)).Bold(true)
+		all[paneStyle(tone(t), questionDimRole)] = normal.Foreground(c(ui.QuestionFg)).Faint(true)
+		all[paneStyle(tone(t), findingDimRole)] = normal.Foreground(c(ui.FindingFg)).Faint(true)
 		all[paneStyle(tone(t), standInRole)] = normal.Faint(true)
 		all[paneStyle(tone(t), inlineStandInRole)] = strong.Faint(true)
 		for k := range syntax.Kinds {

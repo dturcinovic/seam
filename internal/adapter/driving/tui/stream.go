@@ -138,13 +138,14 @@ func (s *state) estimates() []int {
 	return out
 }
 
-// linesFor lays out snap as the current view does.
-func (s *state) linesFor(snap *filediff.Snapshot) []view.Line {
+// linesFor lays out snap of file as the current view does, its notes'
+// lines last.
+func (s *state) linesFor(file int, snap *filediff.Snapshot) []view.Line {
 	lines := view.Lines(snap.Diff, s.Mode, s.Context)
 	if s.Layout.Unified {
 		lines = view.Unify(snap.Diff, lines)
 	}
-	return lines
+	return view.Annotate(lines, s.noteAts(file, snap))
 }
 
 // layStream lays out the files held anew, after the mode or the sides
@@ -153,7 +154,7 @@ func (s *state) layStream() {
 	st := &s.Stream
 	st.View = view.NewStream(s.estimates())
 	for f, h := range st.Held {
-		st.View.Lay(f, s.linesFor(&h.snap))
+		st.View.Lay(f, s.linesFor(f, &h.snap))
 	}
 	s.switchStream()
 }
@@ -198,7 +199,7 @@ func (s *state) streamApply(us []filediff.Update) (files []int) {
 			continue
 		}
 		st.Held[f] = newHeld(u.Snapshot, servers{})
-		st.View.Lay(f, s.linesFor(&st.Held[f].snap))
+		st.View.Lay(f, s.linesFor(f, &st.Held[f].snap))
 		files = append(files, f)
 	}
 	if len(us) > 0 && st.On {
@@ -339,8 +340,8 @@ func (s *state) streamUnfold(i int) {
 	lines, _ := st.View.Lines(f)
 	out, _ := view.Unfold(lines, view.Pos{}, i-st.View.Start(f)-1)
 	if st.Pos.File == f && st.Pos.Spot == view.OnRow && l.Contains(st.Pos.AnchorRow) {
-		st.Pos.AnchorRow, st.Pos.AnchorHalf = l.Rows.Start, view.Whole
+		st.Pos.AnchorRow, st.Pos.AnchorHalf, st.Pos.AnchorBelow = l.Rows.Start, view.Whole, 0
 	}
-	st.View.Lay(f, out)
+	s.layNotes(f, out)
 	s.switchStream()
 }

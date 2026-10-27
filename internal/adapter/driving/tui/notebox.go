@@ -19,18 +19,28 @@ const noteHook = "└"
 // anchorMark marks the lines the field notes.
 const anchorMark = "●"
 
-// kindLook is how a note of a kind shows while it is written: the frame of
-// its box, its filled name, and the role of its marks in the gutter.
+// kindLook is how a note of a kind shows: the frame of its box and its
+// filled name while it is written, the role of its marks in the gutter and
+// the style of its line's text, each dim where it likely belongs there.
 type kindLook struct {
-	frame, chip style
-	mark        role
+	frame, chip   style
+	mark, dimMark role
+	text, dimText style
 }
 
 func lookOf(k note.Kind) kindLook {
 	if k == note.Finding {
-		return kindLook{findingFrameStyle, findingChipStyle, findingRole}
+		return kindLook{findingFrameStyle, findingChipStyle, findingRole, findingDimRole, findingTextStyle, findingDimTextStyle}
 	}
-	return kindLook{questionFrameStyle, questionChipStyle, questionRole}
+	return kindLook{questionFrameStyle, questionChipStyle, questionRole, questionDimRole, questionTextStyle, questionDimTextStyle}
+}
+
+// marks is the role of the marks of a note of this look, dim or not.
+func (k kindLook) marks(dim bool) role {
+	if dim {
+		return k.dimMark
+	}
+	return k.mark
 }
 
 // keysShown reports whether the field's box is on the screen and names
@@ -52,28 +62,35 @@ func (s *state) gapOnScreen(g gapSpot) bool {
 }
 
 // writeGapLine writes row j of the field's box across the panes: the box
-// in the text of the side noted, the hook below the marks on its top edge,
-// blanks elsewhere.
+// in the text of the side noted, the hook below the marks on its top edge.
 func writeGapLine(b *strings.Builder, s *state, th *theme, j int) {
 	t := s.Notes.Draft.Lines
-	lay := s.layoutOf(t.File)
+	writeSideLine(b, s, th, t.File, t.Side, func(ln *line, lay layout, to func(int)) {
+		if j == 0 {
+			ln.spaces((lay.sidePane(t.Side).Marks-1)/2, plain)
+			ln.text(noteHook, paneStyle(equalTone, lookOf(s.Notes.Draft.Kind).mark))
+		}
+		to(s.Field.X - lay.List)
+		s.writeNoteBox(ln, j)
+	})
+}
+
+// writeSideLine writes a line across the panes of file that only side w
+// fills, as a note's line or its field: blank elsewhere, with the
+// separator between the panes. fill writes from the start of w's pane; to
+// takes it to a column of the panes.
+func writeSideLine(b *strings.Builder, s *state, th *theme, file int, w filediff.Which, fill func(ln *line, lay layout, to func(int))) {
+	lay := s.layoutOf(file)
 	width := lay.panes()
 	ln := newLine(b, th, s.Cells, width)
 	to := func(col int) { ln.spaces(col-(width-ln.free), plain) }
-	start, marks := lay.paneStart(t.Side)-lay.List, lay.Left.Marks
-	right := !lay.Unified && t.Side == filediff.NewSide
+	right := !lay.Unified && w == filediff.NewSide
 	if right {
-		marks = lay.Right.Marks
 		to(lay.Left.Width)
 		ln.text("│", separatorStyle)
 	}
-	to(start)
-	if j == 0 {
-		ln.spaces((marks-1)/2, plain)
-		ln.text(noteHook, paneStyle(equalTone, lookOf(s.Notes.Draft.Kind).mark))
-	}
-	to(s.Field.X - lay.List)
-	s.writeNoteBox(&ln, j)
+	to(lay.paneStart(w) - lay.List)
+	fill(&ln, lay, to)
 	if !lay.Unified && !right {
 		to(lay.Left.Width)
 		ln.text("│", separatorStyle)
