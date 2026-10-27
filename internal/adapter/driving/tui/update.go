@@ -28,7 +28,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 	m.s.keepCaret()
 	if m.s.screenKey() != before || m.s.Caret != caret {
 		m.dropHover()
-		if m.s.Caret != caret && m.s.Caret.On {
+		// The wheel may move the caret under an open field, whose popup
+		// would cover the field.
+		if m.s.Caret != caret && m.s.Caret.On && !m.s.Field.Open {
 			m.s.notesAtCaret()
 		}
 	}
@@ -49,6 +51,7 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.s.resize(msg.Width, msg.Height)
+		m.s.showGap()
 	case tea.ModeReportMsg:
 		if reportsGraphemes(msg) {
 			m.s.useCells(textcell.Graphemes)
@@ -80,14 +83,17 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 }
 
 // fieldTakes gives the open field the keys and pastes, before any layer,
-// and lets the mouse rest: there is no selecting in it, and the hovers
-// would cover it. It reports whether msg is done with.
+// and lets the rest of the mouse rest but its wheel, which scrolls the
+// code with the field between its lines: there is no selecting in it, and
+// the hovers would cover it. It reports whether msg is done with.
 func (m *model) fieldTakes(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		m.noteField(m.s.fieldKey(msg.Key()))
 	case tea.PasteMsg:
 		m.s.fieldPaste(msg.Content)
+	case tea.MouseWheelMsg:
+		return false
 	default:
 		return mouseOrHover(msg)
 	}

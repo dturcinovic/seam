@@ -156,9 +156,14 @@ seam processes of the same worktree see each other's notes at once.
 | `x` | In the popup of a note: resolve it |
 | `N` | All notes of the worktree, see below |
 
-`c` opens a field: `tab` switches between question and finding, `enter`
-saves, `alt+enter` starts a new line, `esc` discards; its bottom edge
-names these keys. While it is open, every other key is text.
+`c` opens a field between the lines, below the last line noted: the code
+below it moves down, and `●` marks the lines noted. Its top edge shows
+both kinds with the one chosen filled, and the lines; `tab` switches
+between question and finding, and the frame takes the kind's colour.
+`enter` saves, `alt+enter` starts a new line, `esc` discards; the bottom
+edge names these keys, or the footer where the field is too narrow. While
+it is open, every other key is text, and the wheel scrolls the code with
+the field at its lines.
 
 With the mouse, a line without a note lights up and shows `[+]` in the
 gutter of the side under the mouse, and the footer names it; a click on

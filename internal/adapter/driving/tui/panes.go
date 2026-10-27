@@ -16,14 +16,15 @@ type sideLine struct {
 	text  string
 	tone  tone
 	mark  string
-	// note is the mark of the notes on the line, blank for none; hover says
-	// the line is under the mouse, which offers a new note there.
-	note    string
-	noteDim bool
-	hover   bool
-	spans   []diff.Span
-	runs    []syntax.Run
-	points  []filediff.Checkpoint
+	// note is the mark of the notes on the line, blank for none, in the
+	// role noteAs; hover says the line is under the mouse, which offers a
+	// new note there, or noted by the open field.
+	note   string
+	noteAs role
+	hover  bool
+	spans  []diff.Span
+	runs   []syntax.Run
+	points []filediff.Checkpoint
 }
 
 // writeRow writes one line of file's view: both panes, the unified one, or
@@ -76,7 +77,7 @@ func writeUnified(ln *line, s *state, lay layout, file int, l view.Line) {
 		}
 		// Both sides hold the line: either side's notes are on it.
 		if sl.note == "" {
-			sl.note, sl.noteDim, sl.hover = left.note, left.noteDim, left.hover
+			sl.note, sl.noteAs, sl.hover = left.note, left.noteAs, left.hover
 		}
 	}
 	if sl.hover {
@@ -169,10 +170,24 @@ func (s *state) markSide(sl *sideLine, file int, w filediff.Which) {
 	if sl.index < 0 {
 		return
 	}
-	sl.note, sl.noteDim = s.noteMark(file, w, sl.index)
+	if s.drafting(file, w, sl.index) {
+		sl.note, sl.noteAs, sl.hover = anchorMark, lookOf(s.Notes.Draft.Kind).mark, true
+		return
+	}
+	note, dim := s.noteMark(file, w, sl.index)
+	sl.note, sl.noteAs = note, noteRole
+	if dim {
+		sl.noteAs = gutterRole
+	}
 	if sl.note == "" && s.plusOn(file, w, sl.index) {
 		sl.note, sl.hover = plusMark, true
 	}
+}
+
+// drafting reports whether the open field notes line i of side w of file.
+func (s *state) drafting(file int, w filediff.Which, i int) bool {
+	t := s.Notes.Draft.Lines
+	return s.Field.Open && t.File == file && t.Side == w && t.From <= i && i <= t.To
 }
 
 // plusMark is the plus the mouse is offered, as wide as the column of the
@@ -187,10 +202,7 @@ func writeNoteMark(ln *line, sl sideLine, marks int) {
 		ln.spaces(marks, gutter)
 		return
 	}
-	st := paneStyle(sl.tone, noteRole)
-	if sl.noteDim {
-		st = gutter
-	}
+	st := paneStyle(sl.tone, sl.noteAs)
 	pad := max(marks-textWidth(sl.note, ln.method), 0)
 	ln.spaces(pad/2, gutter)
 	ln.text(sl.note, st)

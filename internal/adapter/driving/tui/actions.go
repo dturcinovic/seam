@@ -176,7 +176,7 @@ func (s *state) resize(width, height int) {
 	if s.Layout.Body != body {
 		s.mark()
 	}
-	s.Pos = view.Switch(s.Lines, s.Pos, s.bodyHeight())
+	s.Pos = view.Switch(s.Lines, s.Pos, s.scrollHeight())
 }
 
 // place lays out the screen for the current file, and its lines anew when
@@ -364,7 +364,7 @@ func (s *state) scrollTo(line int) {
 		s.streamScrollTo(line)
 		return
 	}
-	s.Pos = view.Navigate(s.Lines, s.Pos, line, s.bodyHeight())
+	s.Pos = view.Navigate(s.Lines, s.Pos, line, s.scrollHeight())
 }
 
 // relayout lays out the diff again after it or the mode changed, keeping

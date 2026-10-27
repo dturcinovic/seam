@@ -142,10 +142,10 @@ func TestCAtTheCaretWritesANote(t *testing.T) {
 	f.writer.AddReturns(5)
 	m, _ = typed(m, "i", "j", "j", "j", "c")
 	require.True(t, m.s.Field.Open)
-	assert.Equal(t, "question", m.s.Field.Title)
+	assert.Equal(t, note.Question, m.s.Notes.Draft.Kind)
 
 	m, _ = typed(m, "w", "h", "y", "tab")
-	assert.Equal(t, "finding", m.s.Field.Title)
+	assert.Equal(t, note.Finding, m.s.Notes.Draft.Kind)
 	m, _ = typed(m, "enter")
 
 	require.Equal(t, 1, f.writer.AddCallCount())

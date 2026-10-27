@@ -10,12 +10,11 @@ import (
 )
 
 // noteTarget is the lines a new note takes: From to To, 0-based and To
-// included, of side Side of File; X and Y are the cell the field opens at.
+// included, of side Side of File.
 type noteTarget struct {
 	File     int
 	Side     filediff.Which
 	From, To int
-	X, Y     int
 }
 
 // addNote opens the field for a note at the caret's line, at the lines
@@ -46,10 +45,9 @@ func (m *model) openNote(t noteTarget) (ok bool) {
 		m.s.Note = "no note: " + err.Error()
 		return false
 	}
-	m.openField(note.MaxText, t.X, t.Y)
-	m.s.Notes.Draft = noteDraft{Kind: note.Question, Anchor: a, Comparison: comparisonText(&m.s)}
-	m.s.Field.Title = note.Question.String()
-	m.s.Field.Hint = "tab question or finding"
+	// The field lays itself out at the lines of the draft.
+	m.s.Notes.Draft = noteDraft{Kind: note.Question, Anchor: a, Comparison: comparisonText(&m.s), Lines: t}
+	m.openField(note.MaxText)
 	return true
 }
 
@@ -66,13 +64,13 @@ func (s *state) noteTarget() (noteTarget, bool) {
 	if !s.Caret.On {
 		return s.changeTarget()
 	}
-	l, x, y, ok := s.caretNoteLine()
+	l, _, _, ok := s.caretNoteLine()
 	if !ok {
 		return noteTarget{}, false
 	}
 	c, w, line := s.Caret, l.Side, l.Line
 	rows := s.snapOf(c.File).Diff.Rows
-	t := noteTarget{File: c.File, Side: w, From: line, To: line, X: x, Y: y}
+	t := noteTarget{File: c.File, Side: w, From: line, To: line}
 	if mk := s.Notes.Mark; mk.On && mk.File == c.File && mk.Side == w && mk.Row < len(rows) {
 		if from := lineOf(rows[mk.Row], w); from >= 0 {
 			t.From, t.To = min(from, line), max(from, line)
@@ -84,6 +82,7 @@ func (s *state) noteTarget() (noteTarget, bool) {
 // changeTarget is the first change on screen: the lines of its block on
 // the new side, or on the old one where it has none there.
 func (s *state) changeTarget() (noteTarget, bool) {
+	// No field is open, so no gap moves the lines.
 	for i := range s.Layout.shown() {
 		file, l, ok := s.rowLine(s.top() + i)
 		if !ok || l.Fold {
@@ -99,7 +98,7 @@ func (s *state) changeTarget() (noteTarget, bool) {
 		}
 		for _, w := range []filediff.Which{filediff.NewSide, filediff.OldSide} {
 			if t, ok := blockLines(rows[l.Rows.Start:end], w); ok {
-				t.File, t.X, t.Y = file, s.Layout.List, bodyTop+i
+				t.File = file
 				return t, true
 			}
 		}
@@ -168,7 +167,6 @@ func (s *state) noteFieldTab() {
 	} else {
 		d.Kind = note.Question
 	}
-	s.Field.Title = d.Kind.String()
 }
 
 // noteDone takes the outcome of a change of the book: the note written
@@ -191,7 +189,7 @@ func (s *state) noteDone(u note.Update) {
 		s.Note = "note not saved: " + u.Err.Error()
 	default:
 		s.Note = ""
-		s.Field = field{}
+		s.closeField()
 		*d = noteDraft{}
 	}
 }

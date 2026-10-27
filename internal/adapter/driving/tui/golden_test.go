@@ -12,6 +12,7 @@ import (
 	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/diff"
 	"github.com/dturcinovic/seam/internal/domain/filediff"
+	"github.com/dturcinovic/seam/internal/domain/note"
 	"github.com/dturcinovic/seam/internal/domain/ui"
 	"github.com/dturcinovic/seam/internal/testsupport"
 )
@@ -70,14 +71,15 @@ func fixtures(t *testing.T) []fixture {
 	}, append(append(unicode, fieldFixtures(t)...), noteFixtures(t)...)...)
 }
 
-// fieldFixtures are the input field over the full view: empty, one line,
+// fieldFixtures are the input field below line 5 of the unified full view: empty, one line,
 // wrapped with a line break, and longer than its box, scrolled to the
 // cursor at the end.
 func fieldFixtures(t *testing.T) []fixture {
 	t.Helper()
 	open := func(text string) *state {
 		s := screen(t, 80)
-		s.openField(noteLimit, 4, 5)
+		s.toggleLayout()
+		draftAt(s, noteTarget{Side: filediff.NewSide, From: 4, To: 4}, note.Question)
 		s.fieldPaste(text)
 		return s
 	}

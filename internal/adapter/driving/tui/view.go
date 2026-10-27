@@ -38,17 +38,18 @@ func render(s *state, th *theme) string {
 	}
 	start, end := thumb(s.lineCount(), s.top(), l.Body)
 	var boxes [3]boxOn
+	g := s.gap()
 	for i := range l.shown() {
 		b.WriteByte('\n')
 		onThumb := start <= i && i < end
 		y := bodyTop + i
 		over := s.boxesOver(y, boxes[:0])
 		if len(over) == 0 {
-			writeBodyLine(&b, s, th, i, onThumb)
+			writeBodyLine(&b, s, th, g, i, onThumb)
 			continue
 		}
 		var under strings.Builder
-		writeBodyLine(&under, s, th, i, onThumb)
+		writeBodyLine(&under, s, th, g, i, onThumb)
 		line := under.String()
 		for _, o := range over {
 			line = overlay(line, o.box, o.row, th, s.Cells, l.Width, y-o.Y)
@@ -67,18 +68,14 @@ type boxOn struct {
 }
 
 // boxesOver appends the boxes over screen line y to over, the lowest
-// first: the notes' overview, the popup, then the field.
+// first: the notes' overview, then the popup. The field stands between
+// the lines instead, see writeGapLine.
 func (s *state) boxesOver(y int, over []boxOn) []boxOn {
 	if o := &s.Notes.Overview; o.Open && o.contains(o.X, y) {
 		over = append(over, boxOn{o.box, s.overviewRows})
 	}
 	if p := &s.Hover.Popup; p.contains(p.X, y) {
 		over = append(over, boxOn{p.box, p.writeRow})
-	}
-	if f := &s.Field; f.contains(f.X, y) {
-		b := f.box
-		b.Foot = f.keysText()
-		over = append(over, boxOn{b, f.writeRow})
 	}
 	return over
 }
@@ -92,12 +89,18 @@ func writeText(b *strings.Builder, s *state, th *theme, text string, st style, w
 
 // writeBodyLine writes body line i: the file list's entry, the row of the
 // file and the scrollbar, onThumb if the thumb covers it.
-func writeBodyLine(b *strings.Builder, s *state, th *theme, i int, onThumb bool) {
+func writeBodyLine(b *strings.Builder, s *state, th *theme, g gapSpot, i int, onThumb bool) {
 	l := s.Layout
 	if l.List > 0 {
 		writeEntry(b, s, th, i)
 	}
-	switch bl, ok := s.bodyAt(s.top() + i); {
+	line, boxRow, inGap := s.bodyRowAt(g, i)
+	if inGap {
+		writeGapLine(b, s, th, boxRow)
+		writeScrollbar(b, s, th, scrollMark(s, i), onThumb)
+		return
+	}
+	switch bl, ok := s.bodyAt(line); {
 	case ok && bl.spot == view.OnRow:
 		writeRow(b, s, th, bl.file, bl.line)
 	case ok:
@@ -107,11 +110,15 @@ func writeBodyLine(b *strings.Builder, s *state, th *theme, i int, onThumb bool)
 	default:
 		writeText(b, s, th, "", plain, l.panes())
 	}
-	m := equalTone
+	writeScrollbar(b, s, th, scrollMark(s, i), onThumb)
+}
+
+// scrollMark is the mark of the scrollbar on screen line i of the body.
+func scrollMark(s *state, i int) tone {
 	if i < len(s.Marks) {
-		m = s.Marks[i]
+		return s.Marks[i]
 	}
-	writeScrollbar(b, s, th, m, onThumb)
+	return equalTone
 }
 
 // writeFooter writes the footer's text with the language server's status

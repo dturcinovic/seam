@@ -141,6 +141,9 @@ const (
 	DeletedHoverBg
 	InsertedHoverBg
 	ChangedHoverBg
+	// The kinds of a note: its field's frame and the marks of its lines.
+	QuestionFg
+	FindingFg
 )
     The roles of the palette.
 

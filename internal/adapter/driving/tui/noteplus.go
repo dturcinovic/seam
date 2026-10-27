@@ -60,6 +60,6 @@ func (m *model) clickPlus(x, y int) bool {
 		return false
 	}
 	m.s.List.blur()
-	m.openNote(noteTarget{File: l.File, Side: l.Side, From: l.Line, To: l.Line, X: x, Y: y})
+	m.openNote(noteTarget{File: l.File, Side: l.Side, From: l.Line, To: l.Line})
 	return true
 }

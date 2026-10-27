@@ -51,17 +51,27 @@ func keyOf(name string) tea.Key {
 	return k
 }
 
-// fieldOn is a screen 30 columns wide with the field open on it, holding
+// fieldOn is a screen with the field open on it, 28 columns of text wide, holding
 // text with the cursor at the bar in it.
 func fieldOn(t *testing.T, marked string) *state {
 	t.Helper()
-	s := screen(t, 30)
-	s.openField(noteLimit, 0, 3)
+	s := fieldScreen(t, 28)
+	s.openField(noteLimit)
 	at := strings.IndexByte(marked, '|')
 	require.GreaterOrEqual(t, at, 0, "no cursor in %q", marked)
 	s.Field.Text, s.Field.Cursor = marked[:at]+marked[at+1:], at
 	s.layoutField()
 	return s
+}
+
+// fieldScreen is a screen whose field has cols columns of text.
+func fieldScreen(t *testing.T, cols int) *state {
+	t.Helper()
+	w := cols
+	for from, to := screen(t, w).gapColumns(); to-from < cols+popupFrame+2*fieldPad; from, to = screen(t, w).gapColumns() {
+		w++
+	}
+	return screen(t, w)
 }
 
 // marked is the field's text with a bar at its cursor.
@@ -190,7 +200,7 @@ func TestTheFieldKeepsItsInvariants(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		s := screen(t, rapid.IntRange(4, 50).Draw(rt, "width"))
 		s.Cells = rapid.SampledFrom([]textcell.Method{textcell.Codepoints, textcell.Graphemes}).Draw(rt, "method")
-		s.openField(rapid.IntRange(0, 64).Draw(rt, "limit"), 0, 3)
+		s.openField(rapid.IntRange(0, 64).Draw(rt, "limit"))
 		for range rapid.IntRange(0, 60).Draw(rt, "steps") {
 			if rapid.Bool().Draw(rt, "paste") {
 				s.fieldPaste(rapid.SampledFrom(pieces).Draw(rt, "piece"))
