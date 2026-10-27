@@ -28,6 +28,8 @@ type repo struct {
 	blobs    map[change.ObjectID]string
 	worktree map[string]string
 	stamps   map[string]change.Stamp
+	// submodules is the state of each submodule of the worktree.
+	submodules map[string]submodule
 }
 
 func (r *repo) readWorktree(path string) ([]byte, change.Stamp, error) {
@@ -39,6 +41,7 @@ func (r *repo) readWorktree(path string) ([]byte, change.Stamp, error) {
 type fileFakes struct {
 	blobs       *outfakes.FakeBlobReader
 	worktree    *outfakes.FakeWorktreeReader
+	submodules  *outfakes.FakeSubmoduleReader
 	stats       *outfakes.FakeWorktreeStatter
 	highlighter *outfakes.FakeHighlighter
 	repo        *repo
@@ -51,8 +54,8 @@ func newFileDiffs(t *testing.T) (*usecase.FileDiffs, fileFakes) {
 
 func newFileDiffsIn(t *testing.T, table lang.Table) (*usecase.FileDiffs, fileFakes) {
 	t.Helper()
-	r := &repo{blobs: map[change.ObjectID]string{}, worktree: map[string]string{}, stamps: map[string]change.Stamp{}}
-	f := fileFakes{&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{}, coveringHighlighter(), r}
+	r := &repo{blobs: map[change.ObjectID]string{}, worktree: map[string]string{}, stamps: map[string]change.Stamp{}, submodules: map[string]submodule{}}
+	f := fileFakes{&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeSubmoduleReader{}, &outfakes.FakeWorktreeStatter{}, coveringHighlighter(), r}
 	f.blobs.ReadBlobCalls(func(_ context.Context, id change.ObjectID, _ limits.FileSize) ([]byte, error) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -61,12 +64,18 @@ func newFileDiffsIn(t *testing.T, table lang.Table) (*usecase.FileDiffs, fileFak
 	f.worktree.ReadWorktreeCalls(func(_ context.Context, path string, _ limits.FileSize) ([]byte, change.Stamp, error) {
 		return r.readWorktree(path)
 	})
+	f.submodules.ReadSubmoduleCalls(func(_ context.Context, path string) (change.ObjectID, bool, error) {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		s := r.submodules[path]
+		return s.commit, s.dirty, nil
+	})
 	f.stats.StatWorktreeCalls(func(_ context.Context, path string) (change.Stamp, error) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		return r.stamps[path], nil
 	})
-	return usecase.NewFileDiffs(f.blobs, f.worktree, f.stats, f.highlighter, table, limits.DefaultFileSize, nil), f
+	return usecase.NewFileDiffs(f.blobs, f.worktree, f.submodules, f.stats, f.highlighter, table, limits.DefaultFileSize, nil), f
 }
 
 // start runs the worker for the test.
@@ -346,4 +355,84 @@ func TestFreshSkipsTheCacheAndVersionsFollowTheText(t *testing.T) {
 
 	u = loadOne(t, uc, c, 4, file, true)
 	assert.Equal(t, hover.DocVersion(2), u.Snapshot.RightDoc.Version, "the same text keeps its version")
+}
+
+type submodule struct {
+	commit change.ObjectID
+	dirty  bool
+}
+
+// submodule is a changed submodule whose worktree is in state s.
+func (f fileFakes) submodule(t *testing.T, path string, s submodule) change.ChangedFile {
+	t.Helper()
+	file := f.modified(t, path, "", "")
+	file.OldMode, file.NewMode = change.Gitlink, change.Gitlink
+	f.setSubmodule(path, s)
+	return file
+}
+
+func (f fileFakes) setSubmodule(path string, s submodule) {
+	f.repo.mu.Lock()
+	defer f.repo.mu.Unlock()
+	f.repo.submodules[path] = s
+}
+
+func TestASubmoduleSideIsTheCommitItIsAt(t *testing.T) {
+	uc, f := newFileDiffs(t)
+	start(t, uc)
+	worktree := mustID(t, strings.Repeat("c", 40))
+	file := f.submodule(t, "vendor/lib.go", submodule{worktree, true})
+	tests := []struct {
+		name  string
+		right change.Source
+		want  string
+	}{
+		{"commit", mustSource(t, "b"), subproject(file.NewID, false)},
+		{"index", change.Index(), subproject(file.NewID, false)},
+		{"worktree", change.Worktree(), subproject(worktree, true)},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := loadOne(t, uc, comparison(t, mustSource(t, "a"), tt.right), filediff.Gen(i+1), file, true)
+
+			require.NoError(t, u.Err)
+			assert.Equal(t, []string{subproject(file.OldID, false) + "|" + tt.want}, rendered(u.Snapshot))
+			assert.Zero(t, f.blobs.ReadBlobCallCount(), "a submodule's commit is no object of this repository")
+			assert.Zero(t, f.worktree.ReadWorktreeCallCount())
+			assert.Equal(t, filediff.Snapshot{}.LeftDoc, u.Snapshot.LeftDoc, "its text is no Go for a server")
+			assert.Equal(t, filediff.Snapshot{}.RightDoc, u.Snapshot.RightDoc)
+			assert.Zero(t, f.highlighter.HighlightCallCount())
+		})
+	}
+}
+
+func subproject(id change.ObjectID, dirty bool) string {
+	return strings.TrimSuffix(change.SubprojectText(id, dirty), "\n")
+}
+
+func TestASubmoduleInTheWorktreeIsReadOnEveryVisit(t *testing.T) {
+	uc, f := newFileDiffs(t)
+	start(t, uc)
+	file := f.submodule(t, "vendor/lib", submodule{commit: mustID(t, strings.Repeat("c", 40))})
+	c := worktreeComparison(t)
+	loadOne(t, uc, c, 1, file, false)
+
+	next := mustID(t, strings.Repeat("d", 40))
+	f.setSubmodule("vendor/lib", submodule{commit: next})
+	u := loadOne(t, uc, c, 2, file, false)
+
+	assert.Equal(t, 2, f.submodules.ReadSubmoduleCallCount(), "a commit in the submodule leaves the directory's stamp alone")
+	assert.Zero(t, f.stats.StatWorktreeCallCount(), "so it takes no room in the cache")
+	assert.Equal(t, []string{subproject(file.OldID, false) + "|" + subproject(next, false)}, rendered(u.Snapshot))
+}
+
+func TestASubmoduleThatCannotBeReadFailsTheLoad(t *testing.T) {
+	uc, f := newFileDiffs(t)
+	start(t, uc)
+	file := f.submodule(t, "vendor/lib", submodule{})
+	f.submodules.ReadSubmoduleReturns(change.ObjectID{}, false, change.ErrNotExist)
+
+	u := loadOne(t, uc, worktreeComparison(t), 1, file, false)
+
+	assert.ErrorIs(t, u.Err, change.ErrNotExist, "not checked out: no made-up commit")
 }

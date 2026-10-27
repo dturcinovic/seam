@@ -98,6 +98,13 @@ type ServerEvents interface {
     ServerEvents hands out the answers and status changes of the servers.
     Signal is set after each new one; Drain returns them, oldest first.
 
+type SubmoduleReader interface {
+	ReadSubmodule(ctx context.Context, path string) (commit change.ObjectID, dirty bool, err error)
+}
+    SubmoduleReader reads a submodule of the worktree as git diff sees it:
+    the commit it is at, and dirty if its worktree has changes; untracked files
+    do not count. A submodule that is not checked out yields change.ErrNotExist.
+
 type UntrackedLister interface {
 	ListUntracked(ctx context.Context) ([]string, error)
 }

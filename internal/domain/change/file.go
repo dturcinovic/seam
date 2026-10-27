@@ -51,6 +51,20 @@ func (s Status) String() string {
 // Mode is a git file mode such as 0o100644. Zero means the side is missing.
 type Mode uint32
 
+// Gitlink is the mode of a submodule: its ID names a commit of the
+// submodule, not an object of this repository.
+const Gitlink Mode = 0o160000
+
+// SubprojectText is the text of a submodule side as git diff shows it: the
+// commit it is at, and -dirty if its worktree has changes.
+func SubprojectText(commit ObjectID, dirty bool) string {
+	text := "Subproject commit " + commit.String()
+	if dirty {
+		text += "-dirty"
+	}
+	return text + "\n"
+}
+
 // ChangedFile is one file that differs between the sides. Paths are relative
 // to the repository root and may hold any byte but NUL. A side that does not
 // exist has an empty path, a zero mode and a zero ID; for the worktree side
