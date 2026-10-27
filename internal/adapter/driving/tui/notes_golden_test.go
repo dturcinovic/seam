@@ -52,7 +52,21 @@ func noteFixtures(t *testing.T) []fixture {
 	field.openField(note.MaxText, 80, bodyTop+2)
 	field.Field.Title, field.Field.Hint = note.Finding.String(), "tab question or finding"
 	field.fieldPaste("Is this error dropped on purpose?")
-	return []fixture{{"notes-split", split}, {"notes-unified", unified}, {"notes-popup", popup}, {"notes-field", field}}
+	overview := notedState(t, splitSettings(), 140)
+	overview.Notes.Overview = noteOverview{Open: true}
+	overview.indexSides()
+	k := worktreeSide()
+	k.Path = overview.Snapshot.File.NewPath
+	resolved := bookNote("r", "cmd/main.go", k.Origin, 9, 4)
+	resolved.State = note.Resolved
+	book := []note.Note{resolved, bookNote("n", "cmd/main.go", k.Origin, 3, 5), bookNote("i", "cmd/main.go", note.Origin{Kind: change.KindIndex}, 3, 6)}
+	for _, sp := range overview.Notes.Spots[k] {
+		n := sp.Note
+		n.Anchor = note.Anchor{Path: k.Path, Origin: k.Origin}
+		book = append(book, n)
+	}
+	overview.takeOverview(note.Update{Kind: note.Overview, Notes: book})
+	return []fixture{{"notes-split", split}, {"notes-unified", unified}, {"notes-popup", popup}, {"notes-field", field}, {"notes-overview", overview}}
 }
 
 func TestTheGoldenNotesShowTheirCases(t *testing.T) {
@@ -74,4 +88,5 @@ func TestTheGoldenNotesShowTheirCases(t *testing.T) {
 	assert.Contains(t, strings.Join(byName["notes-popup"], "\n"), "┌ notes ")
 	assert.Contains(t, strings.Join(byName["notes-field"], "\n"), "┌ finding ")
 	assert.Contains(t, byName["notes-field"][len(byName["notes-field"])-1], "tab question or finding")
+	assert.Contains(t, strings.Join(byName["notes-overview"], "\n"), "┌ notes ")
 }

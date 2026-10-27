@@ -18,6 +18,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 	before, caret, stream := m.s.screenKey(), m.s.Caret, m.s.Stream.On
 	m.s.userActed(msg)
 	m, cmd := m.update(msg)
+	shown, show := m.s.findPlaced()
 	if stream && !m.s.Stream.On {
 		// However the stream was left, its loads would hold up the file
 		// now asked for.
@@ -31,11 +32,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 			m.s.notesAtCaret()
 		}
 	}
+	if show {
+		// After the drop, which the load that brought its file would do.
+		m.s.openNotePopup(shown, 0, bodyTop-1)
+	}
 	return m, cmd
 }
 
 func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 	if m.s.Field.Open && m.fieldTakes(msg) {
+		return m, nil
+	}
+	if m.s.Notes.Overview.Open && m.s.overviewRests(msg) {
 		return m, nil
 	}
 	switch msg := msg.(type) {
@@ -80,11 +88,20 @@ func (m *model) fieldTakes(msg tea.Msg) bool {
 		m.noteField(m.s.fieldKey(msg.Key()))
 	case tea.PasteMsg:
 		m.s.fieldPaste(msg.Content)
-	case tea.MouseClickMsg, tea.MouseWheelMsg, tea.MouseMotionMsg, hoverDue:
 	default:
-		return false
+		return mouseOrHover(msg)
 	}
 	return true
+}
+
+// mouseOrHover reports whether msg is of the mouse or its hover, which an
+// open field or overview lets rest.
+func mouseOrHover(msg tea.Msg) bool {
+	switch msg.(type) {
+	case tea.MouseClickMsg, tea.MouseWheelMsg, tea.MouseMotionMsg, hoverDue:
+		return true
+	}
+	return false
 }
 
 func (m *model) onFileDiffs() {
@@ -153,17 +170,20 @@ func (m *model) onLSP() {
 }
 
 // onKeyPress takes a key, asking the layers from the top: an open popup,
-// the focused file list, the caret, then the view.
+// the notes' overview, the focused file list, the caret, then the view.
 func (m model) onKeyPress(key string) (model, tea.Cmd) {
 	m.s.Note = ""
 	k := m.s.Keys
 	popup := m.s.Hover.Popup
-	if a, ok := k.Action(ui.PopupLayer, key); ok && popup.Open && (a != ui.ResolveNote || popup.Notes != nil) {
+	if a, ok := k.Action(ui.PopupLayer, key); ok && popup.Open && (a != ui.ResolveNote || popup.Notes != nil || popup.Note != "") {
 		if a == ui.ResolveNote {
 			m.resolveNote()
 			return m, nil
 		}
 		m.dropHover()
+		return m, nil
+	}
+	if m.s.Notes.Overview.Open && m.overviewKey(key) {
 		return m, nil
 	}
 	if a, ok := k.Action(ui.ListLayer, key); ok && m.s.List.Focus {
@@ -247,12 +267,8 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		s.startCaret()
 	case ui.JumpBack:
 		m.load(s.jumpBack())
-	case ui.AddNote:
-		m.addNote()
-	case ui.NextNote:
-		m.load(s.seekNote(1))
-	case ui.PrevNote:
-		m.load(s.seekNote(-1))
+	case ui.AddNote, ui.NextNote, ui.PrevNote, ui.Notes:
+		m.onNoteAction(a)
 	}
 	return m, nil
 }

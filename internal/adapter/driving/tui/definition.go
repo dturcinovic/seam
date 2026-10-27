@@ -90,6 +90,7 @@ func (s *state) userActed(msg any) {
 	switch msg.(type) {
 	case tea.KeyPressMsg, tea.MouseClickMsg, tea.MouseWheelMsg:
 		s.Jump.Waiting, s.Jump.Target = nil, nil
+		s.Notes.Find = noteFind{}
 	}
 }
 
@@ -143,13 +144,10 @@ func (s *state) jumpTo(l hover.Location) (filediff.Request, bool) {
 	case f >= 0:
 		s.remember()
 		s.Jump.Target = &target{File: f, Side: side, Line: l.Line}
-		if s.Stream.On {
-			s.streamJump(f)
-			s.bringTarget()
-			return filediff.Request{}, false
+		if !s.Stream.On {
+			s.Mode = view.Full
 		}
-		s.Mode = view.Full
-		return s.showFile(f)
+		return s.showTarget()
 	case l.Commit.IsZero() && s.canVisit():
 		s.remember()
 		s.Jump.Target = &target{File: -1, Side: filediff.NewSide, Line: l.Line}
@@ -163,6 +161,28 @@ func (s *state) jumpTo(l hover.Location) (filediff.Request, bool) {
 	}
 	s.Note = fmt.Sprintf("definition in %s:%d, not in this comparison", shownText(l.Path), l.Line+1)
 	return filediff.Request{}, false
+}
+
+// showTarget brings the file of the jump's target up, in the stream where
+// it stands, and the target's row once the file is loaded.
+func (s *state) showTarget() (filediff.Request, bool) {
+	r, ok := s.showSide(s.Jump.Target.File)
+	// showFile brings a loaded file's target itself, the other ways not.
+	s.bringTarget()
+	return r, ok
+}
+
+// showSide brings file up, in the stream where it stands, and loads it if
+// it is not loaded; the file visited, -1, is up.
+func (s *state) showSide(file int) (filediff.Request, bool) {
+	if file < 0 {
+		return filediff.Request{}, false
+	}
+	if s.Stream.On {
+		s.streamJump(file)
+		return filediff.Request{}, false
+	}
+	return s.showFile(file)
 }
 
 // showFile shows file f in the single view: at once if it is shown and

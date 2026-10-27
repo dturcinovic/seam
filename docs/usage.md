@@ -154,6 +154,7 @@ seam processes of the same worktree see each other's notes at once.
 | `c` | A note at the caret's line, at the lines marked with `v`, or without the caret at the first change on screen |
 | `m` / `M` | Next, previous note, also in other files |
 | `x` | In the popup of a note: resolve it |
+| `N` | All notes of the worktree, see below |
 
 `c` opens a field: `tab` switches between question and finding, `enter`
 saves, `alt+enter` starts a new line, `esc` discards. While it is open,
@@ -176,6 +177,22 @@ their text and the three lines around them:
 
 With `--files` notes go only on a side that lies in the worktree. The file
 list shows the open notes of each file in its gutter.
+
+`N` lists every note of the worktree's book by file, resolved ones too,
+with its state, source and place: where it stands as above, `not placed
+yet` while its file is not loaded, or `not in this comparison` when no side
+shows its source and path. The list follows changes from other seam
+processes and keeps the note chosen. In it, `enter` goes to the note:
+
+- to its place, where a side of the comparison shows it (`ctrl+o` goes
+  back); a file not loaded opens first;
+- for a worktree note of a file outside the changeset, to its place in that
+  file, opened to read;
+- otherwise to a popup with the lines it was set at and its text: a note
+  without a place, a resolved one, and a commit or index note no side shows,
+  even where the worktree has a file of that path.
+
+`x` resolves the note chosen, `esc` or `N` closes the list.
 
 ## Watching
 

@@ -37,33 +37,48 @@ func render(s *state, th *theme) string {
 		return b.String()
 	}
 	start, end := thumb(s.lineCount(), s.top(), l.Body)
+	var boxes [3]boxOn
 	for i := range l.shown() {
 		b.WriteByte('\n')
 		onThumb := start <= i && i < end
-		bx, row, ok := s.boxOver(bodyTop + i)
-		if !ok {
+		y := bodyTop + i
+		over := s.boxesOver(y, boxes[:0])
+		if len(over) == 0 {
 			writeBodyLine(&b, s, th, i, onThumb)
 			continue
 		}
 		var under strings.Builder
 		writeBodyLine(&under, s, th, i, onThumb)
-		b.WriteString(overlay(under.String(), bx, row, th, s.Cells, l.Width, bodyTop+i-bx.Y))
+		line := under.String()
+		for _, o := range over {
+			line = overlay(line, o.box, o.row, th, s.Cells, l.Width, y-o.Y)
+		}
+		b.WriteString(line)
 	}
 	b.WriteByte('\n')
 	writeFooter(&b, s, th)
 	return b.String()
 }
 
-// boxOver is the box over screen line y and the writer of its rows; ok is
-// false for none. The field lies over the popup.
-func (s *state) boxOver(y int) (bx box, row rowWriter, ok bool) {
-	if f := &s.Field; f.contains(f.X, y) {
-		return f.box, f.writeRow, true
+// boxOn is a box on the screen and the writer of its rows.
+type boxOn struct {
+	box
+	row rowWriter
+}
+
+// boxesOver appends the boxes over screen line y to over, the lowest
+// first: the notes' overview, the popup, then the field.
+func (s *state) boxesOver(y int, over []boxOn) []boxOn {
+	if o := &s.Notes.Overview; o.Open && o.contains(o.X, y) {
+		over = append(over, boxOn{o.box, s.overviewRows})
 	}
 	if p := &s.Hover.Popup; p.contains(p.X, y) {
-		return p.box, p.writeRow, true
+		over = append(over, boxOn{p.box, p.writeRow})
 	}
-	return box{}, nil, false
+	if f := &s.Field; f.contains(f.X, y) {
+		over = append(over, boxOn{f.box, f.writeRow})
+	}
+	return over
 }
 
 // writeText writes text in st on a line of width columns.

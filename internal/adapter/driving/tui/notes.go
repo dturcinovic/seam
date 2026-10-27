@@ -37,6 +37,10 @@ type notesState struct {
 	Discarded note.Op
 	// Asked are the sides whose placement was asked for and has not come.
 	Asked map[note.SnapshotKey]bool
+	// Overview is the list of the whole book; Find the note its enter
+	// waits to show.
+	Overview noteOverview
+	Find     noteFind
 }
 
 // noteDraft is what the field writes: a note of Kind at Anchor. Op is the
@@ -166,6 +170,11 @@ func (m *model) onNotes() {
 		case note.StoreStatus:
 			m.s.Notes.status(u)
 			m.placeNotes(true)
+			if m.s.Notes.Overview.Open {
+				m.p.NoteOverview.Overview()
+			}
+		case note.Overview:
+			m.s.takeOverview(u)
 		}
 	}
 	m.s.refreshNotePopup()

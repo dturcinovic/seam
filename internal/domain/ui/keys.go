@@ -45,6 +45,7 @@ const (
 	AddNote
 	NextNote
 	PrevNote
+	Notes
 
 	Open
 	Back
@@ -123,7 +124,7 @@ func actionNames() [Actions]string {
 		Quit: "quit", Reload: "reload", ToggleView: "toggle_view", ToggleLayout: "toggle_layout",
 		ToggleStream: "toggle_stream", NextChange: "next_change", PrevChange: "prev_change", NextFile: "next_file", PrevFile: "prev_file",
 		ScrollLeft: "scroll_left", ScrollRight: "scroll_right", ToggleFiles: "toggle_files", StartCaret: "start_caret", JumpBack: "jump_back",
-		AddNote: "note", NextNote: "next_note", PrevNote: "prev_note",
+		AddNote: "note", NextNote: "next_note", PrevNote: "prev_note", Notes: "notes",
 		Open: "open", Back: "back", PrevFolder: "prev_folder", NextFolder: "next_folder",
 		LeaveCaret: "leave_caret", CaretDown: "caret_down", CaretUp: "caret_up",
 		CaretLeft: "caret_left", CaretRight: "caret_right",
@@ -140,7 +141,7 @@ func defaultKeys() [Actions][]string {
 		Quit: {"q", "esc", "ctrl+c"}, Reload: {"r"}, ToggleView: {"f"}, ToggleLayout: {"u"},
 		ToggleStream: {"s"}, NextChange: {"n"}, PrevChange: {"p"}, NextFile: {"tab", "]"}, PrevFile: {"shift+tab", "["},
 		ScrollLeft: {"h", "left"}, ScrollRight: {"l", "right"}, ToggleFiles: {"b"}, StartCaret: {"i"}, JumpBack: {"ctrl+o"},
-		AddNote: {"c"}, NextNote: {"m"}, PrevNote: {"M"},
+		AddNote: {"c"}, NextNote: {"m"}, PrevNote: {"M"}, Notes: {"N"},
 		Open: {"enter"}, Back: {"esc"}, PrevFolder: {"["}, NextFolder: {"]"},
 		LeaveCaret: {"i", "esc"}, CaretDown: {"j", "down"}, CaretUp: {"k", "up"},
 		CaretLeft: {"h", "left"}, CaretRight: {"l", "right"},

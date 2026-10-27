@@ -64,7 +64,7 @@ func TestTheMouseRestingOnCodeShowsItsHover(t *testing.T) {
 				changesets in.ChangesetLoader
 			)
 			stop, _ := fakeGraph(t, repo.Dir, fakelsp, &changesets, &ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch,
-				&ports.NoteWriter, &ports.NoteReader, &ports.NoteUpdates)
+				&ports.NoteWriter, &ports.NoteReader, &ports.NoteOverview, &ports.NoteUpdates)
 			cs, err := changesets.LoadChangeset(t.Context(), change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()})
 			require.NoError(t, err)
 			out := &screen{}
@@ -105,7 +105,7 @@ func TestAHoverShowsItsMarkdown(t *testing.T) {
 		changesets in.ChangesetLoader
 	)
 	stop, _ := fakeGraph(t, repo.Dir, fakelsp, &changesets, &ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch,
-		&ports.NoteWriter, &ports.NoteReader, &ports.NoteUpdates)
+		&ports.NoteWriter, &ports.NoteReader, &ports.NoteOverview, &ports.NoteUpdates)
 	cs, err := changesets.LoadChangeset(t.Context(), change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()})
 	require.NoError(t, err)
 	out := &screen{}

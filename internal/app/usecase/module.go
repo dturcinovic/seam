@@ -23,7 +23,7 @@ var Module = fx.Module("usecase",
 		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.Definer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 		fx.Annotate(newWatches, fx.As(new(in.WatchStarter)), fx.As(new(in.WatchUpdates))),
 		fx.Annotate(newReleaseChecks, fx.As(new(in.ReleaseNotifier))),
-		fx.Annotate(newNotes, fx.As(new(in.NoteWriter)), fx.As(new(in.NoteReader)), fx.As(new(in.NoteUpdates))),
+		fx.Annotate(newNotes, fx.As(new(in.NoteWriter)), fx.As(new(in.NoteReader)), fx.As(new(in.NoteOverview)), fx.As(new(in.NoteUpdates))),
 	),
 )
 

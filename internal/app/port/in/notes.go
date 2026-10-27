@@ -33,3 +33,13 @@ type NoteUpdates interface {
 	// computes nothing.
 	Drain() []note.Update
 }
+
+//counterfeiter:generate . NoteOverview
+
+// NoteOverview shows the whole book, notes of files the comparison does
+// not show included. It does not block; the outcome comes as
+// note.Overview through NoteUpdates.
+type NoteOverview interface {
+	// Overview asks for every note of the book.
+	Overview()
+}

@@ -206,9 +206,59 @@ func TestNoNotesOutsideARepository(t *testing.T) {
 	require.NoError(t, n.Start())
 	op := n.Add(note.Draft{})
 	n.Place(worktreeKey(1), nil)
+	n.Overview()
 	us := n.Drain()
-	require.Len(t, us, 2)
+	require.Len(t, us, 3)
 	assert.Equal(t, note.Update{Kind: note.Done, Op: op, Err: note.ErrNoBook}, us[0])
 	assert.Equal(t, note.Update{Kind: note.Placed, Key: worktreeKey(1)}, us[1])
+	assert.Equal(t, note.Update{Kind: note.Overview, Err: note.ErrNoBook}, us[2])
 	require.NoError(t, n.Stop(t.Context()))
+}
+
+func TestTheOverviewHasEveryNoteOfTheBookAsItIsNow(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		n, f := newNotes(t)
+		l := <-f.listener
+		lines := []string{"a"}
+		f.elsewhere(func(b *note.Book) {
+			require.NoError(t, b.Add(noteDraft(t, lines, 1), "done", time.Time{}))
+			require.NoError(t, b.Resolve("done"))
+		})
+		l.Changed()
+		synctest.Wait()
+		n.Drain()
+
+		// Changed after the last load, and not yet read again: the overview
+		// is of the book once read, not of the one before.
+		f.elsewhere(func(b *note.Book) {
+			require.NoError(t, b.Add(noteDraft(t, lines, 1), "open", time.Time{}))
+		})
+		l.Changed()
+		n.Overview()
+		synctest.Wait()
+		o, ok := lastOf(n.Drain(), note.Overview)
+		require.True(t, ok)
+		require.NoError(t, o.Err)
+		var ids []note.ID
+		for _, nt := range o.Notes {
+			ids = append(ids, nt.ID)
+		}
+		assert.Equal(t, []note.ID{"done", "open"}, ids, "resolved notes too")
+	})
+}
+
+func TestTheOverviewOfADamagedBookSaysWhy(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		n, f := newNotes(t)
+		f.mu.Lock()
+		f.err = fmt.Errorf("read notes: %w", note.ErrNotesDamaged)
+		f.mu.Unlock()
+		(<-f.listener).Changed()
+		n.Overview()
+		synctest.Wait()
+		o, ok := lastOf(n.Drain(), note.Overview)
+		require.True(t, ok)
+		require.ErrorIs(t, o.Err, note.ErrNotesDamaged)
+		assert.Empty(t, o.Notes)
+	})
 }
