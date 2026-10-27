@@ -50,8 +50,7 @@ func noteFixtures(t *testing.T) []fixture {
 	popup := notedState(t, splitSettings(), 140)
 	popup.openNotes(noteLine{File: 0, Side: filediff.NewSide, Line: 2}, 80, bodyTop+2)
 	field := notedState(t, splitSettings(), 140)
-	field.openField(note.MaxText, 80, bodyTop+2)
-	field.Field.Title, field.Field.Hint = note.Finding.String(), "tab question or finding"
+	draftAt(field, noteTarget{Side: filediff.NewSide, From: 2, To: 3}, note.Finding)
 	field.fieldPaste("Is this error dropped on purpose?")
 	overview := notedState(t, splitSettings(), 140)
 	overview.Notes.Overview = noteOverview{Open: true}
@@ -94,10 +93,14 @@ func TestTheGoldenNotesShowTheirCases(t *testing.T) {
 	assert.Contains(t, unified[bodyTop+2], " ?  3  3   2", "a whole row shows the notes of either side")
 	assert.Contains(t, unified[bodyTop+4], " ╎     4 + changed 3")
 	assert.Contains(t, strings.Join(byName["notes-popup"], "\n"), "┌ notes ")
-	assert.Contains(t, strings.Join(byName["notes-field"], "\n"), "┌ finding ")
-	assert.Contains(t, byName["notes-field"][len(byName["notes-field"])-1], "tab question or finding")
+	field := byName["notes-field"]
+	assert.Contains(t, field[bodyTop+2], "│ ●  3   2", "the lines noted are marked")
+	assert.Contains(t, field[bodyTop+3], "│ ●  4 ~ changed 3")
+	assert.Contains(t, field[bodyTop+4], "│ └      ┌ question  finding ─", "the box stands below them, joined to their marks")
+	assert.Contains(t, field[bodyTop+4], " L3–4 ─┐")
+	assert.Contains(t, field[bodyTop+9], "│    5   4", "the code goes on below the box")
+	assert.Equal(t, noteKeys, strings.TrimSpace(field[len(field)-1]), "the box is too narrow for the keys")
 	assert.Contains(t, strings.Join(byName["notes-overview"], "\n"), "┌ notes ")
 	assert.Contains(t, byName["notes-plus-split"][bodyTop], "│[+] 1   0", "the plus stands where a mark would")
 	assert.Contains(t, byName["notes-plus-unified"][bodyTop], "[+] 1  1   0")
-	assert.Contains(t, strings.Join(byName["notes-field"], "\n"), "└ enter done  alt+enter new line  esc discard  tab question or finding ─")
 }

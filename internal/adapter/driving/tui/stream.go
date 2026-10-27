@@ -161,7 +161,7 @@ func (s *state) layStream() {
 // switchStream places the stream after its lines changed, keeping the top
 // line.
 func (s *state) switchStream() {
-	s.Stream.Pos = s.Stream.View.Switch(s.Stream.Pos, s.bodyHeight())
+	s.Stream.Pos = s.Stream.View.Switch(s.Stream.Pos, s.scrollHeight())
 	s.mark()
 	s.followTop()
 }
@@ -303,7 +303,7 @@ func (s *state) streamReloaded(before []change.ChangedFile) {
 
 // streamScrollTo moves the top line to line i of the stream.
 func (s *state) streamScrollTo(i int) {
-	s.Stream.Pos = s.Stream.View.Navigate(s.Stream.Pos, i, s.bodyHeight())
+	s.Stream.Pos = s.Stream.View.Navigate(s.Stream.Pos, i, s.scrollHeight())
 	s.followTop()
 }
 

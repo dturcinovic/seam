@@ -63,9 +63,9 @@ func TestTheCursorIsWhereItIsDrawn(t *testing.T) {
 	text := "cafe\u0301 👨\u200d👩\u200d👧 日本語のテキスト\tx\x1by\nzw\u200bq " + strings.Repeat("ab ", 6)
 	for _, mt := range methods {
 		t.Run(mt.name, func(t *testing.T) {
-			s := screen(t, 16)
+			s := fieldScreen(t, 12)
 			s.Cells = mt.method
-			s.openField(noteLimit, 0, 3)
+			s.openField(noteLimit)
 			s.Field.Text = text
 			for b := range boundaries(text, mt.method) {
 				s.Field.Cursor = b
@@ -74,12 +74,13 @@ func TestTheCursorIsWhereItIsDrawn(t *testing.T) {
 				row, col := cursorCell(f.Text, f.Rows, b, f.M)
 
 				var box strings.Builder
-				writeBoxLine(&box, f.box, f.writeRow, caretTheme(), f.M, row-f.Scroll+1)
+				ln := newLine(&box, caretTheme(), f.M, f.W)
+				s.writeNoteBox(&ln, row-f.Scroll+1+fieldGap)
 				line := box.String()
 
 				at := strings.Index(line, "\x1b[7m")
 				require.GreaterOrEqual(t, at, 0, "no cursor at %d in %q", b, line)
-				assert.Equal(t, 1+col, mt.width(line[:at]), "cursor at byte %d", b)
+				assert.Equal(t, 1+fieldPad+col, mt.width(line[:at]), "cursor at byte %d", b)
 				assert.Equal(t, f.W, mt.width(line), "the line of the cursor at %d is the box's width", b)
 			}
 		})

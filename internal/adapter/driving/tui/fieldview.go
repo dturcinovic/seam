@@ -6,29 +6,26 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// fieldHints is the footer while the field is open. Tab is left out: its
-// meaning is the owner's.
-const fieldHints = "enter done  alt+enter new line  esc discard"
-
-// openField opens the field for a text of at most limit bytes, placed for
-// line y and column x as a popup is. The hover gives way to it, and so does
-// a definition still to come, whose jump would move the code from under it.
-func (m *model) openField(limit, x, y int) {
+// openField opens the field for a text of at most limit bytes. The hover
+// gives way to it, and so does a definition still to come, whose jump would
+// move the code from under it.
+func (m *model) openField(limit int) {
 	m.dropHover()
 	if id := m.s.Jump.Inflight; id != 0 {
 		m.p.Define.CancelDefinition(id)
 	}
 	j := &m.s.Jump
 	j.Inflight, j.Waiting, j.Target = 0, nil, nil
-	m.s.openField(limit, x, y)
+	m.s.openField(limit)
 }
 
 // openField opens the field; the footer's note, if any, gives way to the
 // field's keys.
-func (s *state) openField(limit, x, y int) {
-	s.Field = field{Open: true, Limit: limit, Goal: -1, AtX: x, AtY: y}
+func (s *state) openField(limit int) {
+	s.Field = field{Open: true, Limit: limit, Goal: -1}
 	s.Note = ""
 	s.layoutField()
+	s.showGap()
 }
 
 // fieldKey gives k to the open field. Discarding closes it; text the limit
@@ -48,48 +45,57 @@ func (s *state) afterField(r fieldResult) {
 	s.Note = ""
 	switch r { //nolint:exhaustive // done and tab are the owner's
 	case fieldDiscard:
-		s.Field = field{}
+		s.closeField()
 	case fieldRefused:
 		s.Note = fmt.Sprintf("text over %s, not taken", sizeText(s.Field.Limit))
 	}
 	s.layoutField()
+	s.showGap()
 }
 
-// layoutField lays the open field out for the screen: as wide as the popup
-// may be, so typing does not move the box, as high as its rows up to the
-// popup's bound, then scrolled to keep the cursor in view.
+// fieldPad keeps the text, and the cursor at either end of a row, off the
+// frame, fieldGap off the kinds in the top edge; fieldMinRows gives the
+// text room before it is written.
+const (
+	fieldPad     = 1
+	fieldGap     = 1
+	fieldMinRows = 2
+)
+
+// closeField closes the field; lines its box made room for past the end
+// of the body go back to the page.
+func (s *state) closeField() {
+	s.Field = field{}
+	s.scrollTo(s.top())
+}
+
+// layoutField lays the open field out for the screen: across the text of
+// the side it notes, as high as its rows up to the popup's bound, then
+// scrolled to keep the cursor in view.
 func (s *state) layoutField() {
 	f := &s.Field
 	if !f.Open {
 		return
 	}
-	inner := s.boxMaxInner()
+	from, to := s.gapColumns()
+	f.X, f.W = from, to-from
+	inner := f.inner()
 	f.M = s.Cells
 	f.Rows = fieldRows(f.Text, inner, f.M)
-	f.W, f.H = inner+popupFrame, min(len(f.Rows)+popupFrame, s.boxMaxHeight())
-	if inner < 2 || f.H <= popupFrame {
+	rows := max(len(f.Rows), fieldMinRows)
+	f.H = min(rows+popupFrame+fieldGap, s.boxMaxHeight())
+	if inner < 2 || f.H <= popupFrame+fieldGap {
 		// No room for text and the column the cursor needs at its end; the
 		// field still takes the keys.
 		f.W, f.H = 0, 0
 	}
-	f.X, f.Y = s.boxAt(f.W, f.H, f.AtX, f.AtY)
 	f.Row = rowOf(f.Rows, f.Cursor)
-	shown := f.shown()
+	shown := f.shown() - fieldGap
 	f.Scroll = min(max(f.Scroll, f.Row-shown+1, 0), f.Row, max(len(f.Rows)-shown, 0))
 }
 
-// keysText names the field's keys, with the owner's for tab, for the
-// footer and the bottom of the field's frame.
-func (f *field) keysText() string {
-	if f.Hint != "" {
-		return fieldHints + "  " + f.Hint
-	}
-	return fieldHints
-}
-
-func (f *field) contains(x, y int) bool {
-	return f.Open && f.box.contains(x, y)
-}
+// inner is how many columns of text the field's box holds.
+func (f *field) inner() int { return f.W - popupFrame - 2*fieldPad }
 
 // sizeText is n bytes for the footer, in KiB where they are whole.
 func sizeText(n int) string {

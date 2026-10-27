@@ -115,8 +115,9 @@ The colours of the view are `deleted_bg`, `deleted_strong_bg`,
 strong ones mark changed words), `absent_bg`, `dim_fg`, `header_bg`,
 `thumb_bg`, `popup_bg`, `code_span_bg`, `error_fg`, `selected_bg`,
 `selected_fg`, `dir_fg`, `gutter_fg`, `zero_fg`, `deleted_fg`,
-`inserted_fg`, `changed_fg`, and `hover_bg`, `deleted_hover_bg`,
-`inserted_hover_bg` and `changed_hover_bg` for the line under the mouse.
+`inserted_fg`, `changed_fg`, `hover_bg`, `deleted_hover_bg`,
+`inserted_hover_bg` and `changed_hover_bg` for the line under the mouse,
+and `question_fg` and `finding_fg` for the field of a note of that kind.
 
 Those of the syntax are `plain`, `keyword`, `type`, `function`, `builtin`,
 `constant`, `string`, `escape`, `number`, `comment`, `meta`, `operator`,

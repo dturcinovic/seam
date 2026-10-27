@@ -6,8 +6,8 @@ import (
 	"github.com/dturcinovic/seam/internal/textcell"
 )
 
-// box is a framed box over the body, as the hover's popup and the input
-// field are: at X, Y of W by H cells, frame included, its rows scrolled by
+// box is a framed box over the body, as the hover's popup and the notes'
+// overview are: at X, Y of W by H cells, frame included, its rows scrolled by
 // Scroll, with Title in its top edge and Foot in its bottom one.
 type box struct {
 	X, Y, W, H  int
@@ -74,10 +74,10 @@ func writeBoxLine(b *strings.Builder, bx box, row rowWriter, th *theme, m textce
 }
 
 // writeEdge writes the top or the bottom of the frame of a box w columns
-// wide, between its corners left and right.
-func writeEdge(ln *line, w int, left, right string) {
-	ln.text(left+strings.Repeat("─", max(w-popupFrame, 0))+right, popupFrameStyle)
-	ln.end(popupFrameStyle)
+// wide in st, between its corners left and right.
+func writeEdge(ln *line, w int, left, right string, st style) {
+	ln.text(left+strings.Repeat("─", max(w-popupFrame, 0))+right, st)
+	ln.end(st)
 }
 
 // writeTitled writes the top or the bottom of the frame between its
@@ -85,12 +85,12 @@ func writeEdge(ln *line, w int, left, right string) {
 // whole.
 func writeTitled(ln *line, w int, title, left, right string) {
 	if title == "" || textWidth(title, ln.method)+4 > w {
-		writeEdge(ln, w, left, right)
+		writeEdge(ln, w, left, right, popupFrameStyle)
 		return
 	}
 	ln.text(left+" ", popupFrameStyle)
 	ln.text(title, popupFrameStyle)
-	writeEdge(ln, w-textWidth(title, ln.method)-2, " ", right)
+	writeEdge(ln, w-textWidth(title, ln.method)-2, " ", right, popupFrameStyle)
 }
 
 // overlay is screen line under with line i of bx over it.

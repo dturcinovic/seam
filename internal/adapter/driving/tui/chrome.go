@@ -200,7 +200,10 @@ func footer(s *state) (string, style) {
 		return s.Note, footerStyle
 	}
 	if s.Field.Open {
-		return s.Field.keysText(), footerStyle
+		if s.keysShown() {
+			return "", footerStyle
+		}
+		return noteKeys, footerStyle
 	}
 	notes := s.notesText() + s.plusText()
 	if s.Notes.Overview.Open {

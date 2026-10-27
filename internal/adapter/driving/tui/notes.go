@@ -50,6 +50,9 @@ type noteDraft struct {
 	Anchor     note.Anchor
 	Comparison string
 	Op         note.Op
+	// Lines are the lines noted as the screen shows them, where the field
+	// stands.
+	Lines noteTarget
 }
 
 // lineMark is a line marked with v, Row of Side of File: a note then takes
