@@ -277,7 +277,9 @@ lets no channel in by default. Start it with seam's:
 claude --dangerously-load-development-channels server:seam
 ```
 
-and confirm the prompt. Claude Code asks for both on every start, and
+and confirm the prompt. The channel takes seam only as added above, with
+`claude mcp add` or `.mcp.json`; a server given with `--mcp-config` has no
+channel. Claude Code asks for both on every start, and
 `claude -p` ignores the flag; an alias saves typing it. The session then
 starts on the notes by itself and
 takes them with `seam_notes(batch)`, which takes only the notes still in
