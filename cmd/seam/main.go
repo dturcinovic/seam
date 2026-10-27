@@ -18,14 +18,15 @@ import (
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	code := run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 	stop()
 	os.Exit(code)
 }
 
-func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	cmd := newRootCommand()
 	cmd.SetArgs(args)
+	cmd.SetIn(stdin)
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
 	if err := cmd.ExecuteContext(ctx); err != nil {
@@ -86,6 +87,10 @@ disk, as git difftool hands them over.`,
 	// Not cobra's own --version, which prints before the configuration is
 	// known: the notice of a newer release needs it.
 	cmd.Flags().BoolVar(&showVersion, "version", false, "print the version")
+	cmd.AddCommand(newMCPCommand())
+	// A subcommand takes a name a revision could have; only mcp is worth
+	// that, not cobra's shell completion.
+	cmd.CompletionOptions.DisableDefaultCmd = true
 	return cmd
 }
 

@@ -145,13 +145,20 @@ func (s *state) seekPlaced() {
 	s.goToNote(line)
 }
 
-// openNotesIn is how many open notes the book has on a side of file i of
-// the comparison.
+// openNotesIn is how many notes not yet answered the book has on a side
+// of file i of the comparison.
 func (s *state) openNotesIn(i int) int {
-	n := 0
+	open, _ := s.notesIn(i)
+	return open
+}
+
+// notesIn is how many notes not yet answered and answered the book has on
+// a side of file i of the comparison.
+func (s *state) notesIn(i int) (open, answered int) {
 	hs, k := s.headsOf(i)
 	for _, h := range hs[:k] {
-		n += s.Notes.Open[h.Key]
+		open += s.Notes.Open[h.Key]
+		answered += s.Notes.Answered[h.Key]
 	}
-	return n
+	return open, answered
 }

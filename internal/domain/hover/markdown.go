@@ -1,25 +1,25 @@
-package lsp
+package hover
 
 import (
 	"strings"
 
-	"github.com/dturcinovic/seam/internal/domain/hover"
 	"github.com/dturcinovic/seam/internal/domain/lang"
 )
 
-// markdownBlocks reads the part of Markdown that hover answers use:
-// fences, indented code, rules, ATX headings, paragraphs and list items, with references resolved across the whole text. A fence
-// names its language as languages knows it. md has no carriage returns.
-func markdownBlocks(md string, languages lang.Table) []hover.Block {
+// Markdown reads the part of Markdown that hover answers and agents'
+// replies use: fences, indented code, rules, ATX headings, paragraphs and
+// list items, with references resolved across the whole text. A fence
+// names its language as languages knows it.
+func Markdown(md string, languages lang.Table) []Block {
 	r := blockReader{defs: map[string]string{}, languages: languages, blank: true}
-	lines := strings.Split(md, "\n")
+	lines := strings.Split(strings.ReplaceAll(md, "\r\n", "\n"), "\n")
 	for i := 0; i < len(lines); i++ {
 		i = r.line(lines, i)
 	}
 	r.flush()
 	in := inlineParser{defs: r.defs}
 	for i, b := range r.blocks {
-		if b.Kind == hover.Paragraph || b.Kind == hover.Heading {
+		if b.Kind == Paragraph || b.Kind == Heading {
 			r.blocks[i].Spans = in.spans(r.raw[i])
 		}
 	}
@@ -30,7 +30,7 @@ func markdownBlocks(md string, languages lang.Table) []hover.Block {
 // heading waits in raw until the references, which may come last, are
 // known.
 type blockReader struct {
-	blocks    []hover.Block
+	blocks    []Block
 	raw       []string
 	defs      map[string]string
 	languages lang.Table
@@ -63,10 +63,10 @@ func (r *blockReader) line(lines []string, i int) int {
 		return r.indented(lines, i)
 	case indent < 4 && isRule(rest):
 		r.flush()
-		r.add(hover.Block{Kind: hover.Rule}, "")
+		r.add(Block{Kind: Rule}, "")
 	case indent < 4 && isHeading(rest):
 		r.flush()
-		r.add(hover.Block{Kind: hover.Heading}, headingText(rest))
+		r.add(Block{Kind: Heading}, headingText(rest))
 	case indent < 4 && len(r.para) == 0 && r.definition(rest):
 	default:
 		item, ok := listItem(rest)
@@ -84,7 +84,7 @@ type paraLine struct {
 	item bool
 }
 
-func (r *blockReader) add(b hover.Block, raw string) {
+func (r *blockReader) add(b Block, raw string) {
 	r.raw = append(r.raw, raw)
 	r.blocks = append(r.blocks, b)
 }
@@ -114,7 +114,7 @@ func (r *blockReader) flush() {
 		}
 		b.WriteString(l)
 	}
-	r.add(hover.Block{Kind: hover.Paragraph}, b.String())
+	r.add(Block{Kind: Paragraph}, b.String())
 	r.afterList = list
 	r.para = nil
 }
@@ -133,7 +133,7 @@ func (r *blockReader) fence(lines []string, i, indent int, open string) int {
 		}
 		code = append(code, dropIndent(lines[j], indent))
 	}
-	r.add(hover.Block{Kind: hover.Code, Lang: r.languages.FromFence(info), Code: strings.Join(code, "\n")}, "")
+	r.add(Block{Kind: Code, Lang: r.languages.FromFence(info), Code: strings.Join(code, "\n")}, "")
 	r.blank = true
 	return j
 }
@@ -154,7 +154,7 @@ func (r *blockReader) indented(lines []string, i int) int {
 	for len(code) > 0 && strings.TrimSpace(code[len(code)-1]) == "" {
 		code = code[:len(code)-1]
 	}
-	r.add(hover.Block{Kind: hover.Code, Code: strings.Join(code, "\n")}, "")
+	r.add(Block{Kind: Code, Code: strings.Join(code, "\n")}, "")
 	r.blank = true
 	return j - 1
 }
@@ -268,4 +268,42 @@ func listItem(l string) (string, bool) {
 // not count.
 func refKey(label string) string {
 	return strings.ToLower(strings.Join(strings.Fields(label), " "))
+}
+
+// Tidy drops the blocks that show nothing, with the rules at either end
+// and all but one of rules in a row; code loses its blank lines at either
+// end.
+func Tidy(blocks []Block) []Block {
+	var kept []Block
+	for _, b := range blocks {
+		switch b.Kind {
+		case Code:
+			b.Code = strings.Trim(b.Code, "\n")
+			if strings.TrimSpace(b.Code) == "" {
+				continue
+			}
+		case Paragraph, Heading:
+			if blank(b.Spans) {
+				continue
+			}
+		case Rule:
+			if len(kept) == 0 || kept[len(kept)-1].Kind == Rule {
+				continue
+			}
+		}
+		kept = append(kept, b)
+	}
+	if n := len(kept); n > 0 && kept[n-1].Kind == Rule {
+		kept = kept[:n-1]
+	}
+	return kept
+}
+
+func blank(spans []Span) bool {
+	for _, s := range spans {
+		if strings.TrimSpace(s.Text) != "" {
+			return false
+		}
+	}
+	return true
 }

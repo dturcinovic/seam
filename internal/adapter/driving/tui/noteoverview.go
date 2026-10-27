@@ -138,6 +138,10 @@ func (m *model) onOverviewAction(a ui.Action) bool {
 		if n, ok := o.selected(); ok && n.State != note.Resolved {
 			m.resolve(n.ID)
 		}
+	case ui.ReleaseNote:
+		if n, ok := o.selected(); ok && n.State == note.Taken {
+			m.release(n.ID)
+		}
 	}
 	return true
 }
@@ -236,7 +240,7 @@ func (s *state) spotOf(id note.ID, ref sideRef) (note.Spot, bool) {
 func (m *model) overviewKey(key string) bool {
 	k := m.s.Keys
 	for _, l := range []ui.Layer{ui.ListLayer, ui.PopupLayer, ui.ViewLayer} {
-		if a, ok := k.Action(l, key); ok && (l != ui.PopupLayer || a == ui.ResolveNote) {
+		if a, ok := k.Action(l, key); ok && (l != ui.PopupLayer || a.OnNote()) {
 			return m.onOverviewAction(a)
 		}
 	}

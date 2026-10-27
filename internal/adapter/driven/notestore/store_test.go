@@ -43,6 +43,10 @@ func TestABookReadsBackAsWritten(t *testing.T) {
 			},
 			Claim:   &note.Claim{ID: "c1", Session: "s1", At: at},
 			Replies: []note.Reply{{ID: "r1", Author: "claude", Claim: "c1", Text: "because", At: at}},
+		}, {
+			ID: "n2", Kind: note.Question, Text: "q", State: note.Taken, Created: at, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}},
+		}, {
+			ID: "n3", Kind: note.Question, Text: "q", State: note.Answered, Created: at, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindIndex}},
 		}},
 		Sessions: []note.Session{{ID: "s1", Client: "claude", PID: 42, Started: at}},
 		Batches:  []note.Batch{{ID: "b1", Session: "s1", Notes: []note.ID{"n1"}, At: at}},
@@ -77,7 +81,7 @@ func TestAFileNotReadIsNeverWritten(t *testing.T) {
 	}{
 		"damaged":       {`{"version": 1, "notes": [`, note.ErrNotesDamaged},
 		"newer version": {`{"version": 2, "notes": []}`, note.ErrNotesVersion},
-		"newer state":   {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "taken", "anchor": {"origin": {"kind": "worktree"}}}]}`, note.ErrNotesVersion},
+		"newer state":   {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "sent", "anchor": {"origin": {"kind": "worktree"}}}]}`, note.ErrNotesVersion},
 		"bad blob":      {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "open", "anchor": {"blob": "xyz", "origin": {"kind": "worktree"}}}]}`, note.ErrNotesDamaged},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -155,4 +159,51 @@ func TestNoBookOutsideARepository(t *testing.T) {
 	_, err := s.Load(t.Context())
 	require.ErrorIs(t, err, note.ErrNoBook)
 	require.ErrorIs(t, s.Change(t.Context(), func(*note.Book) error { return nil }), note.ErrNoBook)
+}
+
+func TestAChangeThatChangesNothingWritesNothing(t *testing.T) {
+	s, path := newStore(t)
+	require.NoError(t, s.Change(t.Context(), func(b *note.Book) error {
+		return b.Join(note.Session{ID: "s"})
+	}))
+	before, err := os.Stat(path)
+	require.NoError(t, err)
+
+	require.NoError(t, s.Change(t.Context(), func(*note.Book) error { return nil }))
+
+	after, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, os.SameFile(before, after), "not replaced")
+}
+
+func TestABookPastTheLimitTakesChangesOfStateOnly(t *testing.T) {
+	s, path := newStore(t)
+	half := strings.Repeat("x", note.MaxFile/2)
+	err := s.Change(t.Context(), func(b *note.Book) error {
+		b.Notes = []note.Note{{ID: "a", Kind: note.Question, State: note.Open, Text: half + half, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}}}}
+		return nil
+	})
+	require.ErrorIs(t, err, note.ErrBookTooLarge)
+	_, err = os.Stat(path)
+	require.ErrorIs(t, err, os.ErrNotExist)
+
+	// Past the limit already, as after many answers: written below it,
+	// then grown in place, so that the file is as seam writes it.
+	under := half[:len(half)-1000]
+	require.NoError(t, s.Change(t.Context(), func(b *note.Book) error {
+		for _, id := range []note.ID{"a", "b"} {
+			b.Notes = append(b.Notes, note.Note{ID: id, Kind: note.Question, State: note.Open, Text: under, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}}})
+		}
+		return nil
+	}))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, []byte(strings.Replace(string(data), under, under+strings.Repeat("x", 3000), 1)), 0o600))
+
+	require.NoError(t, s.Change(t.Context(), func(b *note.Book) error { return b.Resolve("a") }), "resolving is never refused")
+	err = s.Change(t.Context(), func(b *note.Book) error {
+		_, err := b.Reply("b", note.Reply{ID: "r", Text: strings.Repeat("y", 1<<10)})
+		return err
+	})
+	require.ErrorIs(t, err, note.ErrBookTooLarge, "an answer is more")
 }

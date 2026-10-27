@@ -27,9 +27,10 @@ const (
 	Placed
 	// Done sets Op and, if it failed, Err.
 	Done
-	// StoreStatus sets Heads, all notes in brief, and Err, why the book
-	// cannot be read or is not watched, nil once it is again. Live is
-	// whether changes from elsewhere show.
+	// StoreStatus sets Heads, all notes in brief, Sessions, the agent
+	// sessions that took notes or may, and Err, why the book cannot be
+	// read or is not watched, nil once it is again. Live is whether
+	// changes from elsewhere show.
 	StoreStatus
 	// Overview sets Notes, every note of the book, resolved ones too, or
 	// Err, why there is none.
@@ -61,8 +62,9 @@ type Update struct {
 	Op  Op
 	Err error
 
-	Heads []Head
-	Live  bool
+	Heads    []Head
+	Sessions []Session
+	Live     bool
 
 	Notes []Note
 }

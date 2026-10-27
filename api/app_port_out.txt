@@ -132,6 +132,13 @@ type PathReader interface {
     it returns the stamp of what it read, never reads more than max+1 bytes and
     never blocks on a special file.
 
+type ProcessProber interface {
+	// Alive reports whether process pid runs.
+	Alive(pid int) bool
+}
+    ProcessProber tells whether a process of this machine still runs, for the
+    agent sessions in the book that ended without leaving.
+
 type ReleaseFetcher interface {
 	LatestRelease(ctx context.Context) (release.Version, error)
 }

@@ -61,7 +61,7 @@ func caretHints() []hint {
 }
 
 // overviewHints remind of the keys of the notes' overview, which takes
-// the file list's; x is the popups', see overviewKey.
+// the file list's; x and R are the popups', see overviewKey.
 func overviewHints() []hint {
 	return []hint{
 		firstKeys("open", ui.Open), firstKeys("move", ui.Down, ui.Up), firstKeys("first/last", ui.Top, ui.Bottom),
@@ -81,7 +81,7 @@ func newKeyTexts(k ui.Keymap) keyTexts {
 		list:  keyText(k, ui.ListLayer, listHints()),
 		caret: keyText(k, ui.CaretLayer, caretHints()),
 		overview: keyText(k, ui.ListLayer, overviewHints()) + "  " +
-			keyText(k, ui.PopupLayer, []hint{firstKeys("resolve", ui.ResolveNote)}),
+			keyText(k, ui.PopupLayer, []hint{firstKeys("resolve", ui.ResolveNote), firstKeys("release", ui.ReleaseNote)}),
 	}
 }
 

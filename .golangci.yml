@@ -328,6 +328,16 @@ linters:
             - github.com/dturcinovic/seam/internal/app/port/out
             - github.com/dturcinovic/seam/internal/adapter/driven/notestore
 
+        driven-process:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/process/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - github.com/dturcinovic/seam/internal/app/port/out
+
         # The only adapter that reaches the network, through net/http alone.
         driven-github:
           list-mode: strict
@@ -385,6 +395,29 @@ linters:
             - github.com/dturcinovic/seam/internal/supervise
             - github.com/dturcinovic/seam/internal/textcell
             - github.com/dturcinovic/seam/internal/adapter/driving/tui
+
+        # The MCP server for agent sessions; the SDK only here.
+        driving-mcp:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driving/mcp/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/modelcontextprotocol/go-sdk/mcp
+            - go.uber.org/zap
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/in
+            - github.com/dturcinovic/seam/internal/adapter/driving/mcp
+
+        mcp-nur-im-adapter:
+          list-mode: lax
+          files:
+            - "$all"
+            - "!**/internal/adapter/driving/mcp/**"
+          deny:
+            - pkg: github.com/modelcontextprotocol/go-sdk
+              desc: the MCP server lives in internal/adapter/driving/mcp
 
         supervise-nur-stdlib:
           list-mode: strict

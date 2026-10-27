@@ -1,6 +1,10 @@
 package in
 
-import "github.com/dturcinovic/seam/internal/domain/note"
+import (
+	"context"
+
+	"github.com/dturcinovic/seam/internal/domain/note"
+)
 
 //counterfeiter:generate . NoteWriter
 
@@ -42,4 +46,43 @@ type NoteUpdates interface {
 type NoteOverview interface {
 	// Overview asks for every note of the book.
 	Overview()
+}
+
+//counterfeiter:generate . NoteReleaser
+
+// NoteReleaser gives back a note an agent session took and did not
+// answer, as after the session died. It does not block; the outcome comes
+// as note.Done through NoteUpdates.
+type NoteReleaser interface {
+	// Release makes note id open again.
+	Release(id note.ID) note.Op
+}
+
+//counterfeiter:generate . NoteSessions
+
+// NoteSessions signs agent sessions in and out of the book. Unlike the
+// ports of the TUI, each call returns once the book is written.
+type NoteSessions interface {
+	// Join signs in this process as a session of client.
+	Join(ctx context.Context, client string) (note.Session, error)
+	// Leave signs session id out and gives back the notes it took and did
+	// not answer.
+	Leave(ctx context.Context, id note.ID) error
+}
+
+//counterfeiter:generate . NoteAnswerer
+
+// NoteAnswerer lets an agent session take, read and answer notes; each
+// call returns once the book is read or written.
+type NoteAnswerer interface {
+	// Take takes for session the open notes of ids, or without ids the
+	// open ones, in one change of the book, so that no other session
+	// takes them too.
+	Take(ctx context.Context, session note.ID, ids []note.ID) (note.Taking, error)
+	// Reply answers note id for session, under claim, the claim it was
+	// taken with.
+	Reply(ctx context.Context, session, id, claim note.ID, text string) (note.Answer, error)
+	// View reads the notes of ids, or without ids all not resolved,
+	// taking none, with the sessions of the book.
+	View(ctx context.Context, ids []note.ID) (note.Book, error)
 }

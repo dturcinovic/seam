@@ -94,6 +94,8 @@ const (
 
 	ClosePopup
 	ResolveNote
+	// ReleaseNote gives back a note an agent took and did not answer.
+	ReleaseNote
 	// Actions is the number of actions, no action itself.
 	Actions
 )
@@ -101,6 +103,10 @@ const (
 
 func ParseAction(name string) (a Action, ok bool)
     ParseAction is the action named name; ok is false for none.
+
+func (a Action) OnNote() bool
+    OnNote reports whether a acts on a note, which only the popup of a note or
+    the notes' overview takes.
 
 func (a Action) String() string
     String is the name of a in the configuration file.

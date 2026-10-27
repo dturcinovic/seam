@@ -1,6 +1,7 @@
 package notestore
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -18,6 +19,12 @@ const (
 	lockPoll = 20 * time.Millisecond
 	lockWait = 2 * time.Second
 )
+
+// stateGrowth is the most a change of state alone, as "resolved" for
+// "open", adds to the file. A book past MaxFile still takes those, so that
+// giving back and resolving work once answers filled it; it takes nothing
+// that adds more, and so grows by at most that much a note.
+const stateGrowth = 16
 
 // ErrLocked is a lock another process held past the wait.
 var ErrLocked = errors.New("notes file locked by another process")
@@ -41,12 +48,14 @@ func (s *Store) Load(ctx context.Context) (note.Book, error) {
 	if s.path == "" {
 		return note.Book{}, note.ErrNoBook
 	}
-	return s.read()
+	b, _, err := s.read()
+	return b, err
 }
 
 // Change implements out.NoteStore: it reads, changes and writes the book
 // under the lock, so changes of other processes in between are neither
-// lost nor lose this one.
+// lost nor lose this one. A book that comes back as it was is not written:
+// each write wakes the watchers of every seam of the worktree.
 func (s *Store) Change(ctx context.Context, change func(*note.Book) error) error {
 	if s.path == "" {
 		return note.ErrNoBook
@@ -60,7 +69,7 @@ func (s *Store) Change(ctx context.Context, change func(*note.Book) error) error
 		return err
 	}
 	defer unlock()
-	b, err := s.read()
+	b, old, err := s.read()
 	if err != nil {
 		return err
 	}
@@ -71,26 +80,30 @@ func (s *Store) Change(ctx context.Context, change func(*note.Book) error) error
 	if err != nil {
 		return err
 	}
-	if len(data) > note.MaxFile {
+	if bytes.Equal(data, old) {
+		return nil
+	}
+	if len(data) > note.MaxFile && len(data)-len(old) > stateGrowth {
 		return fmt.Errorf("%w: %d bytes, at most %d", note.ErrBookTooLarge, len(data), note.MaxFile)
 	}
 	return s.write(data)
 }
 
-// read reads the book; a missing file is an empty one.
-func (s *Store) read() (note.Book, error) {
+// read reads the book and the file it came from; a missing file is an
+// empty book.
+func (s *Store) read() (note.Book, []byte, error) {
 	data, err := os.ReadFile(s.path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return note.Book{}, nil
+		return note.Book{}, nil, nil
 	}
 	if err != nil {
-		return note.Book{}, fmt.Errorf("read notes: %w", err)
+		return note.Book{}, nil, fmt.Errorf("read notes: %w", err)
 	}
 	b, err := decode(data)
 	if err != nil {
-		return note.Book{}, fmt.Errorf("read notes: %w", err)
+		return note.Book{}, nil, fmt.Errorf("read notes: %w", err)
 	}
-	return b, nil
+	return b, data, nil
 }
 
 // write writes a temporary file and renames it, so a reader sees the old

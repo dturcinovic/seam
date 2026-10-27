@@ -121,8 +121,7 @@ func (k Kind) String() string {
 	return "unset"
 }
 
-// State is where a note stands. Only Open and Resolved are set here; the
-// states of an agent taking and answering notes come with that.
+// State is where a note stands.
 type State uint8
 
 // The states. The zero value is no valid state.
@@ -130,6 +129,10 @@ const (
 	_ State = iota
 	Open
 	Resolved
+	// Taken is a note an agent session took and has not answered yet.
+	Taken
+	// Answered is a note an agent answered.
+	Answered
 )
 
 // String is the state's name in storage.
@@ -139,6 +142,10 @@ func (s State) String() string {
 		return "open"
 	case Resolved:
 		return "resolved"
+	case Taken:
+		return "taken"
+	case Answered:
+		return "answered"
 	}
 	return "unset"
 }
@@ -154,8 +161,8 @@ type Note struct {
 	Text       string
 	State      State
 	Created    time.Time
-	// Claim, Batch and Replies belong to an agent taking, being sent and
-	// answering the note; the book keeps them as they are.
+	// Claim is the taking of a note Taken; Batch belongs to sending it,
+	// which the book keeps as it is.
 	Claim   *Claim
 	Batch   ID
 	Replies []Reply
@@ -238,7 +245,7 @@ func (b *Book) Resolve(id ID) error {
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrNoNote, id)
 	}
-	b.Notes[i].State = Resolved
+	b.Notes[i].State, b.Notes[i].Claim = Resolved, nil
 	return nil
 }
 

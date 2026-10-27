@@ -74,8 +74,8 @@ func TestOnlyGitSidesTakeNotes(t *testing.T) {
 func TestNamesOfKindsStatesAndOutcomes(t *testing.T) {
 	assert.Equal(t, []string{"unset", "question", "finding"},
 		[]string{note.Kind(0).String(), note.Question.String(), note.Finding.String()})
-	assert.Equal(t, []string{"unset", "open", "resolved"},
-		[]string{note.State(0).String(), note.Open.String(), note.Resolved.String()})
+	assert.Equal(t, []string{"unset", "open", "resolved", "taken", "answered"},
+		[]string{note.State(0).String(), note.Open.String(), note.Resolved.String(), note.Taken.String(), note.Answered.String()})
 	assert.Equal(t, []string{"unset", "placed", "likely placed", "placed, changed", "ambiguous", "orphaned"},
 		[]string{note.Where(0).String(), note.Exact.String(), note.Likely.String(), note.Changed.String(), note.Ambiguous.String(), note.Orphaned.String()})
 	assert.True(t, note.Changed.Shown())

@@ -190,6 +190,7 @@ same key in one place are an error.
 | | `select_lines` | `v` |
 | popup | `close_popup` | `esc` |
 | | `resolve_note` | `x` |
+| | `release_note` | `R` |
 
 What the actions do is in [Usage](usage.md).
 

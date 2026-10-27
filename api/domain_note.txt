@@ -8,6 +8,15 @@ format of storage.
 CONSTANTS
 
 const (
+	// MaxReply is the most bytes of an answer.
+	MaxReply = 64 << 10
+	// MaxTake is the most notes taken at once; more are left for the next
+	// call.
+	MaxTake = 20
+)
+    Limits of what agents take and answer.
+
+const (
 	// MaxText is the most bytes of a note's text.
 	MaxText = 8 << 10
 	// MaxLines is the most lines a selection holds.
@@ -22,6 +31,13 @@ const (
 
 
 VARIABLES
+
+var (
+	ErrReplyTooLong = errors.New("answer too long")
+	ErrNotTaken     = errors.New("note not taken")
+	ErrNoSession    = errors.New("no such agent session")
+)
+    Errors of agent sessions taking and answering notes.
 
 var (
 	ErrTextTooLong  = errors.New("note text too long")
@@ -72,6 +88,14 @@ func NewAnchor(path string, origin Origin, blob change.ObjectID, lines []string,
     NewAnchor anchors the lines start to end of lines, the version blob of path
     in origin.
 
+type Answer struct {
+	Reply ID
+	Late  bool
+}
+    Answer is what came of a reply: the reply's ID, an earlier one's for the
+    same reply again, and whether it came late, under a claim no longer the
+    note's.
+
 type Batch struct {
 	ID      ID
 	Session ID
@@ -91,8 +115,38 @@ type Book struct {
 func (b *Book) Add(d Draft, id ID, at time.Time) error
     Add takes d as a new open note named id, set at at.
 
+func (b *Book) Join(s Session) error
+    Join adds the agent session s.
+
+func (b *Book) Leave(id ID)
+    Leave removes session id and gives back the notes it took, unanswered.
+    A session gone already is no error, so leaving twice does no harm.
+
+func (b *Book) Prune(alive func(pid int) bool)
+    Prune removes the sessions whose process is no longer alive. A session that
+    holds a claim stays: its notes show who took them until the user gives them
+    back.
+
+func (b *Book) Release(id ID) error
+    Release gives note id back from the session that took it, unanswered.
+
+func (b *Book) Reply(id ID, r Reply) (Answer, error)
+    Reply adds r to note id. The same text under the same claim again adds
+    nothing and answers with the reply there, so that an agent may repeat a
+    reply whose answer it lost. A reply under a claim other than the note's
+    comes late: it is kept, but the newer taking stands. Any other answers the
+    note.
+
 func (b *Book) Resolve(id ID) error
     Resolve marks note id done; a note resolved already stays so.
+
+func (b *Book) Session(id ID) (Session, bool)
+    Session is the session named id.
+
+func (b *Book) Take(ids []ID, c Claim) (Taking, error)
+    Take takes notes under c, for its session: those of ids, or without ids the
+    open ones, at most MaxTake either way, and More says open ones are left.
+    Only open notes are taken; the others of ids come back refused.
 
 type Claim struct {
 	ID      ID
@@ -141,8 +195,8 @@ type Note struct {
 	Text       string
 	State      State
 	Created    time.Time
-	// Claim, Batch and Replies belong to an agent taking, being sent and
-	// answering the note; the book keeps them as they are.
+	// Claim is the taking of a note Taken; Batch belongs to sending it,
+	// which the book keeps as it is.
 	Claim   *Claim
 	Batch   ID
 	Replies []Reply
@@ -182,6 +236,24 @@ func Locate(a Anchor, blob change.ObjectID, lines []string) Placement
     the same selection and context cannot be told from the original. Rather than
     guess between places, it answers Ambiguous.
 
+type Reason string
+    Reason is why a note asked for was not taken; agents read it as is.
+
+const (
+	RefusedUnknown  Reason = "unknown"
+	RefusedTaken    Reason = "taken"
+	RefusedAnswered Reason = "answered"
+	RefusedResolved Reason = "resolved"
+)
+    The reasons a note is not taken. Only open notes are: a question that
+    remains after an answer is a new note.
+
+type Refusal struct {
+	ID     ID
+	Reason Reason
+}
+    Refusal is a note asked for and not taken.
+
 type Reply struct {
 	ID     ID
 	Author string
@@ -199,6 +271,10 @@ type Session struct {
 }
     Session is an agent session that reads notes.
 
+func TakenBy(n Note, sessions []Session) (Session, bool)
+    TakenBy is the session among sessions that holds n's claim; ok is false for
+    a note no session holds, or one whose session is gone.
+
 type SnapshotKey struct {
 	Path   string
 	Origin Origin
@@ -215,17 +291,29 @@ type Spot struct {
     Spot is a note and its place in a side.
 
 type State uint8
-    State is where a note stands. Only Open and Resolved are set here;
-    the states of an agent taking and answering notes come with that.
+    State is where a note stands.
 
 const (
 	Open State
 	Resolved
+	// Taken is a note an agent session took and has not answered yet.
+	Taken
+	// Answered is a note an agent answered.
+	Answered
 )
     The states. The zero value is no valid state.
 
 func (s State) String() string
     String is the state's name in storage.
+
+type Taking struct {
+	Claim   Claim
+	Notes   []Note
+	Refused []Refusal
+	More    bool
+}
+    Taking is what one Take took: the notes under Claim, the notes asked for and
+    refused, and whether open notes are left past MaxTake.
 
 type Update struct {
 	Kind UpdateKind
@@ -236,8 +324,9 @@ type Update struct {
 	Op  Op
 	Err error
 
-	Heads []Head
-	Live  bool
+	Heads    []Head
+	Sessions []Session
+	Live     bool
 
 	Notes []Note
 }
@@ -253,9 +342,10 @@ const (
 	Placed UpdateKind
 	// Done sets Op and, if it failed, Err.
 	Done
-	// StoreStatus sets Heads, all notes in brief, and Err, why the book
-	// cannot be read or is not watched, nil once it is again. Live is
-	// whether changes from elsewhere show.
+	// StoreStatus sets Heads, all notes in brief, Sessions, the agent
+	// sessions that took notes or may, and Err, why the book cannot be
+	// read or is not watched, nil once it is again. Live is whether
+	// changes from elsewhere show.
 	StoreStatus
 	// Overview sets Notes, every note of the book, resolved ones too, or
 	// Err, why there is none.

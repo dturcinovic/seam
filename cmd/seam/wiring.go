@@ -53,10 +53,14 @@ func options(cfg config.Config, logger *observability.Logger, root, notes string
 		// them, and git last, with the time the servers leave, whatever
 		// order a caller asks for the ports in.
 		fx.Invoke(func(out.BlobReader, out.CommitCheckouts, out.DocumentSync) {}),
-		// fx.WithLogger insists on the interface type; NewFxLogger returns
-		// the concrete one.
-		fx.WithLogger(func(l *observability.Logger) fxevent.Logger { return observability.NewFxLogger(l) }),
+		fxLogger(),
 	}
+}
+
+// fxLogger logs fx's own events to the session's log. fx.WithLogger
+// insists on the interface type; NewFxLogger returns the concrete one.
+func fxLogger() fx.Option {
+	return fx.WithLogger(func(l *observability.Logger) fxevent.Logger { return observability.NewFxLogger(l) })
 }
 
 // releaseNotice is the notice --version adds, from the last check alone: it

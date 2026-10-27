@@ -1,11 +1,9 @@
-package lsp
+package hover
 
 import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/dturcinovic/seam/internal/domain/hover"
 )
 
 // linkReach bounds how far the end of a link's text or target, or of a
@@ -18,21 +16,21 @@ type inlineParser struct {
 	defs map[string]string
 }
 
-func (p inlineParser) spans(text string) []hover.Span {
+func (p inlineParser) spans(text string) []Span {
 	var w spanWriter
-	p.parse(&w, text, hover.Plain)
+	p.parse(&w, text, Plain)
 	return w.done()
 }
 
 // spanWriter collects spans, merging neighbours of one kind; the last one
 // grows in a builder, so many small pieces cost no copies of it.
 type spanWriter struct {
-	spans []hover.Span
+	spans []Span
 	last  strings.Builder
-	kind  hover.SpanKind
+	kind  SpanKind
 }
 
-func (w *spanWriter) add(k hover.SpanKind, s string) {
+func (w *spanWriter) add(k SpanKind, s string) {
 	if s == "" {
 		return
 	}
@@ -45,12 +43,12 @@ func (w *spanWriter) add(k hover.SpanKind, s string) {
 
 func (w *spanWriter) end() {
 	if w.last.Len() > 0 {
-		w.spans = append(w.spans, hover.Span{Kind: w.kind, Text: w.last.String()})
+		w.spans = append(w.spans, Span{Kind: w.kind, Text: w.last.String()})
 		w.last.Reset()
 	}
 }
 
-func (w *spanWriter) done() []hover.Span {
+func (w *spanWriter) done() []Span {
 	w.end()
 	return w.spans
 }
@@ -69,8 +67,8 @@ type inline struct {
 }
 
 // parse writes the spans of s in kind k, or in the kind of a construct
-// within it where that comes later in hover.SpanKind.
-func (p inlineParser) parse(w *spanWriter, s string, k hover.SpanKind) {
+// within it where that comes later in SpanKind.
+func (p inlineParser) parse(w *spanWriter, s string, k SpanKind) {
 	in := inline{s: s, none: unclosed{}, closers: closers(s)}
 	for i := 0; i < len(s); {
 		if end, ok := p.construct(w, in, i, k); ok {
@@ -89,13 +87,13 @@ func (p inlineParser) parse(w *spanWriter, s string, k hover.SpanKind) {
 
 // construct writes the code span, link, image, autolink or emphasis that
 // starts at s[i], if one does, and returns where it ends.
-func (p inlineParser) construct(w *spanWriter, in inline, i int, k hover.SpanKind) (int, bool) {
+func (p inlineParser) construct(w *spanWriter, in inline, i int, k SpanKind) (int, bool) {
 	s := in.s
 	switch s[i] {
 	case '`':
 		code, end, ok := codeSpan(s, i, in.none)
 		if ok {
-			w.add(hover.InlineCode, code)
+			w.add(InlineCode, code)
 		}
 		return end, ok
 	case '!':
@@ -113,7 +111,7 @@ func (p inlineParser) construct(w *spanWriter, in inline, i int, k hover.SpanKin
 		}
 	case '<':
 		if url, end, ok := autolink(s, i); ok {
-			w.add(max(k, hover.URL), url)
+			w.add(max(k, URL), url)
 			return end, true
 		}
 	case '*', '_':
@@ -127,16 +125,16 @@ func (p inlineParser) construct(w *spanWriter, in inline, i int, k hover.SpanKin
 
 // writeLink writes a link's text and, dimmed after it, its target if that
 // is somewhere to go and says more than the text.
-func (p inlineParser) writeLink(w *spanWriter, text, url string, k hover.SpanKind) {
+func (p inlineParser) writeLink(w *spanWriter, text, url string, k SpanKind) {
 	shown := strings.HasPrefix(url, "http:") || strings.HasPrefix(url, "https:") || strings.HasPrefix(url, "file:")
 	if shown && text == url {
-		w.add(max(k, hover.URL), url)
+		w.add(max(k, URL), url)
 		return
 	}
-	p.parse(w, text, max(k, hover.Link))
+	p.parse(w, text, max(k, Link))
 	if shown {
 		w.add(k, " ")
-		w.add(max(k, hover.URL), url)
+		w.add(max(k, URL), url)
 	}
 }
 
@@ -254,15 +252,15 @@ func codeSpan(s string, i int, none unclosed) (code string, end int, ok bool) {
 // Emphasis and two or three for Strong, simplified from CommonMark: an
 // opener is followed by a non-blank, a closer preceded by one, _ neither
 // opens nor closes within a word, and a code span hides its delimiters.
-func emphasis(s string, i int, none unclosed) (inner string, kind hover.SpanKind, end int, ok bool) {
+func emphasis(s string, i int, none unclosed) (inner string, kind SpanKind, end int, ok bool) {
 	n := run(s, i)
 	key := s[i : i+n]
 	if n > 3 || none[key] || !opens(s, i, n) {
 		return "", 0, 0, false
 	}
-	kind = hover.Emphasis
+	kind = Emphasis
 	if n > 1 {
-		kind = hover.Strong
+		kind = Strong
 	}
 	for j := i + n; j < len(s); j++ {
 		switch s[j] {
