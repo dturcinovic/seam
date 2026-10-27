@@ -87,7 +87,7 @@ func (s *state) noteMarkAt(x, y int) (noteLine, bool) {
 	}
 	for _, w := range sides {
 		line := s.lineIn(file, l, w)
-		if x == s.layoutOf(file).paneStart(w) && line >= 0 && len(s.notesAt(file, w, line)) > 0 {
+		if s.layoutOf(file).onMarks(w, x) && line >= 0 && len(s.notesAt(file, w, line)) > 0 {
 			return noteLine{File: file, Side: w, Line: line}, true
 		}
 	}

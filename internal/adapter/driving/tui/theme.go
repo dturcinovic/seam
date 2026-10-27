@@ -12,7 +12,7 @@ import (
 
 // style names what a stretch of the screen shows; the theme gives it its
 // colours. The pane styles come in one block per tone, see paneStyle.
-type style uint8
+type style uint16
 
 const (
 	plain style = iota
@@ -44,7 +44,7 @@ const (
 )
 
 const (
-	firstListStyle      = firstScrollStyle + style(2*tones)
+	firstListStyle      = firstScrollStyle + style(2*lineTones)
 	firstPaneStyle      = firstListStyle + style(int(listParts)*int(listShades))
 	firstPopupCodeStyle = firstPaneStyle + style(int(tones)*int(roles))
 )
@@ -137,8 +137,27 @@ const (
 	changedTone
 	// absentTone is the side of a row that has no line.
 	absentTone
+	// The hover tones are the four above on the line under the mouse; a
+	// side without a line is never under it.
+	equalHoverTone
+	deletedHoverTone
+	insertedHoverTone
+	changedHoverTone
 	tones
 )
+
+// lineTones are the tones of a row's side as the diff gives them.
+const lineTones = absentTone + 1
+
+// hovered is t on the line under the mouse; a hover tone stays itself.
+func (t tone) hovered() tone {
+	if t < absentTone {
+		return equalHoverTone + t
+	}
+	return t
+}
+
+func (t tone) isHover() bool { return t >= equalHoverTone }
 
 // role is a part of a pane line in its tone. Text comes in one role per
 // syntax kind, see textStyle.
@@ -161,7 +180,7 @@ const (
 const styles = int(firstPopupCodeStyle) + int(syntax.Kinds)
 
 // A style must fit its type; more kinds or tones fail the build here.
-const _ = uint8(styles - 1)
+const _ = uint16(styles - 1)
 
 func paneStyle(t tone, r role) style {
 	return firstPaneStyle + style(int(t)*int(roles)+int(r))
@@ -245,7 +264,7 @@ func lipglossStyles(c palette) map[style]lipgloss.Style {
 	}
 	addPopupStyles(all, popup, c)
 	addListStyles(all, base, c)
-	marks := [tones]color.Color{
+	marks := [lineTones]color.Color{
 		equalTone: lipgloss.NoColor{}, deletedTone: c(ui.DeletedFg), insertedTone: c(ui.InsertedFg),
 		changedTone: c(ui.ChangedFg), absentTone: lipgloss.NoColor{},
 	}
@@ -254,17 +273,33 @@ func lipglossStyles(c palette) map[style]lipgloss.Style {
 		all[scrollStyle(tone(t), false)] = track
 		all[scrollStyle(tone(t), true)] = track.Background(c(ui.ThumbBg))
 	}
-	// Equal lines keep the terminal's background.
+	addPaneStyles(all, base, c)
+	return all
+}
+
+// addPaneStyles adds the styles of the panes in each tone. Equal lines keep
+// the terminal's background; under the mouse a line takes a lighter one and
+// its number the terminal's foreground, while its changed words keep
+// theirs.
+func addPaneStyles(all map[style]lipgloss.Style, base lipgloss.Style, c palette) {
 	backgrounds := [tones][2]color.Color{
-		equalTone:    {lipgloss.NoColor{}, lipgloss.NoColor{}},
-		deletedTone:  {c(ui.DeletedBg), c(ui.DeletedStrongBg)},
-		insertedTone: {c(ui.InsertedBg), c(ui.InsertedStrongBg)},
-		changedTone:  {c(ui.ChangedBg), c(ui.ChangedStrongBg)},
-		absentTone:   {c(ui.AbsentBg), c(ui.AbsentBg)},
+		equalTone:         {lipgloss.NoColor{}, lipgloss.NoColor{}},
+		deletedTone:       {c(ui.DeletedBg), c(ui.DeletedStrongBg)},
+		insertedTone:      {c(ui.InsertedBg), c(ui.InsertedStrongBg)},
+		changedTone:       {c(ui.ChangedBg), c(ui.ChangedStrongBg)},
+		absentTone:        {c(ui.AbsentBg), c(ui.AbsentBg)},
+		equalHoverTone:    {c(ui.HoverBg), c(ui.HoverBg)},
+		deletedHoverTone:  {c(ui.DeletedHoverBg), c(ui.DeletedStrongBg)},
+		insertedHoverTone: {c(ui.InsertedHoverBg), c(ui.InsertedStrongBg)},
+		changedHoverTone:  {c(ui.ChangedHoverBg), c(ui.ChangedStrongBg)},
 	}
 	for t, bg := range backgrounds {
 		normal, strong := base.Background(bg[0]), base.Background(bg[1])
-		all[paneStyle(tone(t), gutterRole)] = normal.Foreground(c(ui.DimFg))
+		gutter := normal.Foreground(c(ui.DimFg))
+		if tone(t).isHover() {
+			gutter = normal
+		}
+		all[paneStyle(tone(t), gutterRole)] = gutter
 		all[paneStyle(tone(t), noteRole)] = normal.Foreground(c(ui.DirFg)).Bold(true)
 		all[paneStyle(tone(t), standInRole)] = normal.Faint(true)
 		all[paneStyle(tone(t), inlineStandInRole)] = strong.Faint(true)
@@ -273,7 +308,6 @@ func lipglossStyles(c palette) map[style]lipgloss.Style {
 			all[textStyle(tone(t), k, true)] = strong.Foreground(c.kind(k))
 		}
 	}
-	return all
 }
 
 // addListStyles adds the styles of the file list in each shade.

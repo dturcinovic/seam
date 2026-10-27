@@ -84,20 +84,20 @@ func TestTheGoldenNotesShowTheirCases(t *testing.T) {
 	}
 	split := byName["notes-split"]
 	require.Greater(t, len(split), bodyTop+6)
-	assert.Contains(t, split[bodyTop+2], "│? 3   2", "the mark stands before the line number")
-	assert.Contains(t, split[bodyTop+3], "│╎ 4 ~ changed 3")
-	assert.Contains(t, split[bodyTop+5], "│! 6   5")
+	assert.Contains(t, split[bodyTop+2], "│ ?  3   2", "the mark stands before the line number")
+	assert.Contains(t, split[bodyTop+3], "│ ╎  4 ~ changed 3")
+	assert.Contains(t, split[bodyTop+5], "│ !  6   5")
 	assert.Contains(t, split[bodyTop+1], " 2 M logo.png")
 	assert.Contains(t, split[bodyTop+5], " 1 M main.go")
 	assert.Contains(t, split[len(split)-1], "notes 3 open, 1 not placed")
 	unified := byName["notes-unified"]
-	assert.Contains(t, unified[bodyTop+2], "? 3  3   2", "a whole row shows the notes of either side")
-	assert.Contains(t, unified[bodyTop+4], "╎    4 + changed 3")
+	assert.Contains(t, unified[bodyTop+2], " ?  3  3   2", "a whole row shows the notes of either side")
+	assert.Contains(t, unified[bodyTop+4], " ╎     4 + changed 3")
 	assert.Contains(t, strings.Join(byName["notes-popup"], "\n"), "┌ notes ")
 	assert.Contains(t, strings.Join(byName["notes-field"], "\n"), "┌ finding ")
 	assert.Contains(t, byName["notes-field"][len(byName["notes-field"])-1], "tab question or finding")
 	assert.Contains(t, strings.Join(byName["notes-overview"], "\n"), "┌ notes ")
-	assert.Contains(t, byName["notes-plus-split"][bodyTop], "│+ 1   0", "the plus stands where a mark would")
-	assert.Contains(t, byName["notes-plus-unified"][bodyTop], "+ 1  1   0")
+	assert.Contains(t, byName["notes-plus-split"][bodyTop], "│[+] 1   0", "the plus stands where a mark would")
+	assert.Contains(t, byName["notes-plus-unified"][bodyTop], "[+] 1  1   0")
 	assert.Contains(t, strings.Join(byName["notes-field"], "\n"), "└ enter done  alt+enter new line  esc discard  tab question or finding ─")
 }

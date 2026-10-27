@@ -160,14 +160,14 @@ func TestEveryLineIsAsWideAsTheScreen(t *testing.T) {
 // right edge cuts.
 func TestAWideCharacterCutByAnEdgeIsBlank(t *testing.T) {
 	d := diff.Compute(t.Context(), diff.Split("日本\n"), diff.Split("日本\n"))
-	// Panes of 9 columns, a gutter of 5 and 4 of text, and the scrollbar.
-	s := shown(t, files("a.txt"), 20, 3, filediff.Snapshot{Diff: d})
+	// Panes of 11 columns, a gutter of 7 and 4 of text, and the scrollbar.
+	s := shown(t, files("a.txt"), 24, 3, filediff.Snapshot{Diff: d})
 
 	s.HScroll = 1
-	assert.Equal(t, " 1    本 │ 1    本  ", plainLines(s)[1])
+	assert.Equal(t, "   1    本 │   1    本  ", plainLines(s)[1])
 	s.HScroll = 0
-	s.resize(18, 3)
-	assert.Equal(t, " 1   日 │ 1   日  ", plainLines(s)[1], "half of 本 at the right edge")
+	s.resize(22, 3)
+	assert.Equal(t, "   1   日 │   1   日  ", plainLines(s)[1], "half of 本 at the right edge")
 }
 
 // TestALongLineCostsWhatIsVisible renders a file of one 8 MiB line: only the

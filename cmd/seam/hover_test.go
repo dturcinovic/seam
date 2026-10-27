@@ -76,8 +76,8 @@ func TestTheMouseRestingOnCodeShowsItsHover(t *testing.T) {
 			require.Eventually(t, func() bool { return out.shows("func f()") }, testsupport.Guard, 10*time.Millisecond, "a.go laid out")
 
 			// Any motion, no button, at the p of package: the right pane's
-			// text starts at column 46, one-based, below the header.
-			typeKeys("\x1b[<35;47;2M")
+			// text starts at column 48, one-based, below the header.
+			typeKeys("\x1b[<35;48;2M")
 
 			assert.Eventually(t, func() bool { return out.shows("func probe()") }, testsupport.Guard, 10*time.Millisecond)
 			typeKeys("q")
@@ -113,7 +113,7 @@ func TestAHoverShowsItsMarkdown(t *testing.T) {
 	// Why a.go and not the server's name: see TestTheMouseRestingOnCodeShowsItsHover.
 	require.Eventually(t, func() bool { return out.shows("func f()") }, testsupport.Guard, 10*time.Millisecond, "a.go laid out")
 
-	typeKeys("\x1b[<35;47;2M")
+	typeKeys("\x1b[<35;48;2M")
 
 	require.Eventually(t, func() bool { return out.shows("probes") }, testsupport.Guard, 10*time.Millisecond)
 	typeKeys("q")

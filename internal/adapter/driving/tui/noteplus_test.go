@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -64,15 +65,16 @@ func TestNoPlusOnASideThatTakesNoNotes(t *testing.T) {
 func TestThePlusShowsInTheGutterAndGoesWithTheMouse(t *testing.T) {
 	m := plusModel(t, splitSettings())
 	right := m.s.Layout.paneStart(filediff.NewSide)
-	mark := func(m model, x int) string { return string([]rune(plainLines(&m.s)[bodyTop])[x]) }
+	mark := func(m model, x int) string { return string([]rune(plainLines(&m.s)[bodyTop])[x : x+noteMarkCols]) }
 
 	m, _ = send(m, tea.MouseMotionMsg{X: right + 10, Y: bodyTop})
-	assert.Equal(t, "+", mark(m, right))
-	assert.Equal(t, " ", mark(m, 0), "only on the side under the mouse")
+	assert.Equal(t, "[+]", mark(m, right))
+	assert.Equal(t, "   ", mark(m, 0), "only on the side under the mouse")
+	assert.True(t, strings.HasPrefix(footerLine(m), "click [+] to note line 1  "), footerLine(m))
 
 	m, _ = send(m, tea.MouseMotionMsg{X: 10, Y: bodyTop})
-	assert.Equal(t, " ", mark(m, right))
-	assert.Equal(t, "+", mark(m, 0))
+	assert.Equal(t, "   ", mark(m, right))
+	assert.Equal(t, "[+]", mark(m, 0))
 
 	for _, away := range []tea.Msg{
 		tea.MouseMotionMsg{X: 10, Y: 0},
@@ -83,6 +85,7 @@ func TestThePlusShowsInTheGutterAndGoesWithTheMouse(t *testing.T) {
 		require.True(t, m.s.Hover.PlusOn)
 		m, _ = send(m, away)
 		assert.False(t, m.s.Hover.PlusOn, "%T", away)
+		assert.NotContains(t, footerLine(m), "click [+]")
 	}
 }
 
@@ -121,7 +124,7 @@ func TestAClickBesideThePlusOpensNoField(t *testing.T) {
 	m, _ := noteModel(t, headToWorktree(t))
 	right := m.s.Layout.paneStart(filediff.NewSide)
 	m, _ = send(m, tea.MouseMotionMsg{X: right + 10, Y: bodyTop})
-	m, _ = send(m, tea.MouseClickMsg{Button: tea.MouseLeft, X: right + 1, Y: bodyTop})
+	m, _ = send(m, tea.MouseClickMsg{Button: tea.MouseLeft, X: right + noteMarkCols, Y: bodyTop})
 	assert.False(t, m.s.Field.Open)
 }
 
@@ -160,4 +163,39 @@ func TestAClickOnThePlusKeepsTheLinesMarked(t *testing.T) {
 	m, _ = send(m, tea.MouseClickMsg{Button: tea.MouseLeft, X: right, Y: bodyTop + 6})
 	require.True(t, m.s.Field.Open)
 	assert.True(t, m.s.Notes.Mark.On)
+}
+
+func TestTheLineUnderThePlusTakesTheHoverTone(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		set  ui.Settings
+		x, y int
+		want tone
+	}{
+		{"an equal line side by side", splitSettings(), 10, 0, equalHoverTone},
+		{"a changed line side by side", splitSettings(), 10, 3, changedHoverTone},
+		{"a whole row unified", ui.DefaultSettings(), 10, 0, equalHoverTone},
+		{"the new half of a change unified", ui.DefaultSettings(), 10, 4, insertedHoverTone},
+		{"the old half of a change unified", ui.DefaultSettings(), 10, 3, deletedHoverTone},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			m := plusModel(t, c.set)
+			m, _ = send(m, tea.MouseMotionMsg{X: c.x, Y: bodyTop + c.y})
+			require.True(t, m.s.Hover.PlusOn)
+			th := newTheme(ui.Dark())
+			line := strings.Split(render(&m.s, th), "\n")[bodyTop+c.y]
+			assert.Contains(t, line, th.open[paneStyle(c.want, noteRole)]+plusMark)
+			assert.Contains(t, line, th.open[paneStyle(c.want, gutterRole)], "the number in the terminal's foreground")
+		})
+	}
+}
+
+func TestANoteThatCameTakesThePlusFromTheFooter(t *testing.T) {
+	m, f := noteModel(t, headToWorktree(t))
+	right := m.s.Layout.paneStart(filediff.NewSide)
+	m, _ = send(m, tea.MouseMotionMsg{X: right + 10, Y: bodyTop + 6})
+	require.Contains(t, footerLine(m), "click [+] to note line 7")
+
+	m = notesCome(m, f, note.Update{Kind: note.Placed, Key: worktreeSide(), Spots: []note.Spot{spotAt("n", note.Question, note.Exact, 7, 7)}})
+	assert.NotContains(t, footerLine(m), "click [+]")
 }
