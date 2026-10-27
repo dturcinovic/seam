@@ -114,6 +114,8 @@ func (r *Repo) ListChanges(ctx context.Context, c change.Comparison) ([]change.C
 		if c.Right.ID().IsZero() {
 			return nil, fmt.Errorf("right side %s is not resolved", c.Right)
 		}
+	case change.KindPath:
+		return nil, fmt.Errorf("right side %s is on disk, outside git", c.Right)
 	default:
 		return nil, fmt.Errorf("right side %s cannot be listed", c.Right)
 	}

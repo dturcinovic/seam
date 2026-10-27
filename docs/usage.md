@@ -10,6 +10,7 @@ seam <rev>          # a revision against the worktree, untracked files included
 seam <rev> <rev>    # two commits
 seam --staged       # HEAD against the index
 seam --watch        # as seam, and reload whenever something changes
+seam --files <a> <b>  # two files or two directories on disk, see below
 ```
 
 A revision is anything git understands: `main`, `HEAD~3`, a tag or a
@@ -19,6 +20,7 @@ commit hash.
 |---|---|
 | `-w`, `--watch` | Reload when the worktree, the index or HEAD changes, see [Watching](#watching) |
 | `--staged` | Compare HEAD with the index |
+| `--files` | Compare two files or two directories on disk, see [As git difftool](#as-git-difftool) |
 | `--max-file-size <size>` | Largest side of a file to load, in bytes or with `K`, `M` or `G` (default `8M`) |
 | `-v`, `--verbose` | Log at debug level |
 | `--pprof <file>` | Write a heap profile to this file when seam ends |
@@ -27,6 +29,28 @@ commit hash.
 The log goes to `$XDG_STATE_HOME/seam/seam.log` (else
 `~/.local/state/seam/seam.log`), never to the terminal. The language
 servers' own output lies next to it.
+
+## As git difftool
+
+`seam --files <left> <right>` compares two files or two directories on
+disk, git or not. Two directories show the files that differ in the file
+list; `/dev/null` stands for a side that does not exist. To have
+`git difftool` open seam:
+
+```bash
+git config --global difftool.seam.cmd 'seam --files "$LOCAL" "$REMOTE"'
+git config --global diff.tool seam
+git config --global difftool.prompt false
+```
+
+Then `git difftool HEAD~1` opens seam once per changed file, and
+`git difftool -d HEAD~1` once for all of them, with the file list.
+
+Hovers and definitions work on the right side where it is a file of the
+worktree of the repository seam runs in, as it is when git difftool
+compares with the worktree. A file elsewhere, such as the old side git
+writes to a temporary file, shows its diff and colours only. Outside a
+repository seam needs no git at all. `--watch` does not apply.
 
 ## The screen
 

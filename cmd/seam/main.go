@@ -38,14 +38,15 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 func newRootCommand() *cobra.Command {
 	var flags config.Flags
-	var staged, watch, showVersion bool
+	var staged, watch, onDisk, showVersion bool
 	cmd := &cobra.Command{
-		Use:   "seam [<rev> [<rev>]]",
+		Use:   "seam [<rev> [<rev>]] | seam --files <left> <right>",
 		Short: "Side-by-side diff viewer with type info from the language server",
 		Long: `Without arguments seam compares HEAD with the worktree, untracked files
 included. One revision replaces HEAD, two compare two commits, and --staged
 compares HEAD with the index. --watch reloads whenever the worktree, the
-index or HEAD changes.`,
+index or HEAD changes. --files compares two files or two directories on
+disk, as git difftool hands them over.`,
 		// --version takes no arguments into account, as cobra's own does not.
 		Args: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
@@ -60,7 +61,7 @@ index or HEAD changes.`,
 			if showVersion {
 				return printVersion(cmd.Context(), flags, cmd.OutOrStdout())
 			}
-			c, err := comparison(args, staged)
+			c, err := comparison(args, staged, onDisk)
 			if err != nil {
 				return err
 			}
@@ -79,6 +80,7 @@ index or HEAD changes.`,
 	cmd.Flags().BoolVarP(&flags.Verbose, "verbose", "v", false, "log at debug level")
 	cmd.Flags().BoolVar(&staged, "staged", false, "compare HEAD with the index")
 	cmd.Flags().BoolVarP(&watch, "watch", "w", false, "reload when the worktree, the index or HEAD changes")
+	cmd.Flags().BoolVar(&onDisk, "files", false, "compare two files or two directories on disk, as for git difftool")
 	cmd.Flags().StringVar(&flags.MaxFileSize, "max-file-size", "", "largest side of a file to load, in bytes or with K, M or G (default 8M)")
 	cmd.Flags().StringVar(&flags.HeapProfile, "pprof", "", "write a heap profile to this file when seam ends")
 	// Not cobra's own --version, which prints before the configuration is

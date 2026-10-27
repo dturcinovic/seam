@@ -31,6 +31,8 @@ func WatchesWorktree(c Comparison) (bool, error) {
 		return true, nil
 	case KindIndex:
 		return false, nil
+	case KindPath:
+		return false, fmt.Errorf("%w: %s and %s are files on disk", ErrNotWatchable, c.Left, c.Right)
 	case KindCommit:
 	}
 	return false, fmt.Errorf("%w: %s and %s are commits", ErrNotWatchable, c.Left, c.Right)

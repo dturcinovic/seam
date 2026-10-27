@@ -99,7 +99,7 @@ type Comparison struct {
 
 func NewComparison(left, right Source) (Comparison, error)
     NewComparison checks that left is a commit and right is a commit, the index
-    or the worktree.
+    or the worktree, or that both are files or both directories on disk.
 
 type Gen uint64
     Gen is a generation of reloading the changeset. The UI hands out strictly
@@ -145,17 +145,34 @@ type Source struct {
 func Commit(rev string) Source
     Commit is the commit that rev names, not yet resolved.
 
+func Dir(path string) Source
+    Dir is a directory on disk, outside git's view.
+
+func File(path string) Source
+    File is a file on disk, outside git's view. An empty path is a side that
+    does not exist, as git difftool passes /dev/null for it.
+
 func Index() Source
     Index is the staging area.
 
 func Worktree() Source
     Worktree is the files on disk.
 
+func (s Source) At(rel string) string
+    At is where the file rel of a path side lies: below a directory, or the file
+    side itself.
+
 func (s Source) ID() ObjectID
     ID is the resolved commit; zero until Resolved or unless Kind is KindCommit.
 
+func (s Source) IsDir() bool
+    IsDir reports whether the side is a directory on disk.
+
 func (s Source) Kind() SourceKind
     Kind says where the side comes from.
+
+func (s Source) Path() string
+    Path is the file or directory the user named; empty unless Kind is KindPath.
 
 func (s Source) Resolved(id ObjectID) (Source, error)
     Resolved returns the commit source with its object id.
@@ -173,6 +190,7 @@ const (
 	KindCommit SourceKind
 	KindIndex
 	KindWorktree
+	KindPath
 )
     The kinds of source. The zero value is no valid kind.
 

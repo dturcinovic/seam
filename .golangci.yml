@@ -291,6 +291,19 @@ linters:
             - github.com/dturcinovic/seam/internal/supervise
             - github.com/dturcinovic/seam/internal/adapter/driven/lsp
 
+        # Files on disk outside git's view, through the standard library alone.
+        driven-files:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/files/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/adapter/driven/files
+
         driven-statefile:
           list-mode: strict
           files:

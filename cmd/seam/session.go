@@ -35,9 +35,11 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 	// Before the graph: it runs git, which ctx can cancel, and its errors
 	// and those of the configuration file are the user's to fix rather
 	// than faults of the wiring.
-	root, err := git.FindRoot(ctx, cfg.Dir)
-	if err != nil {
-		return err
+	// Files on disk need no repository, nor even git: the root is then
+	// empty, and the reason is logged once there is a log.
+	root, noRepo := git.FindRoot(ctx, cfg.Dir)
+	if noRepo != nil && c.Left.Kind() != change.KindPath {
+		return noRepo
 	}
 	file, err := configfile.Load(cfg.ConfigFile)
 	if err != nil {
@@ -52,6 +54,9 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 		return err
 	}
 	defer func() { err = errors.Join(err, logger.Close()) }()
+	if noRepo != nil {
+		logger.Zap().Info("no repository: files on disk without hovers", zap.Error(noRepo))
+	}
 
 	var (
 		changesets in.ChangesetLoader

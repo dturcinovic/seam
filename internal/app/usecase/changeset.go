@@ -19,6 +19,7 @@ type Changesets struct {
 	revisions out.RevisionResolver
 	changes   out.ChangeLister
 	untracked out.UntrackedLister
+	paths     out.PathLister
 
 	mu sync.Mutex
 	// asked is the comparison as the user named it, which each reload
@@ -28,8 +29,8 @@ type Changesets struct {
 
 // NewChangesets returns the use case over its ports. Its reload worker runs
 // between Start and Stop.
-func NewChangesets(r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister, panics supervise.PanicFunc) *Changesets {
-	s := &Changesets{revisions: r, changes: c, untracked: u}
+func NewChangesets(r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister, p out.PathLister, panics supervise.PanicFunc) *Changesets {
+	s := &Changesets{revisions: r, changes: c, untracked: u, paths: p}
 	s.worker = newWorker("changeset", change.ErrReloaderFailed, panics, s.reload,
 		// A newer reload makes the running one pointless.
 		func(change.Gen, change.Gen) bool { return true },
@@ -76,6 +77,9 @@ func (s *Changesets) load(ctx context.Context, c change.Comparison) (change.Chan
 
 // list lists the files of a resolved comparison.
 func (s *Changesets) list(ctx context.Context, resolved change.Comparison) (change.Changeset, error) {
+	if resolved.Left.Kind() == change.KindPath {
+		return s.listPaths(ctx, resolved)
+	}
 	files, err := s.changes.ListChanges(ctx, resolved)
 	if err != nil {
 		return change.Changeset{}, fmt.Errorf("list changes: %w", err)
@@ -91,6 +95,29 @@ func (s *Changesets) list(ctx context.Context, resolved change.Comparison) (chan
 	}
 	slices.SortStableFunc(files, func(a, b change.ChangedFile) int { return cmp.Compare(a.Path(), b.Path()) })
 	return change.Changeset{Comparison: resolved, Files: files}, nil
+}
+
+// listPaths lists the files on disk. Two files are one changed file, read
+// by no one here: git difftool hands over only files that differ. It is
+// named by the right path on both sides, as the left is git's temporary
+// copy of it, which no one should take for a rename.
+func (s *Changesets) listPaths(ctx context.Context, c change.Comparison) (change.Changeset, error) {
+	if c.Left.IsDir() {
+		files, err := s.paths.ListPaths(ctx, c.Left.Path(), c.Right.Path())
+		if err != nil {
+			return change.Changeset{}, fmt.Errorf("list changes: %w", err)
+		}
+		return change.Changeset{Comparison: c, Files: files}, nil
+	}
+	left, right := c.Left.Path(), c.Right.Path()
+	file := change.ChangedFile{Status: change.Modified, OldPath: right, NewPath: right}
+	switch {
+	case left == "":
+		file = change.ChangedFile{Status: change.Added, NewPath: right}
+	case right == "":
+		file = change.ChangedFile{Status: change.Deleted, OldPath: left}
+	}
+	return change.Changeset{Comparison: c, Files: []change.ChangedFile{file}}, nil
 }
 
 func (s *Changesets) resolve(ctx context.Context, c change.Comparison) (change.Comparison, error) {
