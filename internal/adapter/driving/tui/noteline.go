@@ -156,7 +156,7 @@ func writeNoteLine(b *strings.Builder, s *state, th *theme, file, ref int) {
 	writeSideLine(b, s, th, file, w, func(ln *line, lay layout, to func(int)) {
 		p := lay.sidePane(w)
 		to(lay.paneStart(w) - lay.List + p.Marks + p.Digits - 1)
-		ln.text(kindMark(sp.Note.Kind), paneStyle(equalTone, look.marks(dim)))
+		ln.text(noteSign(sp.Note), paneStyle(equalTone, look.marks(dim)))
 		from, end := lay.text(w)
 		to(from - lay.List)
 		st := look.text

@@ -15,8 +15,14 @@ import (
 // the line v marked.
 type notesState struct {
 	Heads []note.Head
-	// Open counts the open notes of Heads by file and source.
+	// Open counts the notes of Heads no agent answered yet, by file and
+	// source; taken ones too, as they still wait.
 	Open map[headKey]int
+	// Answered counts the notes answered and not yet resolved.
+	Answered map[headKey]int
+	// Sessions are the agent sessions of the book, to name who took a
+	// note.
+	Sessions []note.Session
 	// Err is why the book cannot be read or changed; Live that changes
 	// from elsewhere show; Known that the book was read once.
 	Err         error
@@ -168,7 +174,11 @@ func (m *model) placeNotes(again bool) {
 
 // onNotes takes the news of the notes.
 func (m *model) onNotes() {
-	for _, u := range m.p.NoteUpdates.Drain() {
+	us := m.p.NoteUpdates.Drain()
+	if len(us) == 0 {
+		return
+	}
+	for _, u := range us {
 		switch u.Kind {
 		case note.Placed:
 			m.s.placed(u)
@@ -196,11 +206,15 @@ type headKey struct {
 // status takes the book's state, and counts its open notes once rather
 // than for every file in every frame.
 func (n *notesState) status(u note.Update) {
-	n.Heads, n.Err, n.Live, n.Known = u.Heads, u.Err, u.Live, true
-	n.Open = make(map[headKey]int)
+	n.Heads, n.Sessions, n.Err, n.Live, n.Known = u.Heads, u.Sessions, u.Err, u.Live, true
+	n.Open, n.Answered = make(map[headKey]int), make(map[headKey]int)
 	for _, h := range u.Heads {
-		if h.State == note.Open {
+		switch h.State {
+		case note.Open, note.Taken:
 			n.Open[headKey{h.Origin, h.Path}]++
+		case note.Answered:
+			n.Answered[headKey{h.Origin, h.Path}]++
+		case note.Resolved:
 		}
 	}
 }
@@ -279,13 +293,24 @@ func kindMark(k note.Kind) string {
 	return "?"
 }
 
+// noteSign is the sign of n in its line and in the overview: its kind's
+// mark until it is answered.
+func noteSign(n note.Note) string {
+	if n.State == note.Answered || n.State == note.Resolved {
+		return "✓"
+	}
+	return kindMark(n.Kind)
+}
+
 // notesText is the footer's word on the notes, empty while there are
-// none: how many are open in the comparison, how many of those on screen
-// have no sure place, and whether changes from elsewhere show.
+// none: how many are open and answered in the comparison, how many of
+// those on screen have no sure place, and whether changes from elsewhere
+// show.
 func (s *state) notesText() string {
-	open := 0
+	open, answered := 0, 0
 	for i := range s.Files {
-		open += s.openNotesIn(i)
+		o, a := s.notesIn(i)
+		open, answered = open+o, answered+a
 	}
 	lost := 0
 	for _, spots := range s.Notes.Spots {
@@ -301,6 +326,9 @@ func (s *state) notesText() string {
 	}
 	if open > 0 {
 		parts = append(parts, fmt.Sprintf("%d open", open))
+	}
+	if answered > 0 {
+		parts = append(parts, fmt.Sprintf("%d answered", answered))
 	}
 	if lost > 0 {
 		parts = append(parts, fmt.Sprintf("%d not placed", lost))

@@ -181,9 +181,13 @@ func (m model) onKeyPress(key string) (model, tea.Cmd) {
 	m.s.Note = ""
 	k := m.s.Keys
 	popup := m.s.Hover.Popup
-	if a, ok := k.Action(ui.PopupLayer, key); ok && popup.Open && (a != ui.ResolveNote || popup.Notes != nil || popup.Note != "") {
-		if a == ui.ResolveNote {
+	if a, ok := k.Action(ui.PopupLayer, key); ok && popup.Open && (!a.OnNote() || popup.Notes != nil || popup.Note != "") {
+		switch a { //nolint:exhaustive // the popup's actions on notes
+		case ui.ResolveNote:
 			m.resolveNote()
+			return m, nil
+		case ui.ReleaseNote:
+			m.releaseNote()
 			return m, nil
 		}
 		m.dropHover()

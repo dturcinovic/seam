@@ -171,11 +171,7 @@ func overviewEmpty(o *noteOverview) string {
 // place in columns, then the first line of its text.
 func (s *state) writeOverviewNote(ln *line, n note.Note, lk rowLook) {
 	ln.spaces(itemPad+1, lk.text)
-	mark := kindMark(n.Kind)
-	if n.State == note.Resolved {
-		mark = "✓"
-	}
-	ln.text(mark, lk.mark)
+	ln.text(noteSign(n), lk.mark)
 	ln.spaces(1, lk.text)
 	writeCut(ln, n.State.String(), overviewStateCols, lk.dim, false)
 	writeCut(ln, originText(n.Anchor.Origin), overviewOriginCols, lk.dim, false)
@@ -188,9 +184,10 @@ func (s *state) writeOverviewNote(ln *line, n note.Note, lk rowLook) {
 // openNotePopup shows n in a popup for cell x, y: what it is and where it
 // was set, the lines it was set at, its text and the answers to it.
 func (s *state) openNotePopup(n note.Note, x, y int) {
-	p := s.openPopup(noteContent(n, s.whereText(n)), x, y)
+	p := s.openPopup(noteContent(n, s.whereText(n), s.Notes.Sessions), x, y)
 	if p.Open {
 		p.Title = "note"
+		p.NotesX, p.NotesY = x, y
 		if n.State != note.Resolved {
 			p.Note = n.ID
 		}
@@ -198,9 +195,9 @@ func (s *state) openNotePopup(n note.Note, x, y int) {
 	s.Hover.Popup = p
 }
 
-func noteContent(n note.Note, where string) hover.Content {
+func noteContent(n note.Note, where string, sessions []note.Session) hover.Content {
 	a := n.Anchor
-	head := fmt.Sprintf("%s · %s · %s · %s:%d", n.Kind, n.State, originText(a.Origin), shownText(a.Path), a.Start)
+	head := fmt.Sprintf("%s · %s · %s · %s:%d", n.Kind, stateText(n, sessions), originText(a.Origin), shownText(a.Path), a.Start)
 	if a.End > a.Start {
 		head += fmt.Sprintf("–%d", a.End)
 	}
@@ -213,11 +210,6 @@ func noteContent(n note.Note, where string) hover.Content {
 		{Kind: hover.Rule},
 		{Kind: hover.Code, Code: n.Text},
 	}}
-	for _, r := range n.Replies {
-		c.Blocks = append(c.Blocks,
-			hover.Block{Kind: hover.Rule},
-			hover.Block{Kind: hover.Heading, Spans: []hover.Span{{Kind: hover.Strong, Text: r.Author}}},
-			hover.Block{Kind: hover.Code, Code: r.Text})
-	}
+	c.Blocks = append(c.Blocks, repliesBlocks(n.Replies)...)
 	return c
 }

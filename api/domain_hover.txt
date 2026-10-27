@@ -35,6 +35,16 @@ type Block struct {
 }
     Block is a part of an answer.
 
+func Markdown(md string, languages lang.Table) []Block
+    Markdown reads the part of Markdown that hover answers and agents' replies
+    use: fences, indented code, rules, ATX headings, paragraphs and list items,
+    with references resolved across the whole text. A fence names its language
+    as languages knows it.
+
+func Tidy(blocks []Block) []Block
+    Tidy drops the blocks that show nothing, with the rules at either end and
+    all but one of rules in a row; code loses its blank lines at either end.
+
 type BlockKind uint8
     BlockKind tells which fields of a Block are set.
 

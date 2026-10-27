@@ -68,6 +68,8 @@ const (
 
 	ClosePopup
 	ResolveNote
+	// ReleaseNote gives back a note an agent took and did not answer.
+	ReleaseNote
 	// Actions is the number of actions, no action itself.
 	Actions
 )
@@ -103,6 +105,12 @@ func (l Layer) Takes(a Action) bool {
 	return l == PopupLayer && a < Actions
 }
 
+// OnNote reports whether a acts on a note, which only the popup of a note
+// or the notes' overview takes.
+func (a Action) OnNote() bool {
+	return a == ResolveNote || a == ReleaseNote
+}
+
 // String is the name of a in the configuration file.
 func (a Action) String() string {
 	if a < Actions {
@@ -132,7 +140,7 @@ func actionNames() [Actions]string {
 		CaretLeft: "caret_left", CaretRight: "caret_right",
 		WordForward: "word_forward", WordBack: "word_back", WordEnd: "word_end",
 		OtherSide: "other_side", Hover: "hover", Definition: "definition", SelectLines: "select_lines",
-		ClosePopup: "close_popup", ResolveNote: "resolve_note",
+		ClosePopup: "close_popup", ResolveNote: "resolve_note", ReleaseNote: "release_note",
 	}
 }
 
@@ -149,7 +157,7 @@ func defaultKeys() [Actions][]string {
 		LeaveCaret: {"i", "esc"}, CaretDown: {"j", "down"}, CaretUp: {"k", "up"},
 		CaretLeft: {"h", "left"}, CaretRight: {"l", "right"},
 		WordForward: {"w"}, WordBack: {"b"}, WordEnd: {"e"}, OtherSide: {"o"}, Hover: {"K"}, Definition: {"d"}, SelectLines: {"v"},
-		ClosePopup: {"esc"}, ResolveNote: {"x"},
+		ClosePopup: {"esc"}, ResolveNote: {"x"}, ReleaseNote: {"R"},
 	}
 }
 

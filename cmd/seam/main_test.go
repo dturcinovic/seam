@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func TestMain(m *testing.M) {
 func runSeam(t *testing.T, args ...string) (code int, stdout, stderr string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	code = run(t.Context(), args, &out, &errOut)
+	code = run(t.Context(), args, strings.NewReader(""), &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 
@@ -81,6 +82,8 @@ func TestHelp(t *testing.T) {
 	code, stdout, _ := runSeam(t, "--help")
 	assert.Equal(t, 0, code)
 	assert.Contains(t, stdout, "--verbose")
+	assert.Contains(t, stdout, "mcp ")
+	assert.NotContains(t, stdout, "completion")
 }
 
 func TestUnknownFlagFails(t *testing.T) {

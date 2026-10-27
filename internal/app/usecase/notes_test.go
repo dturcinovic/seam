@@ -262,3 +262,38 @@ func TestTheOverviewOfADamagedBookSaysWhy(t *testing.T) {
 		assert.Empty(t, o.Notes)
 	})
 }
+
+func TestANoteTakenElsewhereIsReleasedHere(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		n, f := newNotes(t)
+		l := <-f.listener
+		agent := note.Session{ID: "s", Client: "claude-code", PID: 1}
+		f.elsewhere(func(b *note.Book) {
+			require.NoError(t, b.Add(noteDraft(t, []string{"a"}, 1), "x", time.Time{}))
+			require.NoError(t, b.Join(agent))
+			_, err := b.Take(nil, note.Claim{ID: "c", Session: "s"})
+			require.NoError(t, err)
+		})
+		l.Changed()
+		synctest.Wait()
+		status, ok := lastOf(n.Drain(), note.StoreStatus)
+		require.True(t, ok)
+		assert.Equal(t, []note.Session{agent}, status.Sessions, "who took it")
+		assert.Equal(t, note.Taken, status.Heads[0].State)
+
+		op := n.Release("x")
+		synctest.Wait()
+		us := n.Drain()
+		done, ok := lastOf(us, note.Done)
+		require.True(t, ok)
+		assert.Equal(t, op, done.Op)
+		require.NoError(t, done.Err)
+		status, _ = lastOf(us, note.StoreStatus)
+		assert.Equal(t, note.Open, status.Heads[0].State)
+
+		n.Release("x")
+		synctest.Wait()
+		done, _ = lastOf(n.Drain(), note.Done)
+		require.ErrorIs(t, done.Err, note.ErrNotTaken)
+	})
+}

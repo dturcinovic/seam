@@ -35,3 +35,12 @@ type NoteListener interface {
 	// not block.
 	Changed()
 }
+
+//counterfeiter:generate . ProcessProber
+
+// ProcessProber tells whether a process of this machine still runs, for
+// the agent sessions in the book that ended without leaving.
+type ProcessProber interface {
+	// Alive reports whether process pid runs.
+	Alive(pid int) bool
+}

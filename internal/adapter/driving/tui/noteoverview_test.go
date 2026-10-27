@@ -257,7 +257,12 @@ func TestTheWheelScrollsALongNotePopup(t *testing.T) {
 	p := m.s.Hover.Popup
 	require.Greater(t, len(p.Lines), p.shown())
 	m, _ = send(m, tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: p.X + 1, Y: p.Y + 1})
-	assert.Positive(t, m.s.Hover.Popup.Scroll)
+	scrolled := m.s.Hover.Popup.Scroll
+	assert.Positive(t, scrolled)
+
+	long.State = note.Answered
+	m = notesCome(m, f, note.Update{Kind: note.Overview, Notes: []note.Note{long}})
+	assert.Equal(t, scrolled, m.s.Hover.Popup.Scroll, "a change of the book keeps it scrolled")
 }
 
 func TestANoteWhoseSideTakesNoneOpensInAPopupOnceLoaded(t *testing.T) {

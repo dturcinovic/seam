@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"slices"
 	"sync"
@@ -19,11 +18,10 @@ type NotesSettings struct {
 	File string
 }
 
-// Notes implements in.NoteWriter, in.NoteReader, in.NoteOverview and
-// in.NoteUpdates. One
-// goroutine reads, places and changes the book, in the order asked; a
-// change from another process, which the watcher reports, reloads it
-// before the next job.
+// Notes implements in.NoteWriter, in.NoteReader, in.NoteOverview,
+// in.NoteReleaser and in.NoteUpdates. One goroutine reads, places and
+// changes the book, in the order asked; a change from another process,
+// which the watcher reports, reloads it before the next job.
 type Notes struct {
 	group   *supervise.Group
 	store   out.NoteStore
@@ -85,13 +83,18 @@ func (n *Notes) Drain() []note.Update {
 // Add implements in.NoteWriter.
 func (n *Notes) Add(d note.Draft) note.Op {
 	return n.change(func(b *note.Book) error {
-		return b.Add(d, note.ID(rand.Text()), time.Now())
+		return b.Add(d, newID(), time.Now())
 	})
 }
 
 // Resolve implements in.NoteWriter.
 func (n *Notes) Resolve(id note.ID) note.Op {
 	return n.change(func(b *note.Book) error { return b.Resolve(id) })
+}
+
+// Release implements in.NoteReleaser.
+func (n *Notes) Release(id note.ID) note.Op {
+	return n.change(func(b *note.Book) error { return b.Release(id) })
 }
 
 // Place implements in.NoteReader.
@@ -272,7 +275,7 @@ func (n *Notes) publishStatus() {
 	n.mu.Lock()
 	live := n.live
 	n.mu.Unlock()
-	n.publish(note.Update{Kind: note.StoreStatus, Heads: heads, Err: n.bookErr, Live: live})
+	n.publish(note.Update{Kind: note.StoreStatus, Heads: heads, Sessions: slices.Clone(n.book.Sessions), Err: n.bookErr, Live: live})
 }
 
 func (n *Notes) publish(u note.Update) {

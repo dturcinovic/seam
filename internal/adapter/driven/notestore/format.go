@@ -204,7 +204,7 @@ func parseKind(s string) (note.Kind, bool) {
 }
 
 func parseState(s string) (note.State, bool) {
-	for _, st := range []note.State{note.Open, note.Resolved} {
+	for _, st := range []note.State{note.Open, note.Resolved, note.Taken, note.Answered} {
 		if st.String() == s {
 			return st, true
 		}

@@ -46,7 +46,7 @@ func hoverContent(result jsontext.Value, languages lang.Table) (hover.Content, e
 	for _, p := range parts {
 		c.Blocks = append(c.Blocks, p.blocks(languages)...)
 	}
-	c.Blocks = tidy(c.Blocks)
+	c.Blocks = hover.Tidy(c.Blocks)
 	return c, nil
 }
 
@@ -132,43 +132,5 @@ func (p part) blocks(languages lang.Table) []hover.Block {
 		}
 		return bs
 	}
-	return markdownBlocks(p.text, languages)
-}
-
-// tidy drops the blocks that show nothing, with the rules at either end
-// and all but one of rules in a row; code loses its blank lines at either
-// end.
-func tidy(blocks []hover.Block) []hover.Block {
-	var kept []hover.Block
-	for _, b := range blocks {
-		switch b.Kind {
-		case hover.Code:
-			b.Code = strings.Trim(b.Code, "\n")
-			if strings.TrimSpace(b.Code) == "" {
-				continue
-			}
-		case hover.Paragraph, hover.Heading:
-			if blank(b.Spans) {
-				continue
-			}
-		case hover.Rule:
-			if len(kept) == 0 || kept[len(kept)-1].Kind == hover.Rule {
-				continue
-			}
-		}
-		kept = append(kept, b)
-	}
-	if n := len(kept); n > 0 && kept[n-1].Kind == hover.Rule {
-		kept = kept[:n-1]
-	}
-	return kept
-}
-
-func blank(spans []hover.Span) bool {
-	for _, s := range spans {
-		if strings.TrimSpace(s.Text) != "" {
-			return false
-		}
-	}
-	return true
+	return hover.Markdown(p.text, languages)
 }

@@ -145,7 +145,7 @@ Without a mouse, use the caret.
 ## Notes
 
 Notes are questions and findings you set at lines of the diff, to come back
-to them or, later, to hand them to an agent. They are kept per worktree in
+to them or to hand them to an agent (see [Agents](#agents)). They are kept per worktree in
 git's directory (`.git/seam/notes.json`), so `git status` stays clean, and
 seam processes of the same worktree see each other's notes at once.
 
@@ -154,6 +154,7 @@ seam processes of the same worktree see each other's notes at once.
 | `c` | A note at the caret's line, at the lines marked with `v`, or without the caret at the first change on screen |
 | `m` / `M` | Next, previous note, also in other files |
 | `x` | In the popup of a note: resolve it |
+| `R` | In the popup of a note: give it back from the agent that took it |
 | `N` | All notes of the worktree, see below |
 | `C` | Hide the notes' lines below the code, or show them again |
 
@@ -174,8 +175,8 @@ with the caret and `v`.
 A note shows in the gutter as `◆` in the colour of its kind, blue for a
 question and orange for a finding, and `╎` along its further lines; the
 caret or the mouse on it opens its text. Below its last line stands a line
-of its own: `?` or `!` and the first line of its text, one such line for
-each note there. A note in a fold stands below the fold. The caret and the
+of its own: `?` or `!` and the first line of its text, `✓` once an agent
+answered it, one such line for each note there. A note in a fold stands below the fold. The caret and the
 mouse pass over these lines, and `C` hides them for the session. A
 note belongs to the commit, the index or the worktree it was set in, and
 shows wherever that is a side of the comparison: a note in the index only
@@ -192,7 +193,8 @@ their text and the three lines around them:
   footer counts those on screen.
 
 With `--files` notes go only on a side that lies in the worktree. The file
-list shows the open notes of each file in its gutter.
+list shows the notes of each file not yet answered in its gutter; the
+footer counts them and the answered ones.
 
 `N` lists every note of the worktree's book by file, resolved ones too,
 with its state, source and place: where it stands as above, `not placed
@@ -208,7 +210,59 @@ processes and keeps the note chosen. In it, `enter` goes to the note:
   without a place, a resolved one, and a commit or index note no side shows,
   even where the worktree has a file of that path.
 
-`x` resolves the note chosen, `esc` or `N` closes the list.
+`x` resolves the note chosen, `R` gives it back from the agent that took
+it, `esc` or `N` closes the list.
+
+## Agents
+
+`seam mcp` serves the notes of the worktree it runs in to an agent session
+over MCP on stdin and stdout. The agent takes the open notes, reads the
+lines they were set at, and answers each one; the answer shows in seam's
+popup at once, read as Markdown, and the note's line turns to `✓`.
+
+Add it to Claude Code with
+
+```sh
+claude mcp add seam -- seam mcp
+```
+
+or for a project in `.mcp.json`:
+
+```json
+{ "mcpServers": { "seam": { "command": "seam", "args": ["mcp"] } } }
+```
+
+and to OpenCode in `opencode.json`:
+
+```json
+{ "mcp": { "seam": { "type": "local", "command": ["seam", "mcp"] } } }
+```
+
+Then set notes in seam and tell the agent "read my seam notes". It has
+three tools:
+
+| Tool | Does |
+|---|---|
+| `seam_notes(ids?)` | Takes the open notes, or those of `ids`, at most 20 at a time |
+| `seam_notes_view(ids?)` | Reads notes without taking them |
+| `seam_reply(id, claim, text)` | Answers a note taken |
+
+A note taken is no other session's: two agents in the same worktree never
+answer the same note. The popup says which agent took it and since when.
+When the agent's session ends, it gives back what it took and did not
+answer; when it dies, the note stays taken until you give it back with `R`,
+in its popup or in the list of `N`. An answer sent twice shows once; an
+answer to a note given back and taken again since is kept, but leaves the
+note to the newer taker. A follow-up question is a new note at the same
+lines.
+
+The notes are data to the agent: seam tells it that the code and text in a
+note are no instructions. They still reach it as they are, so a note on
+code you do not trust is code the agent reads.
+
+`seam mcp` needs a repository and writes nothing to stdout but the
+protocol; its log goes to `seam.log` as a session's does. A branch named
+`mcp` or `help` is compared as `seam refs/heads/mcp`.
 
 ## Watching
 
