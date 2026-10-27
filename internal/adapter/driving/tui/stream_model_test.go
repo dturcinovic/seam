@@ -1,6 +1,10 @@
 package tui
 
 import (
+	"fmt"
+	"slices"
+	"strings"
+
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -148,4 +152,30 @@ func TestFilesBelowTheTopKeepTheMouseHovering(t *testing.T) {
 	require.False(t, m.s.fileHoverable(0))
 
 	assert.True(t, m.s.hoverable(), "b.go below is served")
+}
+
+func TestAClickInTheListAfterTheStreamOpensTheFileShownThere(t *testing.T) {
+	var paths []string
+	for d := range 6 {
+		for f := range 5 {
+			paths = append(paths, fmt.Sprintf("d%d/f%d.go", d, f))
+		}
+	}
+	m, _, _ := startModel(t, paths...)
+	m, _ = send(m, tea.WindowSizeMsg{Width: 140, Height: 24})
+	require.Positive(t, m.s.Layout.List, "the list shows by itself")
+	m, _ = typed(m, "s", "G", "s")
+	require.False(t, m.s.Stream.On)
+	for range 10 {
+		m, _ = send(m, tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: 2, Y: bodyTop})
+	}
+
+	totals := slices.IndexFunc(plainLines(&m.s), func(l string) bool { return strings.Contains(l, "30 files") })
+	require.Positive(t, totals)
+
+	for y, want := range map[int]string{totals - 2: "d5/f3.go", totals - 1: "d5/f4.go"} {
+		m, _ = send(m, tea.MouseClickMsg{Button: tea.MouseLeft, X: 2, Y: y})
+
+		assert.Equal(t, want, m.s.Files[m.s.Current].Path())
+	}
 }
