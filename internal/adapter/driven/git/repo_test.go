@@ -152,11 +152,30 @@ func TestCountsComeWithTheChanges(t *testing.T) {
 }
 
 func TestListUntracked(t *testing.T) {
-	repo := newFixture(t).open(t)
+	tests := []struct {
+		name  string
+		embed func(f fixture)
+	}{
+		{"neither tracked nor ignored files", func(fixture) {}},
+		{"nested repository", func(f fixture) {
+			f.Git("init", "-q", "nested")
+			f.Write("nested/inner.txt", "inner\n")
+		}},
+		{"linked worktree", func(f fixture) {
+			f.Git("worktree", "add", "-q", ".claude/worktrees/wt")
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fix := newFixture(t)
+			tt.embed(fix)
+			repo := fix.open(t)
 
-	untracked, err := repo.ListUntracked(t.Context())
-	require.NoError(t, err)
-	assert.Equal(t, []string{"untracked.txt"}, untracked, "neither tracked nor ignored files")
+			untracked, err := repo.ListUntracked(t.Context())
+			require.NoError(t, err)
+			assert.Equal(t, []string{"untracked.txt"}, untracked)
+		})
+	}
 }
 
 func TestBinaryContentIsReadAsIs(t *testing.T) {

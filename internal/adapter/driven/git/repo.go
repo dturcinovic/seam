@@ -128,13 +128,16 @@ func (r *Repo) ListChanges(ctx context.Context, c change.Comparison) ([]change.C
 	return parseDiff(out)
 }
 
-// ListUntracked implements out.UntrackedLister.
+// ListUntracked implements out.UntrackedLister. git names an embedded
+// repository as one entry with a trailing slash instead of descending into it.
 func (r *Repo) ListUntracked(ctx context.Context) ([]string, error) {
 	out, err := run(ctx, r.root, "ls-files", "-z", "--others", "--exclude-standard")
 	if err != nil {
 		return nil, err
 	}
-	return splitNUL(out), nil
+	return slices.DeleteFunc(splitNUL(out), func(path string) bool {
+		return strings.HasSuffix(path, "/")
+	}), nil
 }
 
 // command is the one way seam starts git. --no-optional-locks keeps git from
