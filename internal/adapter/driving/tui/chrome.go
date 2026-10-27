@@ -38,7 +38,7 @@ func viewHints() []hint {
 		firstKeys("stream", ui.ToggleStream),
 		firstKeys("scroll", ui.Down, ui.Up), firstKeys("sideways", ui.ScrollLeft, ui.ScrollRight),
 		firstKeys("files", ui.ToggleFiles), firstKeys("caret", ui.StartCaret), firstKeys("back", ui.JumpBack),
-		firstKeys("notes", ui.Notes), firstKeys("note lines", ui.NoteLines),
+		firstKeys("notes", ui.Notes), firstKeys("note lines", ui.NoteLines), firstKeys("send notes", ui.SendNotes),
 	}
 }
 
@@ -70,9 +70,9 @@ func overviewHints() []hint {
 }
 
 // keyTexts are the reminders of the keys of the view, the focused file
-// list, the caret and the notes' overview.
+// list, the caret, the notes' overview and the choice of a session.
 type keyTexts struct {
-	view, list, caret, overview string
+	view, list, caret, overview, choice string
 }
 
 func newKeyTexts(k ui.Keymap) keyTexts {
@@ -82,6 +82,9 @@ func newKeyTexts(k ui.Keymap) keyTexts {
 		caret: keyText(k, ui.CaretLayer, caretHints()),
 		overview: keyText(k, ui.ListLayer, overviewHints()) + "  " +
 			keyText(k, ui.PopupLayer, []hint{firstKeys("resolve", ui.ResolveNote), firstKeys("release", ui.ReleaseNote)}),
+		// The numbers are no action: choiceKey takes them as they are, and
+		// they send as the open key does, which leads the hints.
+		choice: "1–9/" + keyText(k, ui.ListLayer, []hint{firstKeys("send", ui.Open), firstKeys("move", ui.Down, ui.Up), firstKeys("cancel", ui.Back)}),
 	}
 }
 
@@ -206,6 +209,9 @@ func footer(s *state) (string, style) {
 		return noteKeys, footerStyle
 	}
 	notes := s.notesText() + s.plusText()
+	if s.Notes.Choice.Open {
+		return notes + s.KeyText.choice, footerStyle
+	}
 	if s.Notes.Overview.Open {
 		return notes + s.KeyText.overview, footerStyle
 	}

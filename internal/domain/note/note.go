@@ -133,7 +133,14 @@ const (
 	Taken
 	// Answered is a note an agent answered.
 	Answered
+	// Sent is a note sent to an agent session in a batch, which no session
+	// took yet.
+	Sent
 )
+
+// Waits reports that a note in s waits for an agent to take it: open, or
+// sent and not taken.
+func (s State) Waits() bool { return s == Open || s == Sent }
 
 // String is the state's name in storage.
 func (s State) String() string {
@@ -146,6 +153,8 @@ func (s State) String() string {
 		return "taken"
 	case Answered:
 		return "answered"
+	case Sent:
+		return "sent"
 	}
 	return "unset"
 }
@@ -257,6 +266,16 @@ func (b *Book) unresolved() int {
 		}
 	}
 	return n
+}
+
+// index maps each note's ID to its place in Notes, for a loop over IDs
+// that would else scan the book for each.
+func (b *Book) index() map[ID]int {
+	at := make(map[ID]int, len(b.Notes))
+	for i := range b.Notes {
+		at[b.Notes[i].ID] = i
+	}
+	return at
 }
 
 func (b *Book) find(id ID) (int, bool) {

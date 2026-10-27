@@ -25,6 +25,7 @@ import (
 type noteFakes struct {
 	store    *outfakes.FakeNoteStore
 	watcher  *outfakes.FakeNoteWatcher
+	procs    *outfakes.FakeProcessProber
 	listener chan out.NoteListener
 
 	mu   sync.Mutex
@@ -34,7 +35,9 @@ type noteFakes struct {
 
 func newNotes(t *testing.T) (*usecase.Notes, *noteFakes) {
 	t.Helper()
-	f := &noteFakes{store: &outfakes.FakeNoteStore{}, watcher: &outfakes.FakeNoteWatcher{}, listener: make(chan out.NoteListener, 1)}
+	f := &noteFakes{store: &outfakes.FakeNoteStore{}, watcher: &outfakes.FakeNoteWatcher{}, procs: &outfakes.FakeProcessProber{}, listener: make(chan out.NoteListener, 1)}
+	// Even pids run, odd ones died.
+	f.procs.AliveCalls(func(pid int) bool { return pid%2 == 0 })
 	f.store.LoadCalls(func(context.Context) (note.Book, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -46,8 +49,7 @@ func newNotes(t *testing.T) (*usecase.Notes, *noteFakes) {
 		if f.err != nil {
 			return f.err
 		}
-		b := f.book
-		b.Notes = append([]note.Note(nil), b.Notes...)
+		b := cloneBook(f.book)
 		if err := change(&b); err != nil {
 			return err
 		}
@@ -61,7 +63,7 @@ func newNotes(t *testing.T) (*usecase.Notes, *noteFakes) {
 		<-ctx.Done()
 		return nil
 	})
-	n := usecase.NewNotes(usecase.NotesSettings{File: "/repo/.git/seam/notes.json"}, f.store, f.watcher, nil)
+	n := usecase.NewNotes(usecase.NotesSettings{File: "/repo/.git/seam/notes.json"}, f.store, f.watcher, f.procs, nil)
 	require.NoError(t, n.Start())
 	t.Cleanup(func() { assert.NoError(t, n.Stop(context.Background())) })
 	return n, f
@@ -190,7 +192,7 @@ func TestAWatcherThatStopsLeavesTheNotesNotLive(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := &noteFakes{store: &outfakes.FakeNoteStore{}, watcher: &outfakes.FakeNoteWatcher{}}
 		f.watcher.WatchNotesReturns(errors.New("too many watches"))
-		n := usecase.NewNotes(usecase.NotesSettings{File: "/n.json"}, f.store, f.watcher, nil)
+		n := usecase.NewNotes(usecase.NotesSettings{File: "/n.json"}, f.store, f.watcher, &outfakes.FakeProcessProber{}, nil)
 		require.NoError(t, n.Start())
 		defer func() { assert.NoError(t, n.Stop(context.Background())) }()
 		synctest.Wait()
@@ -202,7 +204,7 @@ func TestAWatcherThatStopsLeavesTheNotesNotLive(t *testing.T) {
 }
 
 func TestNoNotesOutsideARepository(t *testing.T) {
-	n := usecase.NewNotes(usecase.NotesSettings{}, &outfakes.FakeNoteStore{}, &outfakes.FakeNoteWatcher{}, nil)
+	n := usecase.NewNotes(usecase.NotesSettings{}, &outfakes.FakeNoteStore{}, &outfakes.FakeNoteWatcher{}, &outfakes.FakeProcessProber{}, nil)
 	require.NoError(t, n.Start())
 	op := n.Add(note.Draft{})
 	n.Place(worktreeKey(1), nil)
@@ -295,5 +297,42 @@ func TestANoteTakenElsewhereIsReleasedHere(t *testing.T) {
 		synctest.Wait()
 		done, _ = lastOf(n.Drain(), note.Done)
 		require.ErrorIs(t, done.Err, note.ErrNotTaken)
+	})
+}
+
+func TestSendingBatchesTheWaitingNotesForALiveSession(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		n, f := newNotes(t)
+		f.elsewhere(func(b *note.Book) {
+			require.NoError(t, b.Join(note.Session{ID: "live", Client: "claude-code", PID: 2}))
+			require.NoError(t, b.Join(note.Session{ID: "dead", Client: "crashed", PID: 3}))
+			require.NoError(t, b.Add(noteDraft(t, []string{"a"}, 1), "x", time.Time{}))
+		})
+		(<-f.listener).Changed()
+		synctest.Wait()
+		status, ok := lastOf(n.Drain(), note.StoreStatus)
+		require.True(t, ok)
+		assert.Len(t, status.Sessions, 2)
+		assert.Equal(t, []note.Session{{ID: "live", Client: "claude-code", PID: 2}}, status.Targets, "only sessions whose process runs take notes")
+
+		failed := n.Send("dead")
+		op := n.Send("live")
+		synctest.Wait()
+		var errs []error
+		for _, u := range n.Drain() {
+			if u.Kind == note.Done {
+				errs = append(errs, u.Err)
+				assert.Contains(t, []note.Op{failed, op}, u.Op)
+			}
+		}
+		require.Len(t, errs, 2)
+		require.ErrorIs(t, errs[0], note.ErrNoSession, "a dead session is no target")
+		require.NoError(t, errs[1])
+
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		require.Len(t, f.book.Batches, 1)
+		assert.Equal(t, note.ID("live"), f.book.Batches[0].Session)
+		assert.Equal(t, note.Sent, f.book.Notes[0].State)
 	})
 }

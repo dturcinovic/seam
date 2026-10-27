@@ -68,11 +68,14 @@ type boxOn struct {
 }
 
 // boxesOver appends the boxes over screen line y to over, the lowest
-// first: the notes' overview, then the popup. The field stands between
-// the lines instead, see writeGapLine.
+// first: the notes' overview, the choice of an agent session, then the
+// popup. The field stands between the lines instead, see writeGapLine.
 func (s *state) boxesOver(y int, over []boxOn) []boxOn {
 	if o := &s.Notes.Overview; o.Open && o.contains(o.X, y) {
 		over = append(over, boxOn{o.box, s.overviewRows})
+	}
+	if c := &s.Notes.Choice; c.Open && c.contains(c.X, y) {
+		over = append(over, boxOn{c.box, s.choiceRows})
 	}
 	if p := &s.Hover.Popup; p.contains(p.X, y) {
 		over = append(over, boxOn{p.box, p.writeRow})

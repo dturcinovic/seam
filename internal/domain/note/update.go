@@ -28,9 +28,10 @@ const (
 	// Done sets Op and, if it failed, Err.
 	Done
 	// StoreStatus sets Heads, all notes in brief, Sessions, the agent
-	// sessions that took notes or may, and Err, why the book cannot be
-	// read or is not watched, nil once it is again. Live is whether
-	// changes from elsewhere show.
+	// sessions that took notes or may, Targets, those of them whose
+	// process runs, to send notes to, and Err, why the book cannot be read
+	// or is not watched, nil once it is again. Live is whether changes
+	// from elsewhere show.
 	StoreStatus
 	// Overview sets Notes, every note of the book, resolved ones too, or
 	// Err, why there is none.
@@ -64,6 +65,7 @@ type Update struct {
 
 	Heads    []Head
 	Sessions []Session
+	Targets  []Session
 	Live     bool
 
 	Notes []Note

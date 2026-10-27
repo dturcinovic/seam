@@ -29,6 +29,10 @@ const (
 )
     Limits of the book; anything beyond is refused with a named error.
 
+const MaxBatches = 64
+    MaxBatches is the most batches a book keeps; the oldest go first, and taking
+    by one gone fails with ErrNoBatch.
+
 
 VARIABLES
 
@@ -38,6 +42,12 @@ var (
 	ErrNoSession    = errors.New("no such agent session")
 )
     Errors of agent sessions taking and answering notes.
+
+var (
+	ErrNothingToSend = errors.New("no notes to send")
+	ErrNoBatch       = errors.New("no such batch")
+)
+    Errors of sending notes to agent sessions.
 
 var (
 	ErrTextTooLong  = errors.New("note text too long")
@@ -140,13 +150,36 @@ func (b *Book) Reply(id ID, r Reply) (Answer, error)
 func (b *Book) Resolve(id ID) error
     Resolve marks note id done; a note resolved already stays so.
 
+func (b *Book) Send(id, session ID, at time.Time, alive func(pid int) bool) (Batch, error)
+    Send sends the waiting notes, open or sent and not taken, to session in a
+    new batch named id, set at at. The batch holds these notes alone: a note set
+    later waits for the next one. A note sent before moves to the new batch,
+    so a notice that got lost is made up for without a note being taken twice.
+    Session must be one of the book's Targets: a session whose process died
+    would never take the batch.
+
+func (b *Book) Sendings(session ID) []Sending
+    Sendings are the batches sent to session that still have notes sent and not
+    taken, oldest first.
+
 func (b *Book) Session(id ID) (Session, bool)
     Session is the session named id.
 
 func (b *Book) Take(ids []ID, c Claim) (Taking, error)
-    Take takes notes under c, for its session: those of ids, or without ids the
-    open ones, at most MaxTake either way, and More says open ones are left.
-    Only open notes are taken; the others of ids come back refused.
+    Take takes notes under c, for its session: those of ids, or without ids
+    the waiting ones, open or sent, at most MaxTake either way, and More says
+    waiting ones are left. Only waiting notes are taken, whatever session their
+    batch was sent to; the others of ids come back refused.
+
+func (b *Book) TakeBatch(id ID, c Claim) (Taking, error)
+    TakeBatch takes under c the notes of batch id still sent in it, at most
+    MaxTake, if it was sent to c's session. The others come back refused:
+    all of a batch sent to another session, and those sent again since in a
+    newer batch.
+
+func (b *Book) Targets(alive func(pid int) bool) []Session
+    Targets are the sessions whose process runs, the ones notes are sent to.
+    A dead session that holds a claim stays in the book but is none.
 
 type Claim struct {
 	ID      ID
@@ -245,8 +278,16 @@ const (
 	RefusedAnswered Reason = "answered"
 	RefusedResolved Reason = "resolved"
 )
-    The reasons a note is not taken. Only open notes are: a question that
-    remains after an answer is a new note.
+    The reasons a note is not taken. Only waiting notes are, open or sent:
+    a question that remains after an answer is a new note.
+
+const (
+	// RefusedOtherSession is a batch sent to another session.
+	RefusedOtherSession Reason = "other_session"
+	// RefusedRebatched is a note sent again since, in a newer batch.
+	RefusedRebatched Reason = "rebatched"
+)
+    The reasons a note of a batch is not taken, beside those of Take.
 
 type Refusal struct {
 	ID     ID
@@ -262,6 +303,12 @@ type Reply struct {
 	At     time.Time
 }
     Reply is an answer to a note.
+
+type Sending struct {
+	Batch Batch
+	Notes []Note
+}
+    Sending is a batch with those of its notes still sent, not taken.
 
 type Session struct {
 	ID      ID
@@ -300,11 +347,18 @@ const (
 	Taken
 	// Answered is a note an agent answered.
 	Answered
+	// Sent is a note sent to an agent session in a batch, which no session
+	// took yet.
+	Sent
 )
     The states. The zero value is no valid state.
 
 func (s State) String() string
     String is the state's name in storage.
+
+func (s State) Waits() bool
+    Waits reports that a note in s waits for an agent to take it: open, or sent
+    and not taken.
 
 type Taking struct {
 	Claim   Claim
@@ -326,6 +380,7 @@ type Update struct {
 
 	Heads    []Head
 	Sessions []Session
+	Targets  []Session
 	Live     bool
 
 	Notes []Note
@@ -343,9 +398,10 @@ const (
 	// Done sets Op and, if it failed, Err.
 	Done
 	// StoreStatus sets Heads, all notes in brief, Sessions, the agent
-	// sessions that took notes or may, and Err, why the book cannot be
-	// read or is not watched, nil once it is again. Live is whether
-	// changes from elsewhere show.
+	// sessions that took notes or may, Targets, those of them whose
+	// process runs, to send notes to, and Err, why the book cannot be read
+	// or is not watched, nil once it is again. Live is whether changes
+	// from elsewhere show.
 	StoreStatus
 	// Overview sets Notes, every note of the book, resolved ones too, or
 	// Err, why there is none.

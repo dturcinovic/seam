@@ -22,6 +22,8 @@ func (m *model) onNoteAction(a ui.Action) {
 		m.openOverview()
 	case ui.NoteLines:
 		m.s.toggleNoteLines()
+	case ui.SendNotes:
+		m.sendNotes()
 	}
 }
 

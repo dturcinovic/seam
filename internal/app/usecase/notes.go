@@ -19,13 +19,14 @@ type NotesSettings struct {
 }
 
 // Notes implements in.NoteWriter, in.NoteReader, in.NoteOverview,
-// in.NoteReleaser and in.NoteUpdates. One goroutine reads, places and
-// changes the book, in the order asked; a change from another process,
-// which the watcher reports, reloads it before the next job.
+// in.NoteReleaser, in.NoteSender and in.NoteUpdates. One goroutine reads,
+// places and changes the book, in the order asked; a change from another
+// process, which the watcher reports, reloads it before the next job.
 type Notes struct {
 	group   *supervise.Group
 	store   out.NoteStore
 	watcher out.NoteWatcher
+	procs   out.ProcessProber
 	file    string
 
 	wake   chan struct{}
@@ -46,8 +47,8 @@ type Notes struct {
 
 // NewNotes returns the use case over its ports. Its worker and watcher run
 // between Start and Stop.
-func NewNotes(set NotesSettings, s out.NoteStore, w out.NoteWatcher, panics supervise.PanicFunc) *Notes {
-	n := &Notes{store: s, watcher: w, file: set.File, wake: make(chan struct{}, 1), signal: make(chan struct{}, 1), stale: true}
+func NewNotes(set NotesSettings, s out.NoteStore, w out.NoteWatcher, p out.ProcessProber, panics supervise.PanicFunc) *Notes {
+	n := &Notes{store: s, watcher: w, procs: p, file: set.File, wake: make(chan struct{}, 1), signal: make(chan struct{}, 1), stale: true}
 	n.group = supervise.NewGroup("notes", panics, n.fail)
 	return n
 }
@@ -95,6 +96,14 @@ func (n *Notes) Resolve(id note.ID) note.Op {
 // Release implements in.NoteReleaser.
 func (n *Notes) Release(id note.ID) note.Op {
 	return n.change(func(b *note.Book) error { return b.Release(id) })
+}
+
+// Send implements in.NoteSender.
+func (n *Notes) Send(session note.ID) note.Op {
+	return n.change(func(b *note.Book) error {
+		_, err := b.Send(newID(), session, time.Now(), n.procs.Alive)
+		return err
+	})
 }
 
 // Place implements in.NoteReader.
@@ -275,7 +284,10 @@ func (n *Notes) publishStatus() {
 	n.mu.Lock()
 	live := n.live
 	n.mu.Unlock()
-	n.publish(note.Update{Kind: note.StoreStatus, Heads: heads, Sessions: slices.Clone(n.book.Sessions), Err: n.bookErr, Live: live})
+	n.publish(note.Update{
+		Kind: note.StoreStatus, Heads: heads, Sessions: slices.Clone(n.book.Sessions), Targets: n.book.Targets(n.procs.Alive),
+		Err: n.bookErr, Live: live,
+	})
 }
 
 func (n *Notes) publish(u note.Update) {

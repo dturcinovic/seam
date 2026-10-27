@@ -47,9 +47,11 @@ func TestABookReadsBackAsWritten(t *testing.T) {
 			ID: "n2", Kind: note.Question, Text: "q", State: note.Taken, Created: at, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}},
 		}, {
 			ID: "n3", Kind: note.Question, Text: "q", State: note.Answered, Created: at, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindIndex}},
+		}, {
+			ID: "n4", Kind: note.Question, Text: "q", State: note.Sent, Created: at, Batch: "b1", Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}},
 		}},
 		Sessions: []note.Session{{ID: "s1", Client: "claude", PID: 42, Started: at}},
-		Batches:  []note.Batch{{ID: "b1", Session: "s1", Notes: []note.ID{"n1"}, At: at}},
+		Batches:  []note.Batch{{ID: "b1", Session: "s1", Notes: []note.ID{"n1", "n4"}, At: at}},
 	}
 
 	require.NoError(t, s.Change(t.Context(), func(b *note.Book) error {
@@ -81,7 +83,7 @@ func TestAFileNotReadIsNeverWritten(t *testing.T) {
 	}{
 		"damaged":       {`{"version": 1, "notes": [`, note.ErrNotesDamaged},
 		"newer version": {`{"version": 2, "notes": []}`, note.ErrNotesVersion},
-		"newer state":   {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "sent", "anchor": {"origin": {"kind": "worktree"}}}]}`, note.ErrNotesVersion},
+		"newer state":   {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "parked", "anchor": {"origin": {"kind": "worktree"}}}]}`, note.ErrNotesVersion},
 		"bad blob":      {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "open", "anchor": {"blob": "xyz", "origin": {"kind": "worktree"}}}]}`, note.ErrNotesDamaged},
 	} {
 		t.Run(name, func(t *testing.T) {

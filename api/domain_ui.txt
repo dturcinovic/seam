@@ -73,6 +73,8 @@ const (
 	PrevNote
 	Notes
 	NoteLines
+	// SendNotes sends the waiting notes to an agent session.
+	SendNotes
 
 	Open
 	Back

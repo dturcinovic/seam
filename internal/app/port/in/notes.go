@@ -86,3 +86,43 @@ type NoteAnswerer interface {
 	// taking none, with the sessions of the book.
 	View(ctx context.Context, ids []note.ID) (note.Book, error)
 }
+
+//counterfeiter:generate . NoteSender
+
+// NoteSender sends the waiting notes to one agent session in a batch. It
+// does not block; the outcome comes as note.Done through NoteUpdates.
+type NoteSender interface {
+	// Send sends the notes open, or sent and not taken, to session.
+	Send(session note.ID) note.Op
+}
+
+//counterfeiter:generate . BatchTaker
+
+// BatchTaker lets an agent session take the notes of a batch sent to it;
+// the call returns once the book is written.
+type BatchTaker interface {
+	// TakeBatch takes for session the notes of batch still sent in it, if
+	// the batch went to session; the others come back refused.
+	TakeBatch(ctx context.Context, session, batch note.ID) (note.Taking, error)
+}
+
+//counterfeiter:generate . BatchFeed
+
+// BatchFeed tells an agent session of the batches sent to it.
+type BatchFeed interface {
+	// Follow hands l each batch sent to its session from now on, once; nil
+	// stops handing on.
+	Follow(l BatchListener)
+}
+
+// BatchListener hears from a BatchFeed, one call at a time.
+type BatchListener interface {
+	// Session is the session the listener speaks for; ok is false while
+	// it has none.
+	Session() (id note.ID, ok bool)
+	// Sent hands on a batch sent to Session with its notes not taken yet.
+	Sent(ctx context.Context, s note.Sending)
+	// Unread tells why the book could not be read after a change; its
+	// batches wait for the next change.
+	Unread(err error)
+}

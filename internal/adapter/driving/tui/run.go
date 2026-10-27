@@ -28,6 +28,7 @@ type Ports struct {
 	NoteReader   in.NoteReader
 	NoteOverview in.NoteOverview
 	NoteReleaser in.NoteReleaser
+	NoteSender   in.NoteSender
 	NoteUpdates  in.NoteUpdates
 }
 

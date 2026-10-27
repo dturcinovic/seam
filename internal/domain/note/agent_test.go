@@ -236,3 +236,13 @@ func TestTakenByNamesTheSessionHoldingTheClaim(t *testing.T) {
 	_, ok = note.TakenBy(n, nil)
 	assert.False(t, ok, "its session gone")
 }
+
+func TestTargetsAreTheSessionsWhoseProcessRuns(t *testing.T) {
+	b := agentBook(t)
+	require.NoError(t, b.Join(note.Session{ID: "dead", PID: 3}))
+
+	got := b.Targets(func(pid int) bool { return pid == 1 })
+
+	require.Len(t, got, 1)
+	assert.Equal(t, note.ID("s"), got[0].ID)
+}

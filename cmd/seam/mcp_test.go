@@ -58,12 +58,16 @@ func (a agent) call(id int, tool string, args map[string]any) map[string]any {
 	return out
 }
 
-func TestSeamMCPServesTheNotesOfTheWorktree(t *testing.T) {
+// startMCP runs seam mcp in a new repository whose book holds question n1
+// at a.go:1, and initializes it as claude-code; it hands back the
+// initialize result and what seam mcp returned, once stdin closes.
+func startMCP(t *testing.T) (agent, *notestore.Store, map[string]any, <-chan error) {
+	t.Helper()
 	repo := testsupport.NewGitRepo(t)
-	file := filepath.Join(repo.Dir, ".git", "seam", "notes.json")
-	store := notestore.New(notestore.Config{File: file})
+	store := notestore.New(notestore.Config{File: filepath.Join(repo.Dir, ".git", "seam", "notes.json")})
 	require.NoError(t, store.Change(t.Context(), func(b *note.Book) error {
-		return b.Add(note.Draft{Kind: note.Question, Text: "why?", Anchor: note.Anchor{Path: "a.go", Origin: note.Origin{Kind: change.KindWorktree}}}, "n1", time.Now())
+		a := note.Anchor{Path: "a.go", Start: 1, End: 1, Origin: note.Origin{Kind: change.KindWorktree}}
+		return b.Add(note.Draft{Kind: note.Question, Text: "why?", Anchor: a}, "n1", time.Now())
 	}))
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
@@ -74,13 +78,18 @@ func TestSeamMCPServesTheNotesOfTheWorktree(t *testing.T) {
 		_ = stdoutW.Close()
 	}()
 	a := agent{t: t, in: stdinW, lines: bufio.NewScanner(stdoutR)}
-
 	a.send(map[string]any{"id": 0, "method": "initialize", "params": map[string]any{
 		"protocolVersion": "2025-06-18", "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "claude-code", "version": "2"},
 	}})
-	init := a.answer()
-	assert.Equal(t, "seam", init["result"].(map[string]any)["serverInfo"].(map[string]any)["name"])
+	init, ok := a.answer()["result"].(map[string]any)
+	require.True(t, ok)
 	a.send(map[string]any{"method": "notifications/initialized"})
+	return a, store, init, done
+}
+
+func TestSeamMCPServesTheNotesOfTheWorktree(t *testing.T) {
+	a, store, init, done := startMCP(t)
+	assert.Equal(t, "seam", init["serverInfo"].(map[string]any)["name"])
 
 	taken := a.call(1, "seam_notes", map[string]any{})
 	notes := taken["notes"].([]any)
@@ -89,7 +98,7 @@ func TestSeamMCPServesTheNotesOfTheWorktree(t *testing.T) {
 	answer := a.call(2, "seam_reply", map[string]any{"id": "n1", "claim": taken["claim"], "text": "because"})
 	assert.Equal(t, false, answer["late"])
 
-	require.NoError(t, stdinW.Close())
+	require.NoError(t, a.in.Close())
 	require.NoError(t, <-done)
 	assert.False(t, a.lines.Scan(), "nothing more on stdout")
 
@@ -104,4 +113,41 @@ func TestSeamMCPNeedsARepository(t *testing.T) {
 	cfg := config.Config{Dir: t.TempDir(), LogFile: filepath.Join(t.TempDir(), "seam.log")}
 	err := mcpSession(t.Context(), cfg, nil, io.Discard)
 	assert.Error(t, err)
+}
+
+func TestSeamMCPTellsItsSessionOfABatchOnce(t *testing.T) {
+	a, store, init, done := startMCP(t)
+	assert.Contains(t, init["capabilities"].(map[string]any)["experimental"], "claude/channel")
+	var me note.ID
+	require.Eventually(t, func() bool {
+		b, err := store.Load(t.Context())
+		if err != nil || len(b.Sessions) != 1 {
+			return false
+		}
+		me = b.Sessions[0].ID
+		return true
+	}, 5*time.Second, 10*time.Millisecond, "joined once initialized")
+
+	require.NoError(t, store.Change(t.Context(), func(b *note.Book) error {
+		_, err := b.Send("b1", me, time.Now(), func(int) bool { return true })
+		return err
+	}))
+	notice := a.answer()
+	require.Equal(t, "notifications/claude/channel", notice["method"])
+	meta := notice["params"].(map[string]any)["meta"].(map[string]any)
+	assert.Equal(t, map[string]any{"batch": "b1", "note_ids": `["n1"]`}, meta)
+
+	// Another change of the book tells nothing again: the next line is the
+	// answer to the call.
+	require.NoError(t, store.Change(t.Context(), func(b *note.Book) error {
+		return b.Add(note.Draft{Kind: note.Finding, Text: "later", Anchor: note.Anchor{Path: "b.go", Origin: note.Origin{Kind: change.KindWorktree}}}, "n2", time.Now())
+	}))
+	taken := a.call(1, "seam_notes", map[string]any{"batch": "b1"})
+	notes := taken["notes"].([]any)
+	require.Len(t, notes, 1)
+	assert.Equal(t, "n1", notes[0].(map[string]any)["id"])
+
+	require.NoError(t, a.in.Close())
+	require.NoError(t, <-done)
+	assert.False(t, a.lines.Scan(), "no second notice: %s", a.lines.Text())
 }
