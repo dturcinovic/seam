@@ -26,7 +26,8 @@ type ChangeLister interface {
 //counterfeiter:generate . UntrackedLister
 
 // UntrackedLister lists the worktree files git does not track and does not
-// ignore, relative to the repository root.
+// ignore, relative to the repository root. An embedded repository (a nested
+// `git init`, a linked worktree) is no file and is not listed.
 type UntrackedLister interface {
 	ListUntracked(ctx context.Context) ([]string, error)
 }
