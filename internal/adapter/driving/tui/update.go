@@ -32,6 +32,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 }
 
 func (m model) update(msg tea.Msg) (model, tea.Cmd) {
+	if m.s.Field.Open && m.fieldTakes(msg) {
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.s.resize(msg.Width, msg.Height)
@@ -61,6 +64,22 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 		m.onChangesets()
 	}
 	return m, nil
+}
+
+// fieldTakes gives the open field the keys and pastes, before any layer,
+// and lets the mouse rest: there is no selecting in it, and the hovers
+// would cover it. It reports whether msg is done with.
+func (m *model) fieldTakes(msg tea.Msg) bool {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		m.s.fieldKey(msg.Key())
+	case tea.PasteMsg:
+		m.s.fieldPaste(msg.Content)
+	case tea.MouseClickMsg, tea.MouseWheelMsg, tea.MouseMotionMsg, hoverDue:
+	default:
+		return false
+	}
+	return true
 }
 
 func (m *model) onFileDiffs() {

@@ -17,15 +17,7 @@ import (
 
 // keyMsg is the key Bubble Tea sends for name.
 func keyMsg(name string) tea.KeyPressMsg {
-	special := map[string]rune{
-		"esc": tea.KeyEscape, "down": tea.KeyDown, "up": tea.KeyUp, "left": tea.KeyLeft, "right": tea.KeyRight,
-		"pgdown": tea.KeyPgDown, "tab": tea.KeyTab,
-	}
-	if c, ok := special[name]; ok {
-		return tea.KeyPressMsg{Code: c}
-	}
-	r := []rune(name)[0]
-	return tea.KeyPressMsg{Code: r, Text: name}
+	return tea.KeyPressMsg(keyOf(name))
 }
 
 // caretOnScreen is the screen cell of the caret.

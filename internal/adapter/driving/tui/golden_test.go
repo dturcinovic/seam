@@ -67,7 +67,27 @@ func fixtures(t *testing.T) []fixture {
 	return append([]fixture{
 		{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}, {"list", list}, {"list-focused", focused},
 		{"unified-hunks", unifiedHunks}, {"unified-full", unifiedFull}, {"stream", streamFixture(t)},
-	}, unicode...)
+	}, append(unicode, fieldFixtures(t)...)...)
+}
+
+// fieldFixtures are the input field over the full view: empty, one line,
+// wrapped with a line break, and longer than its box, scrolled to the
+// cursor at the end.
+func fieldFixtures(t *testing.T) []fixture {
+	t.Helper()
+	open := func(text string) *state {
+		s := screen(t, 80)
+		s.openField(noteLimit, 4, 5)
+		s.fieldPaste(text)
+		return s
+	}
+	return []fixture{
+		{"field-empty", open("")},
+		{"field-line", open("Why does this return nil?")},
+		{"field-wrap", open("This error is swallowed: the caller never learns that the write failed, " +
+			"so the draft is lost.\nCould it go to the footer instead?")},
+		{"field-scroll", open(strings.Repeat("a line of the draft\n", 12) + "the last line")},
+	}
 }
 
 // streamFixture is the stream of three files whose second is not loaded
