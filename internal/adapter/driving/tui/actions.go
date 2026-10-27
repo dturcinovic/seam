@@ -130,7 +130,13 @@ func (s *state) reloaded(u change.Update) (filediff.Request, bool) {
 		s.List.keep(s.Current, s.listLines())
 		return filediff.Request{}, false
 	}
-	s.Current = slices.IndexFunc(s.Files, func(f change.ChangedFile) bool { return had && f.Path() == shown.Path() })
+	s.Current = slices.IndexFunc(s.Files, func(f change.ChangedFile) bool {
+		// A file on disk is visited by its place in the worktree.
+		if s.visiting() && s.Comparison.Right.Kind() == change.KindPath {
+			return had && f.WorktreePath == s.VisitPath
+		}
+		return had && f.Path() == shown.Path()
+	})
 	if s.Current >= 0 {
 		// The same file stays current, so open does not bring it into
 		// view, though files before it may have come or gone; nor does it

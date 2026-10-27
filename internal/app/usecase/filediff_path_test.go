@@ -50,15 +50,13 @@ func TestFilesOfDirectoriesOnDiskAreReadBelowThem(t *testing.T) {
 	assert.Zero(t, f.blobs.ReadBlobCallCount()+f.worktree.ReadWorktreeCallCount(), "git reads nothing")
 	assert.Equal(t, hover.Document{}, u.Snapshot.LeftDoc, "a file on disk has no commit to ask in")
 	assert.Equal(t, hover.Document{}, u.Snapshot.RightDoc, "and this one lies in no worktree")
-	assert.Equal(t, "/r/sub/a.go", f.locator.LocateInWorktreeArgsForCall(0))
 }
 
 func TestAFileOnDiskInTheWorktreeIsADocument(t *testing.T) {
 	uc, f := newFileDiffs(t)
 	start(t, uc)
 	f.onDisk(map[string]string{"/tmp/x_a.go": "package a\n", "a.go": "package b\n"})
-	f.locator.LocateInWorktreeReturns("pkg/a.go", true)
-	file := change.ChangedFile{Status: change.Modified, OldPath: "a.go", NewPath: "a.go"}
+	file := change.ChangedFile{Status: change.Modified, OldPath: "a.go", NewPath: "a.go", WorktreePath: "pkg/a.go"}
 
 	u := loadOne(t, uc, comparison(t, change.File("/tmp/x_a.go"), change.File("a.go")), 1, file, false)
 

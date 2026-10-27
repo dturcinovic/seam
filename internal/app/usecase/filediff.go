@@ -28,13 +28,6 @@ const (
 	highlightBudget = 500 * time.Millisecond
 )
 
-// PathPorts are what FileDiffs reads files on disk, outside git's view,
-// through.
-type PathPorts struct {
-	Reader  out.PathReader
-	Locator out.WorktreeLocator
-}
-
 // FileDiffs implements in.FileDiffLoader.
 type FileDiffs struct {
 	*worker[filediff.Request, filediff.Update]
@@ -43,7 +36,7 @@ type FileDiffs struct {
 	worktree    out.WorktreeReader
 	submodules  out.SubmoduleReader
 	stats       out.WorktreeStatter
-	paths       PathPorts
+	paths       out.PathReader
 	highlighter out.Highlighter
 	languages   lang.Table
 	max         limits.FileSize
@@ -56,7 +49,7 @@ type FileDiffs struct {
 
 // NewFileDiffs returns the use case over its ports. Its worker runs between
 // Start and Stop.
-func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, s out.WorktreeStatter, paths PathPorts, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, s out.WorktreeStatter, paths out.PathReader, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
 	f := &FileDiffs{
 		blobs: b, worktree: w, submodules: sub, stats: s, paths: paths, highlighter: h, languages: languages, max: max, budget: diffBudget,
 		cache:    newCache(cacheEntries, cacheBytes),
@@ -131,7 +124,7 @@ func (f *FileDiffs) statNew(ctx context.Context, r filediff.Request) (change.Sta
 		stamp, err := f.stats.StatWorktree(ctx, r.File.NewPath)
 		return stamp, true, err
 	case r.Comparison.Right.Kind() == change.KindPath && r.File.NewPath != "":
-		stamp, err := f.paths.Reader.StatPath(ctx, r.Comparison.Right.At(r.File.NewPath))
+		stamp, err := f.paths.StatPath(ctx, r.Comparison.Right.At(r.File.NewPath))
 		return stamp, true, err
 	}
 	return change.Stamp{}, false, nil
@@ -204,11 +197,8 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 		f.worktreeDoc(s, e, s.File.NewPath, newLang, new)
 	case r.Comparison.Right.Kind() == change.KindCommit && s.File.NewPath != "":
 		s.RightDoc = hover.Document{Commit: r.Comparison.Right.ID(), Path: s.File.NewPath, Lang: newLang, Version: commitVersion, Text: new}
-	case r.Comparison.Right.Kind() == change.KindPath && s.File.NewPath != "":
-		// The new side git difftool hands over is often a worktree file.
-		if rel, ok := f.paths.Locator.LocateInWorktree(r.Comparison.Right.At(s.File.NewPath)); ok {
-			f.worktreeDoc(s, e, rel, newLang, new)
-		}
+	case r.Comparison.Right.Kind() == change.KindPath && s.File.WorktreePath != "":
+		f.worktreeDoc(s, e, s.File.WorktreePath, newLang, new)
 	}
 	return nil
 }
@@ -245,7 +235,7 @@ func (f *FileDiffs) readOld(ctx context.Context, r filediff.Request) (string, *f
 	case file.OldPath == "":
 		return "", nil, nil
 	case r.Comparison.Left.Kind() == change.KindPath:
-		data, _, err := f.paths.Reader.ReadPath(ctx, r.Comparison.Left.At(file.OldPath), f.max)
+		data, _, err := f.paths.ReadPath(ctx, r.Comparison.Left.At(file.OldPath), f.max)
 		return asText(filediff.OldSide, data, err)
 	case file.OldMode == change.Gitlink:
 		return change.SubprojectText(file.OldID, false), nil, nil
@@ -266,7 +256,7 @@ func (f *FileDiffs) readNew(ctx context.Context, r filediff.Request) (string, ch
 	)
 	switch {
 	case r.Comparison.Right.Kind() == change.KindPath:
-		data, stamp, err = f.paths.Reader.ReadPath(ctx, r.Comparison.Right.At(r.File.NewPath), f.max)
+		data, stamp, err = f.paths.ReadPath(ctx, r.Comparison.Right.At(r.File.NewPath), f.max)
 	case r.File.NewMode == change.Gitlink && r.ReadsWorktree():
 		return f.readSubmodule(ctx, r.File.NewPath)
 	case r.File.NewMode == change.Gitlink:

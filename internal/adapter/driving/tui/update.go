@@ -83,7 +83,7 @@ func (m *model) onChangesets() {
 	for _, u := range m.p.Reload.Drain() {
 		before := m.s.Files
 		m.load(m.s.reloaded(u))
-		for _, path := range gone(before, m.s.Files) {
+		for _, path := range gone(before, m.s.Files, m.s.serverPath) {
 			m.p.Docs.Untrack(hover.DocKey{Path: path})
 		}
 	}

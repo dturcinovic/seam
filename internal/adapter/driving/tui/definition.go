@@ -137,7 +137,7 @@ func (s *state) jumpTo(l hover.Location) (filediff.Request, bool) {
 		side = filediff.OldSide
 	}
 	f := slices.IndexFunc(s.Files, func(c change.ChangedFile) bool {
-		return side == filediff.OldSide && c.OldPath == l.Path || side == filediff.NewSide && c.NewPath == l.Path
+		return side == filediff.OldSide && c.OldPath == l.Path || side == filediff.NewSide && s.serverPath(c) == l.Path
 	})
 	switch {
 	case f >= 0:
@@ -150,7 +150,7 @@ func (s *state) jumpTo(l hover.Location) (filediff.Request, bool) {
 		}
 		s.Mode = view.Full
 		return s.showFile(f)
-	case l.Commit.IsZero() && s.Comparison.Right.Kind() == change.KindWorktree:
+	case l.Commit.IsZero() && s.canVisit():
 		s.remember()
 		s.Jump.Target = &target{File: -1, Side: filediff.NewSide, Line: l.Line}
 		if s.VisitPath == l.Path && s.Loaded {
@@ -194,11 +194,30 @@ func (s *state) visit(path string) (filediff.Request, bool) {
 	return s.visitRequest(false), true
 }
 
+// canVisit says whether a worktree file outside the changeset can be shown.
+func (s *state) canVisit() bool {
+	_, ok := s.Comparison.Visits()
+	return ok
+}
+
 // visitRequest asks for the file visited, as a file with a new side only.
 func (s *state) visitRequest(fresh bool) filediff.Request {
 	s.LoadGen++
 	file := change.ChangedFile{NewPath: s.VisitPath, NewMode: 0o100644}
-	return filediff.Request{Gen: s.LoadGen, Comparison: s.Comparison, File: file, Fresh: fresh}
+	// Only a comparison that can visit has a file visited: jumpTo checks
+	// canVisit, and a reload keeps the comparison's sources.
+	c, _ := s.Comparison.Visits()
+	return filediff.Request{Gen: s.LoadGen, Comparison: c, File: file, Fresh: fresh}
+}
+
+// serverPath is the path the language server knows the new side of c by:
+// a file on disk is named as the user gave it, the server names its place
+// in the worktree.
+func (s *state) serverPath(c change.ChangedFile) string {
+	if s.Comparison.Right.Kind() == change.KindPath {
+		return c.WorktreePath
+	}
+	return c.NewPath
 }
 
 // visiting says the file shown is one outside the changeset, read only.

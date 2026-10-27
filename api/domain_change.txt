@@ -76,6 +76,10 @@ type ChangedFile struct {
 	OldMode, NewMode Mode
 	OldID, NewID     ObjectID
 	Counts           LineCounts
+	// WorktreePath is where the new side of a file on disk lies in the
+	// worktree, by which a language server knows it; empty where it lies
+	// elsewhere, and for the other sources, which NewPath names already.
+	WorktreePath string
 }
     ChangedFile is one file that differs between the sides. Paths are relative
     to the repository root and may hold any byte but NUL. A side that does not
@@ -100,6 +104,11 @@ type Comparison struct {
 func NewComparison(left, right Source) (Comparison, error)
     NewComparison checks that left is a commit and right is a commit, the index
     or the worktree, or that both are files or both directories on disk.
+
+func (c Comparison) Visits() (Comparison, bool)
+    Visits is the comparison to read a worktree file outside the changeset in,
+    with the worktree on the right; false for commits and the index. For files
+    on disk it has no left side: a visit reads the right one only.
 
 type Gen uint64
     Gen is a generation of reloading the changeset. The UI hands out strictly

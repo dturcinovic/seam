@@ -33,12 +33,19 @@ func sixtyRows(t *testing.T, path string) filediff.Snapshot {
 // first text, and answers definitions Sent.
 func defineModel(t *testing.T) (model, *infakes.FakeFileDiffLoader, *infakes.FakeDefiner) {
 	t.Helper()
-	m, fl, _ := startModel(t, "a.go", "b.go", "c.go")
-	m.s.Comparison = change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()}
+	return defineModelOf(t, change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()}, "a.go", []string{"a.go", "b.go", "c.go"})
+}
+
+// defineModelOf shows the first of paths in c, its right side known to the
+// server as docPath, with the caret on its first text.
+func defineModelOf(t *testing.T, c change.Comparison, docPath string, paths []string) (model, *infakes.FakeFileDiffLoader, *infakes.FakeDefiner) {
+	t.Helper()
+	m, fl, _ := startModel(t, paths...)
+	m.s.Comparison = c
 	m.p.Docs.(*infakes.FakeDocumentTracker).TrackReturns(gopls(), true)
 	df := m.p.Define.(*infakes.FakeDefiner)
 	df.DefineReturns(hover.Sent)
-	m = answerLoad(t, m, fl, sixtyRows(t, "a.go"))
+	m = answerLoad(t, m, fl, sixtyRows(t, docPath))
 	m, _ = typed(m, "i")
 	require.True(t, m.s.Caret.On)
 	return m, fl, df
@@ -291,6 +298,17 @@ func TestAVisitedFileThatChangesJoinsTheChangeset(t *testing.T) {
 	assert.False(t, m.s.visiting())
 	f, _ := m.s.file()
 	assert.Equal(t, change.Modified, f.Status)
+}
+
+func TestAVisitedFileThatIsDeletedJoinsTheChangeset(t *testing.T) {
+	m, _, _ := visited(t)
+	fs := append(files("a.go", "b.go", "c.go"), change.ChangedFile{Status: change.Deleted, OldPath: "lib/d.go"})
+
+	m.s.reloaded(change.Update{Gen: m.s.reload(), Changeset: change.Changeset{Comparison: m.s.Comparison, Files: fs}})
+
+	assert.False(t, m.s.visiting())
+	f, _ := m.s.file()
+	assert.Equal(t, change.Deleted, f.Status)
 }
 
 func TestTheStreamFromAVisitStartsAtTheTop(t *testing.T) {

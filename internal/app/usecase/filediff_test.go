@@ -44,7 +44,6 @@ type fileFakes struct {
 	submodules  *outfakes.FakeSubmoduleReader
 	stats       *outfakes.FakeWorktreeStatter
 	disk        *outfakes.FakePathReader
-	locator     *outfakes.FakeWorktreeLocator
 	highlighter *outfakes.FakeHighlighter
 	repo        *repo
 }
@@ -57,7 +56,7 @@ func newFileDiffs(t *testing.T) (*usecase.FileDiffs, fileFakes) {
 func newFileDiffsIn(t *testing.T, table lang.Table) (*usecase.FileDiffs, fileFakes) {
 	t.Helper()
 	r := &repo{blobs: map[change.ObjectID]string{}, worktree: map[string]string{}, stamps: map[string]change.Stamp{}, submodules: map[string]submodule{}}
-	f := fileFakes{&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeSubmoduleReader{}, &outfakes.FakeWorktreeStatter{}, &outfakes.FakePathReader{}, &outfakes.FakeWorktreeLocator{}, coveringHighlighter(), r}
+	f := fileFakes{&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeSubmoduleReader{}, &outfakes.FakeWorktreeStatter{}, &outfakes.FakePathReader{}, coveringHighlighter(), r}
 	f.blobs.ReadBlobCalls(func(_ context.Context, id change.ObjectID, _ limits.FileSize) ([]byte, error) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -77,7 +76,7 @@ func newFileDiffsIn(t *testing.T, table lang.Table) (*usecase.FileDiffs, fileFak
 		defer r.mu.Unlock()
 		return r.stamps[path], nil
 	})
-	return usecase.NewFileDiffs(f.blobs, f.worktree, f.submodules, f.stats, usecase.PathPorts{Reader: f.disk, Locator: f.locator}, f.highlighter, table, limits.DefaultFileSize, nil), f
+	return usecase.NewFileDiffs(f.blobs, f.worktree, f.submodules, f.stats, f.disk, f.highlighter, table, limits.DefaultFileSize, nil), f
 }
 
 // start runs the worker for the test.
