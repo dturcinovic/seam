@@ -92,9 +92,9 @@ func TestFileSizeLimit(t *testing.T) {
 }
 
 func TestAFlagBeatsTheFile(t *testing.T) {
-	assert.Equal(t, config.Config{MaxFileSize: 9}, config.Config{}.Settle(9), "the file's")
-	assert.Equal(t, config.Config{MaxFileSize: 5}, config.Config{MaxFileSize: 5}.Settle(9), "the flag's")
-	assert.Equal(t, config.Config{}, config.Config{}.Settle(0), "neither")
+	assert.Equal(t, config.Config{MaxFileSize: 9}, config.Config{}.Settle(9, true), "the file's")
+	assert.Equal(t, config.Config{MaxFileSize: 5}, config.Config{MaxFileSize: 5}.Settle(9, true), "the flag's")
+	assert.Equal(t, config.Config{}, config.Config{}.Settle(0, true), "neither")
 }
 
 func TestMaxFileSize(t *testing.T) {
@@ -138,4 +138,31 @@ func TestHeapProfile(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "heap.pprof", cfg.HeapProfile)
+}
+
+func TestTheUpdateCheck(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", "/var/state")
+	t.Setenv("SEAM_UPDATE_URL", "")
+	t.Setenv("SEAM_NO_UPDATE_CHECK", "")
+	cfg, err := config.Load(config.Flags{})
+	require.NoError(t, err)
+	assert.True(t, cfg.UpdateCheck)
+	assert.Empty(t, cfg.UpdateURL, "GitHub")
+	assert.Equal(t, "/var/state/seam/release.json", cfg.ReleaseFile)
+
+	t.Setenv("SEAM_UPDATE_URL", "http://127.0.0.1:8080")
+	for value, on := range map[string]bool{"1": false, "yes": false, "0": true, "false": true, "FALSE": true} {
+		t.Setenv("SEAM_NO_UPDATE_CHECK", value)
+		cfg, err = config.Load(config.Flags{})
+		require.NoError(t, err)
+		assert.Equal(t, on, cfg.UpdateCheck, "SEAM_NO_UPDATE_CHECK=%s", value)
+	}
+	assert.Equal(t, "http://127.0.0.1:8080", cfg.UpdateURL)
+}
+
+func TestEitherSwitchTurnsTheUpdateCheckOff(t *testing.T) {
+	on := config.Config{UpdateCheck: true}
+	assert.True(t, on.Settle(0, true).UpdateCheck)
+	assert.False(t, on.Settle(0, false).UpdateCheck, "the file")
+	assert.False(t, config.Config{}.Settle(0, true).UpdateCheck, "the environment")
 }

@@ -25,6 +25,9 @@ type File struct {
 	// over MaxFileSize.
 	MaxFileSize  limits.FileSize
 	MaxInstances limits.Instances
+	// UpdateCheck is whether seam asks for a newer release; on unless the
+	// file turns it off.
+	UpdateCheck bool
 }
 
 // document is the file as written. A pointer or map left nil is a key the
@@ -34,6 +37,7 @@ type document struct {
 	Languages map[string]languageEntry `toml:"languages"`
 	UI        uiEntry                  `toml:"ui"`
 	Limits    limitsEntry              `toml:"limits"`
+	Updates   updatesEntry             `toml:"updates"`
 	Colors    map[string]string        `toml:"colors"`
 	Keys      map[string][]string      `toml:"keys"`
 }
@@ -51,6 +55,10 @@ type languageEntry struct {
 	Extensions *[]string `toml:"extensions"`
 	LanguageID *string   `toml:"language_id"`
 	Server     *string   `toml:"server"`
+}
+
+type updatesEntry struct {
+	Check *bool `toml:"check"`
 }
 
 // Load reads the configuration file at path over the defaults. A missing
@@ -93,6 +101,7 @@ func (d document) file() (File, error) {
 	if f.MaxFileSize, f.MaxInstances, err = d.Limits.limits(); err != nil {
 		return File{}, err
 	}
+	f.UpdateCheck = d.Updates.Check == nil || *d.Updates.Check
 	return f, nil
 }
 

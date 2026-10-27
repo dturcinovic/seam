@@ -22,7 +22,7 @@ commit hash.
 | `--max-file-size <size>` | Largest side of a file to load, in bytes or with `K`, `M` or `G` (default `8M`) |
 | `-v`, `--verbose` | Log at debug level |
 | `--pprof <file>` | Write a heap profile to this file when seam ends |
-| `--version` | Print the version |
+| `--version` | Print the version, and a newer release if the last check found one |
 
 The log goes to `$XDG_STATE_HOME/seam/seam.log` (else
 `~/.local/state/seam/seam.log`), never to the terminal. The language
@@ -138,3 +138,22 @@ A side larger than `--max-file-size` shows as too large, a binary file as
 binary, instead of a diff. Syntax colours stop at a line longer than 64 KiB
 and for the rest of a file that takes too long to colour; the diff stays
 complete.
+
+## Newer releases
+
+Once a day at most, while the viewer is open, seam asks GitHub's public
+release API for its latest release. If it is newer, seam names it when it
+ends, with how to update this install:
+
+```
+seam v0.2.0 is out (you have v0.1.0): brew upgrade seam
+```
+
+The request carries nothing but `seam/<version>` as its User-Agent. A failed
+or slow one says nothing and does not delay seam; the next try is a day
+later. Builds that are no release, such as `dev` or a build between tags,
+never ask. The last answer is kept in `$XDG_STATE_HOME/seam/release.json`.
+
+Turn the check off with `check = false` under [`[updates]`](configuration.md#updates)
+or with `SEAM_NO_UPDATE_CHECK=1`. `SEAM_UPDATE_URL` asks another server in
+GitHub's place, such as a mirror, at the same path.

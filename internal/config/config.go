@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/dturcinovic/seam/internal/domain/limits"
 )
@@ -39,14 +40,26 @@ type Config struct {
 	// HeapProfile is the file the session writes its heap profile to as
 	// the TUI ends; empty means none.
 	HeapProfile string
+	// ReleaseFile keeps the last check for a newer release.
+	ReleaseFile string
+	// UpdateCheck is off when SEAM_NO_UPDATE_CHECK is set, for machines
+	// without a configuration file of their own, such as CI, or when the
+	// file turns it off (Settle).
+	UpdateCheck bool
+	// UpdateURL is SEAM_UPDATE_URL, which replaces GitHub's API for the
+	// check, as for a mirror or a test server; empty means GitHub.
+	UpdateURL string
 }
 
-// Settle takes the file size limit of the configuration file, zero if it
-// sets none, unless the flag set one: a flag is the nearer intent.
-func (c Config) Settle(maxFileSize limits.FileSize) Config {
+// Settle takes what the configuration file sets: its file size limit, zero
+// if it sets none, unless the flag set one, as a flag is the nearer intent;
+// and whether to check for updates, which either of file and environment
+// can turn off.
+func (c Config) Settle(maxFileSize limits.FileSize, updateCheck bool) Config {
 	if c.MaxFileSize == 0 {
 		c.MaxFileSize = maxFileSize
 	}
+	c.UpdateCheck = c.UpdateCheck && updateCheck
 	return c
 }
 
@@ -92,7 +105,20 @@ func Load(f Flags) (Config, error) {
 		Verbose:     f.Verbose,
 		MaxFileSize: size,
 		HeapProfile: f.HeapProfile,
+		ReleaseFile: filepath.Join(state, "seam", "release.json"),
+		UpdateCheck: !turnedOff(os.Getenv("SEAM_NO_UPDATE_CHECK")),
+		UpdateURL:   os.Getenv("SEAM_UPDATE_URL"),
 	}, nil
+}
+
+// turnedOff reads a SEAM_NO_* switch: set means off, but 0 and false, as
+// a template might write to mean "not set", leave it on.
+func turnedOff(value string) bool {
+	switch strings.ToLower(value) {
+	case "", "0", "false":
+		return false
+	}
+	return true
 }
 
 func xdgDir(env, fallback string) (string, error) {

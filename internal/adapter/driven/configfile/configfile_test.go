@@ -30,7 +30,7 @@ func load(t *testing.T, text string) lang.Table {
 func TestWithoutAFileTheDefaultsHold(t *testing.T) {
 	f, err := configfile.Load(filepath.Join(t.TempDir(), "seam", "config.toml"))
 	require.NoError(t, err)
-	assert.Equal(t, configfile.File{Languages: lang.Defaults(), UI: ui.DefaultSettings()}, f)
+	assert.Equal(t, configfile.File{Languages: lang.Defaults(), UI: ui.DefaultSettings(), UpdateCheck: true}, f)
 }
 
 func TestAnEmptyFileIsTheDefaults(t *testing.T) {

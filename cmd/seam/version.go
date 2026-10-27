@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"runtime/debug"
 	"strings"
+
+	"github.com/dturcinovic/seam/internal/domain/release"
 )
 
 // version is the release tag, stamped by `task build` and the release
@@ -11,44 +13,73 @@ import (
 // inside a git checkout.
 var version = "" //nolint:gochecknoglobals // set through -ldflags -X, which needs a variable
 
-func versionString() string {
-	bi, _ := debug.ReadBuildInfo()
-	return describe(version, bi)
+// build is what this binary knows of itself, read once for both the version
+// it prints and the release it compares, so the two cannot disagree.
+type build struct {
+	stamped, module, commit, date string
+	modified                      bool
 }
 
-// describe is the version as --version prints it, such as
-// "v0.1.0 (1eac307, 2026-10-25)". A local build without a stamp is "dev",
-// so it never claims a release; a module that go install downloaded has no
-// commit, only its version.
-func describe(stamped string, bi *debug.BuildInfo) string {
+func thisBuild() build {
+	bi, _ := debug.ReadBuildInfo()
+	return readBuild(version, bi)
+}
+
+func readBuild(stamped string, bi *debug.BuildInfo) build {
+	b := build{stamped: stamped}
 	if bi == nil {
-		return cmp.Or(stamped, "dev")
+		return b
 	}
-	var commit, date string
-	modified := false
+	b.module = bi.Main.Version
 	for _, s := range bi.Settings {
 		switch s.Key {
 		case "vcs.revision":
-			commit = s.Value[:min(len(s.Value), 7)]
+			b.commit = s.Value[:min(len(s.Value), 7)]
 		case "vcs.time":
-			date, _, _ = strings.Cut(s.Value, "T")
+			b.date, _, _ = strings.Cut(s.Value, "T")
 		case "vcs.modified":
-			modified = s.Value == "true"
+			b.modified = s.Value == "true"
 		}
 	}
-	v := stamped
-	if v == "" && commit == "" && bi.Main.Version != "(devel)" {
-		v = bi.Main.Version
+	return b
+}
+
+// tag is the version without commit and date. A local build without a
+// stamp is "dev", so it never claims a release; a module that go install
+// downloaded has no commit, only its version.
+func (b build) tag() string {
+	v := b.stamped
+	if v == "" && b.commit == "" && b.module != "(devel)" {
+		v = b.module
 	}
-	v = cmp.Or(v, "dev")
-	if commit == "" {
-		return v
+	return cmp.Or(v, "dev")
+}
+
+// String is the version as --version prints it, such as
+// "v0.1.0 (1eac307, 2026-10-25)".
+func (b build) String() string {
+	if b.commit == "" {
+		return b.tag()
 	}
-	if modified {
+	commit := b.commit
+	if b.modified {
 		commit += "-dirty"
 	}
-	if date == "" {
-		return v + " (" + commit + ")"
+	if b.date == "" {
+		return b.tag() + " (" + commit + ")"
 	}
-	return v + " (" + commit + ", " + date + ")"
+	return b.tag() + " (" + commit + ", " + b.date + ")"
+}
+
+// release is the release this build is, zero for any other: a build with
+// changes of its own is no release even on the tag.
+func (b build) release() release.Version {
+	if b.modified {
+		return release.Version{}
+	}
+	r, err := release.ParseVersion(b.tag())
+	if err != nil {
+		return release.Version{}
+	}
+	return r
 }

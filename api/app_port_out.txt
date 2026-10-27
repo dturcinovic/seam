@@ -85,6 +85,19 @@ type IgnoreChecker interface {
 }
     IgnoreChecker asks git what it ignores.
 
+type ReleaseFetcher interface {
+	LatestRelease(ctx context.Context) (release.Version, error)
+}
+    ReleaseFetcher asks where seam is published for its latest release.
+
+type ReleaseStore interface {
+	LoadCheck(ctx context.Context) (release.Check, error)
+	SaveCheck(ctx context.Context, c release.Check) error
+}
+    ReleaseStore keeps the last check for a newer release between sessions.
+    A check never saved loads as the zero Check, one that cannot be read as the
+    zero Check with the error.
+
 type RevisionResolver interface {
 	// ResolveCommit fails for a revision that names no commit.
 	ResolveCommit(ctx context.Context, rev string) (change.ObjectID, error)

@@ -3,9 +3,16 @@ package main
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/dturcinovic/seam/internal/adapter/driven/statefile"
+	"github.com/dturcinovic/seam/internal/app/port/in/infakes"
+	"github.com/dturcinovic/seam/internal/config"
+	"github.com/dturcinovic/seam/internal/domain/release"
 )
 
 // The session's logger starts lumberjack's goroutine, chroma regexp2's
@@ -29,6 +36,45 @@ func TestVersion(t *testing.T) {
 	assert.Equal(t, 0, code)
 	assert.Contains(t, stdout, "seam version ")
 	assert.Empty(t, stderr)
+}
+
+func TestVersionNamesANewerRelease(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("SEAM_NO_UPDATE_CHECK", "")
+	cfg, err := config.Load(config.Flags{})
+	require.NoError(t, err)
+	latest, err := release.ParseVersion("v0.2.0")
+	require.NoError(t, err)
+	require.NoError(t, statefile.New(statefile.Config{ReleaseFile: cfg.ReleaseFile}).SaveCheck(t.Context(), release.Check{Latest: latest, At: time.Now()}))
+	stamped := version
+	t.Cleanup(func() { version = stamped })
+	version = "v0.1.0"
+
+	code, stdout, _ := runSeam(t, "--version", "extra", "args", "are", "ignored")
+
+	assert.Equal(t, 0, code)
+	assert.Contains(t, stdout, "seam version v0.1.0")
+	assert.Contains(t, stdout, "seam v0.2.0 is out (you have v0.1.0): ")
+
+	t.Setenv("SEAM_NO_UPDATE_CHECK", "1")
+	_, stdout, _ = runSeam(t, "--version")
+	assert.NotContains(t, stdout, "is out", "turned off, nothing is told")
+}
+
+func TestTheNoticeGoesToStderr(t *testing.T) {
+	running, err := release.ParseVersion("v0.1.0")
+	require.NoError(t, err)
+	latest, err := release.ParseVersion("v0.2.0")
+	require.NoError(t, err)
+	releases := &infakes.FakeReleaseNotifier{}
+	var stderr bytes.Buffer
+	tellNewerRelease(t.Context(), releases, running, &stderr)
+	assert.Empty(t, stderr.String(), "no newer release")
+
+	releases.NewerReturns(latest, true)
+	tellNewerRelease(t.Context(), releases, running, &stderr)
+	assert.Contains(t, stderr.String(), "seam v0.2.0 is out (you have v0.1.0): ")
 }
 
 func TestHelp(t *testing.T) {

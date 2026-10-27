@@ -22,6 +22,7 @@ var Module = fx.Module("usecase",
 		fx.Annotate(newStreams, fx.As(new(in.StreamLoader))),
 		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.Definer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 		fx.Annotate(newWatches, fx.As(new(in.WatchStarter)), fx.As(new(in.WatchUpdates))),
+		fx.Annotate(newReleaseChecks, fx.As(new(in.ReleaseNotifier))),
 	),
 )
 
@@ -76,6 +77,14 @@ func newWatches(lc fx.Lifecycle, p out.WatchPathsReader, i out.IgnoreChecker, w 
 	ws := NewWatches(p, i, w, panics)
 	lc.Append(fx.StopHook(reserved(ws.Stop)))
 	return ws
+}
+
+// newReleaseChecks cancels a check still running with the workers; it
+// starts with Check.
+func newReleaseChecks(lc fx.Lifecycle, settings ReleaseSettings, f out.ReleaseFetcher, s out.ReleaseStore, panics supervise.PanicFunc) *ReleaseChecks {
+	r := NewReleaseChecks(settings, f, s, panics)
+	lc.Append(fx.StopHook(reserved(r.Stop)))
+	return r
 }
 
 // hoverPorts gathers the ports of Hovers from the graph.

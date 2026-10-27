@@ -98,3 +98,9 @@ func TestBadSettingsNameTheirKey(t *testing.T) {
 		assert.Contains(t, err.Error(), p, text)
 	}
 }
+
+func TestTheUpdateCheck(t *testing.T) {
+	assert.True(t, loadFile(t, "").UpdateCheck, "on unless turned off")
+	assert.True(t, loadFile(t, "[updates]\ncheck = true\n").UpdateCheck)
+	assert.False(t, loadFile(t, "[updates]\ncheck = false\n").UpdateCheck)
+}
