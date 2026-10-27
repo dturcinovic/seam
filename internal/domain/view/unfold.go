@@ -18,7 +18,7 @@ func Unfold(lines []Line, pos Pos, i int) ([]Line, Pos) {
 		pos.Scroll += len(out) - len(lines)
 	}
 	if fold.Contains(pos.AnchorRow) {
-		pos.AnchorRow, pos.AnchorHalf = RowAt(out, pos.Scroll), out[pos.Scroll].Half
+		pos.AnchorRow, pos.AnchorHalf, pos.AnchorBelow = anchorAt(out, pos.Scroll)
 	}
 	return out, pos
 }

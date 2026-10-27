@@ -54,10 +54,14 @@ func (s *state) bodyAt(i int) (bodyLine, bool) {
 	return b, true
 }
 
-// rowLine is line i of the body if it shows rows of a file.
+// rowLine is line i of the body if it shows rows of a file, not a note
+// below them: the caret, hovers and the mouse find rows only.
 func (s *state) rowLine(i int) (file int, l view.Line, ok bool) {
 	b, ok := s.bodyAt(i)
 	if !ok || b.spot != view.OnRow {
+		return 0, view.Line{}, false
+	}
+	if _, isNote := b.line.Note(); isNote {
 		return 0, view.Line{}, false
 	}
 	return b.file, b.line, true

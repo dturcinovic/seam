@@ -20,8 +20,9 @@ const (
 )
 
 // Line is one line of a view: a single row, or with Fold a range of
-// unchanged rows shown as one line. Half says which side of its row the
-// line shows; only Unify splits a row.
+// unchanged rows shown as one line, or a note's line below one of those,
+// see Annotate. Half says which side of its row the line shows; only Unify
+// splits a row.
 type Line struct {
 	Rows diff.RowRange
 	Fold bool
@@ -29,6 +30,8 @@ type Line struct {
 	// reach is how far the rows of the old halves before a new half reach,
 	// see LineForRow.
 	reach int
+	// note is a note line's Ref plus one, 0 for any other line.
+	note int
 }
 
 // Contains reports whether the line shows or folds row.

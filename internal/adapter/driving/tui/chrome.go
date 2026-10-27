@@ -38,7 +38,7 @@ func viewHints() []hint {
 		firstKeys("stream", ui.ToggleStream),
 		firstKeys("scroll", ui.Down, ui.Up), firstKeys("sideways", ui.ScrollLeft, ui.ScrollRight),
 		firstKeys("files", ui.ToggleFiles), firstKeys("caret", ui.StartCaret), firstKeys("back", ui.JumpBack),
-		firstKeys("notes", ui.Notes),
+		firstKeys("notes", ui.Notes), firstKeys("note lines", ui.NoteLines),
 	}
 }
 

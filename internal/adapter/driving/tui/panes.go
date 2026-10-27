@@ -27,9 +27,13 @@ type sideLine struct {
 	points []filediff.Checkpoint
 }
 
-// writeRow writes one line of file's view: both panes, the unified one, or
-// a fold across them.
+// writeRow writes one line of file's view: both panes, the unified one, a
+// fold across them, or a note's line.
 func writeRow(b *strings.Builder, s *state, th *theme, file int, l view.Line) {
+	if ref, ok := l.Note(); ok {
+		writeNoteLine(b, s, th, file, ref)
+		return
+	}
 	lay := s.layoutOf(file)
 	ln := newLine(b, th, s.Cells, lay.panes())
 	if l.Fold {
@@ -174,13 +178,10 @@ func (s *state) markSide(sl *sideLine, file int, w filediff.Which) {
 		sl.note, sl.noteAs, sl.hover = anchorMark, lookOf(s.Notes.Draft.Kind).mark, true
 		return
 	}
-	note, dim := s.noteMark(file, w, sl.index)
-	sl.note, sl.noteAs = note, noteRole
-	if dim {
-		sl.noteAs = gutterRole
-	}
+	sl.note, sl.noteAs = s.noteMark(file, w, sl.index)
 	if sl.note == "" && s.plusOn(file, w, sl.index) {
-		sl.note, sl.hover = plusMark, true
+		// Blue as a question, which a new note starts as.
+		sl.note, sl.noteAs, sl.hover = plusMark, questionRole, true
 	}
 }
 

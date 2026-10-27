@@ -29,16 +29,18 @@ type StreamLine struct {
 	Line int
 }
 
-// StreamPos is where a stream stands. File, Spot, AnchorRow and AnchorHalf
-// are the anchor: with OnRow a row and its half as in Pos, with OnGuess a
-// line of the file's estimate, which Switch turns into a row once the file
-// is laid out. Scroll is the index of the top line of the whole stream.
+// StreamPos is where a stream stands. File, Spot, AnchorRow, AnchorHalf
+// and AnchorBelow are the anchor: with OnRow a row, its half and the note
+// lines below it as in Pos, with OnGuess a line of the file's estimate,
+// which Switch turns into a row once the file is laid out. Scroll is the
+// index of the top line of the whole stream.
 type StreamPos struct {
-	File       int
-	Spot       Spot
-	AnchorRow  int
-	AnchorHalf Half
-	Scroll     int
+	File        int
+	Spot        Spot
+	AnchorRow   int
+	AnchorHalf  Half
+	AnchorBelow int
+	Scroll      int
 }
 
 // StreamPosFor is the place in a stream of pos in file: its anchor on top,
@@ -48,7 +50,7 @@ func StreamPosFor(file int, pos Pos) StreamPos {
 	if pos.Scroll == 0 {
 		return StreamPos{File: file}
 	}
-	return StreamPos{File: file, Spot: OnRow, AnchorRow: pos.AnchorRow, AnchorHalf: pos.AnchorHalf}
+	return StreamPos{File: file, Spot: OnRow, AnchorRow: pos.AnchorRow, AnchorHalf: pos.AnchorHalf, AnchorBelow: pos.AnchorBelow}
 }
 
 // FilePos is the anchor of p in its file, for the single file view to
@@ -58,7 +60,7 @@ func (p StreamPos) FilePos() Pos {
 	if p.Spot == OnHead {
 		return Pos{}
 	}
-	return Pos{AnchorRow: p.AnchorRow, AnchorHalf: p.AnchorHalf}
+	return Pos{AnchorRow: p.AnchorRow, AnchorHalf: p.AnchorHalf, AnchorBelow: p.AnchorBelow}
 }
 
 // Stream lays out the files of a changeset one below the other, each as a
@@ -197,11 +199,12 @@ func (s *Stream) Switch(pos StreamPos, height int) StreamPos {
 		pos.Scroll = s.Start(pos.File)
 	case pos.Spot == OnGuess && f.laid && len(f.lines) > 0:
 		i := min(pos.AnchorRow, len(f.lines)-1)
-		pos.Spot, pos.AnchorRow, pos.AnchorHalf = OnRow, RowAt(f.lines, i), f.lines[i].Half
+		pos.Spot = OnRow
+		pos.AnchorRow, pos.AnchorHalf, pos.AnchorBelow = anchorAt(f.lines, i)
 		pos.Scroll = s.Start(pos.File) + 1 + i
 	case f.laid:
 		// With no lines the header is all the file shows.
-		pos.Scroll = s.Start(pos.File) + min(1+LineFor(f.lines, pos.AnchorRow, pos.AnchorHalf), len(f.lines))
+		pos.Scroll = s.Start(pos.File) + min(1+lineAt(f.lines, pos.AnchorRow, pos.AnchorHalf, pos.AnchorBelow), len(f.lines))
 	default:
 		// A row of a file not laid out, as after a reload: its index is the
 		// best guess of its line.
@@ -228,16 +231,19 @@ func (s *Stream) Navigate(pos StreamPos, scroll, height int) StreamPos {
 	top := s.At(scroll)
 	switch top.Spot {
 	case OnHead:
-		pos.File, pos.Spot, pos.AnchorRow, pos.AnchorHalf = top.File, OnHead, 0, Whole
+		pos.File, pos.Spot, pos.AnchorRow, pos.AnchorHalf, pos.AnchorBelow = top.File, OnHead, 0, Whole, 0
 	case OnRow:
 		lines := s.files[top.File].lines
 		l := lines[top.Line]
 		if l.Fold && top.File == pos.File && pos.Spot == OnRow && l.Contains(pos.AnchorRow) {
+			// The fold itself is on top now, not a note line below it.
+			pos.AnchorBelow = 0
 			return pos
 		}
-		pos.File, pos.Spot, pos.AnchorRow, pos.AnchorHalf = top.File, OnRow, RowAt(lines, top.Line), l.Half
+		pos.File, pos.Spot = top.File, OnRow
+		pos.AnchorRow, pos.AnchorHalf, pos.AnchorBelow = anchorAt(lines, top.Line)
 	case OnGuess:
-		pos.File, pos.Spot, pos.AnchorRow, pos.AnchorHalf = top.File, OnGuess, top.Line, Whole
+		pos.File, pos.Spot, pos.AnchorRow, pos.AnchorHalf, pos.AnchorBelow = top.File, OnGuess, top.Line, Whole, 0
 	}
 	return pos
 }

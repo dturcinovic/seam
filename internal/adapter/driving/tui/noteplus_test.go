@@ -15,11 +15,12 @@ import (
 )
 
 // plusModel is noteModel with a question at line 2 of the worktree side
-// and a finding at line 5 of HEAD's; unified, line 4 is a change's two
-// halves.
+// and a finding at line 5 of HEAD's, without their lines below the code;
+// unified, line 4 is a change's two halves.
 func plusModel(t *testing.T, set ui.Settings) model {
 	t.Helper()
 	m, f := noteModelWith(t, headToWorktree(t), set)
+	m.s.toggleNoteLines()
 	return notesCome(m, f,
 		note.Update{Kind: note.Placed, Key: worktreeSide(), Spots: []note.Spot{spotAt("q", note.Question, note.Exact, 2, 2)}},
 		note.Update{Kind: note.Placed, Key: headSide(t), Spots: []note.Spot{spotAt("f", note.Finding, note.Exact, 5, 5)}})
@@ -184,7 +185,7 @@ func TestTheLineUnderThePlusTakesTheHoverTone(t *testing.T) {
 			require.True(t, m.s.Hover.PlusOn)
 			th := newTheme(ui.Dark())
 			line := strings.Split(render(&m.s, th), "\n")[bodyTop+c.y]
-			assert.Contains(t, line, th.open[paneStyle(c.want, noteRole)]+plusMark)
+			assert.Contains(t, line, th.open[paneStyle(c.want, questionRole)]+plusMark)
 			assert.Contains(t, line, th.open[paneStyle(c.want, gutterRole)], "the number in the terminal's foreground")
 		})
 	}

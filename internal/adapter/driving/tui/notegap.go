@@ -43,15 +43,12 @@ func (s *state) lineIndex(file int, w filediff.Which, i int) (int, bool) {
 	if len(lines) == 0 || row < 0 {
 		return 0, false
 	}
-	h := view.NewHalf
-	if w == filediff.OldSide {
-		h = view.OldHalf
-	}
-	j := view.LineFor(lines, row, h)
+	j := view.LineFor(lines, row, halfOf(w))
 	if j >= len(lines) || lines[j].Fold || !lines[j].Contains(row) {
 		return 0, false
 	}
-	return s.bodyIndex(file, j), true
+	// Below the notes of the line, as the next one of them.
+	return s.bodyIndex(file, j+view.NotesBelow(lines, j)), true
 }
 
 // bodyRowAt is what line i of the body's screen shows with the field at

@@ -155,6 +155,7 @@ seam processes of the same worktree see each other's notes at once.
 | `m` / `M` | Next, previous note, also in other files |
 | `x` | In the popup of a note: resolve it |
 | `N` | All notes of the worktree, see below |
+| `C` | Hide the notes' lines below the code, or show them again |
 
 `c` opens a field between the lines, below the last line noted: the code
 below it moves down, and `●` marks the lines noted. Its top edge shows
@@ -170,8 +171,12 @@ gutter of the side under the mouse, and the footer names it; a click on
 it opens the field for that line, on either side. Several lines are noted
 with the caret and `v`.
 
-A note shows in the gutter as `?` for a question or `!` for a finding, and
-`╎` along its further lines; the caret or the mouse on it opens its text. A
+A note shows in the gutter as `◆` in the colour of its kind, blue for a
+question and orange for a finding, and `╎` along its further lines; the
+caret or the mouse on it opens its text. Below its last line stands a line
+of its own: `?` or `!` and the first line of its text, one such line for
+each note there. A note in a fold stands below the fold. The caret and the
+mouse pass over these lines, and `C` hides them for the session. A
 note belongs to the commit, the index or the worktree it was set in, and
 shows wherever that is a side of the comparison: a note in the index only
 with `--staged`. When the file changes, seam looks for the lines again by
@@ -179,7 +184,8 @@ their text and the three lines around them:
 
 - found once with all around them: the note stands there;
 - found once with at least half around them, or a copy of lines that
-  stood more than once: the mark is dimmed, it likely belongs there;
+  stood more than once: its mark and line are dimmed, it likely belongs
+  there;
 - the lines changed but what is around them is still there: the note
   stands at the changed lines;
 - found in several places as good, or nowhere: the note has no place. The

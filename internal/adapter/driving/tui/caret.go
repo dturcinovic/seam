@@ -145,10 +145,7 @@ func (s *state) spot() (spot, bool) {
 // side if the unified view splits it; ok is false for a row folded away
 // and a file not laid out.
 func (s *state) shownLine(file, row int) (int, bool) {
-	h := view.NewHalf
-	if s.Caret.Side == filediff.OldSide {
-		h = view.OldHalf
-	}
+	h := halfOf(s.Caret.Side)
 	lines := s.linesOf(file)
 	i := view.LineFor(lines, row, h)
 	if i >= len(lines) || lines[i].Fold || lines[i].Rows.Start != row {

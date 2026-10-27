@@ -25,6 +25,10 @@ type notesState struct {
 	Spots map[note.SnapshotKey][]note.Spot
 	Draft noteDraft
 	Mark  lineMark
+	// Hidden hides the notes' lines below the code; Laid counts how often
+	// they were laid in, which moves the lines of the body.
+	Hidden bool
+	Laid   int
 	// Seek is the direction of m or M into a file just opened: to its
 	// first or last note once they are placed; zero for none. At is the
 	// line of the body m or M went to last, while the body is laid out as
@@ -212,6 +216,7 @@ func (s *state) placed(u note.Update) {
 		s.Notes.Spots = make(map[note.SnapshotKey][]note.Spot)
 	}
 	s.Notes.Spots[u.Key] = u.Spots
+	s.annotateFile(ref.File)
 	if ref.File == s.Current && !s.awaitsPlaces(ref.File) {
 		s.seekPlaced()
 	}
@@ -248,21 +253,24 @@ func (s *state) notesAt(file int, w filediff.Which, i int) []note.Spot {
 	return at
 }
 
-// noteMark is the gutter's mark of line i of side w of file: the kind of
-// the first note starting there, dimmed when only likely placed, or a
-// bar for a line within a note's lines.
-func (s *state) noteMark(file int, w filediff.Which, i int) (mark string, dim bool) {
+// noteMark is the gutter's mark of line i of side w of file in the role
+// as: a diamond where the first note starts there, in its kind's colour,
+// dimmed when only likely placed, or a dim bar within a note's lines.
+func (s *state) noteMark(file int, w filediff.Which, i int) (mark string, as role) {
 	for _, sp := range s.spotsOf(file, w) {
 		switch p := sp.Place; {
 		case !p.Where.Shown() || i < p.Start-1 || i >= p.End:
 		case p.Start-1 == i:
-			return kindMark(sp.Note.Kind), p.Where == note.Likely
+			return noteStart, lookOf(sp.Note.Kind).marks(p.Where == note.Likely)
 		default:
-			mark, dim = "╎", true
+			mark, as = "╎", lookOf(sp.Note.Kind).dimMark
 		}
 	}
-	return mark, dim
+	return mark, as
 }
+
+// noteStart marks the first line of a note in the gutter.
+const noteStart = "◆"
 
 func kindMark(k note.Kind) string {
 	if k == note.Finding {

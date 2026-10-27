@@ -273,7 +273,7 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		s.startCaret()
 	case ui.JumpBack:
 		m.load(s.jumpBack())
-	case ui.AddNote, ui.NextNote, ui.PrevNote, ui.Notes:
+	case ui.AddNote, ui.NextNote, ui.PrevNote, ui.Notes, ui.NoteLines:
 		m.onNoteAction(a)
 	}
 	return m, nil

@@ -20,6 +20,8 @@ func (m *model) onNoteAction(a ui.Action) {
 		m.load(m.s.seekNote(-1))
 	case ui.Notes:
 		m.openOverview()
+	case ui.NoteLines:
+		m.s.toggleNoteLines()
 	}
 }
 
@@ -115,10 +117,11 @@ type laidKey struct {
 	gen, streamGen filediff.Gen
 	mode           view.Mode
 	stream, visit  bool
+	notes          int
 }
 
 func (s *state) laid() laidKey {
-	return laidKey{s.Current, s.ShownGen, s.Stream.Gen, s.Mode, s.Stream.On, s.visiting()}
+	return laidKey{s.Current, s.ShownGen, s.Stream.Gen, s.Mode, s.Stream.On, s.visiting(), s.Notes.Laid}
 }
 
 // seekPlaced goes to the first or last note of the file opened by

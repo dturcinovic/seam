@@ -75,10 +75,7 @@ func (l layout) text(w filediff.Which) (from, to int) {
 		from = l.List + l.gutter()
 		return from, max(from, l.List+l.panes())
 	}
-	start, p := l.paneStart(w), l.Left
-	if w == filediff.NewSide {
-		p = l.Right
-	}
+	start, p := l.paneStart(w), l.sidePane(w)
 	from = start + p.gutter()
 	return from, max(from, start+p.Width)
 }
@@ -95,11 +92,17 @@ func (l layout) paneStart(w filediff.Which) int {
 // onMarks reports whether screen column x lies in the marks of side w's
 // gutter.
 func (l layout) onMarks(w filediff.Which, x int) bool {
-	start, p := l.paneStart(w), l.Left
+	start := l.paneStart(w)
+	return x >= start && x < start+l.sidePane(w).Marks
+}
+
+// sidePane is the pane of side w; the unified view's marks and old numbers
+// are the left one's.
+func (l layout) sidePane(w filediff.Which) pane {
 	if w == filediff.NewSide && !l.Unified {
-		p = l.Right
+		return l.Right
 	}
-	return x >= start && x < start+p.Marks
+	return l.Left
 }
 
 // paneAt is the side whose pane, gutter included, holds screen column x

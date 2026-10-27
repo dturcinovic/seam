@@ -260,10 +260,7 @@ func (s *state) bringTarget() {
 	if row < 0 {
 		row = len(snap.Diff.Rows) - 1
 	}
-	half := view.NewHalf
-	if t.Side == filediff.OldSide {
-		half = view.OldHalf
-	}
+	half := halfOf(t.Side)
 	if i := view.LineForRow(lines, row); lines[i].Fold {
 		s.unfoldLine(s.bodyIndex(t.File, i))
 	}
