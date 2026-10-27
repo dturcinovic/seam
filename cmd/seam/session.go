@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/x/term"
@@ -57,6 +58,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 	if noRepo != nil {
 		logger.Zap().Info("no repository: files on disk without hovers", zap.Error(noRepo))
 	}
+	notes := notesFile(ctx, root, logger)
 
 	var (
 		changesets in.ChangesetLoader
@@ -65,8 +67,9 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 		ports      tui.Ports
 		panics     supervise.PanicFunc
 	)
-	app := fx.New(append(options(cfg, logger, root, file),
-		fx.Populate(&changesets, &watches, &releases, &ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch, &panics))...)
+	app := fx.New(append(options(cfg, logger, root, notes, file),
+		fx.Populate(&changesets, &watches, &releases, &ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch,
+			&ports.NoteWriter, &ports.NoteReader, &ports.NoteUpdates, &panics))...)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}
@@ -90,6 +93,21 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 	// holds, not what is left of it.
 	err = errors.Join(err, writeHeapProfile(cfg.HeapProfile))
 	return errors.Join(err, stopGraph(app))
+}
+
+// notesFile is where the review notes of the worktree at root lie, in
+// git's directory so that git status stays clean and each linked worktree
+// has its own; empty without a repository, and then there are none.
+func notesFile(ctx context.Context, root string, logger *observability.Logger) string {
+	if root == "" {
+		return ""
+	}
+	dir, err := git.FindGitDir(ctx, root)
+	if err != nil {
+		logger.Zap().Warn("no git directory: no notes", zap.Error(err))
+		return ""
+	}
+	return filepath.Join(dir, "seam", "notes.json")
 }
 
 // stopGraph stops app within stopBudget. The deadline is fresh rather than

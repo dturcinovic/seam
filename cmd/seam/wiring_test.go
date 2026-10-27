@@ -25,7 +25,7 @@ func TestTheGraphProvidesEveryIncomingPort(t *testing.T) {
 		updates  in.LSPUpdates
 	)
 	dir := t.TempDir()
-	opts := append(options(config.Config{}, nil, dir, configfile.File{Languages: lang.Defaults()}),
+	opts := append(options(config.Config{}, nil, dir, "", configfile.File{Languages: lang.Defaults()}),
 		fx.Populate(&loader, &reloader, &files, &hoverer, &docs, &updates))
 
 	require.NoError(t, fx.ValidateApp(opts...))

@@ -55,6 +55,16 @@ func FindRoot(ctx context.Context, dir string) (string, error) {
 	return strings.TrimSuffix(string(out), "\n"), nil
 }
 
+// FindGitDir returns git's own directory of the worktree at root, which a
+// linked worktree has apart from the others.
+func FindGitDir(ctx context.Context, root string) (string, error) {
+	out, err := run(ctx, root, "rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(string(out), "\n"), nil
+}
+
 // Open opens the repository whose worktree starts at root. It runs no git;
 // Close releases it.
 func Open(root string, panics supervise.PanicFunc) (*Repo, error) {

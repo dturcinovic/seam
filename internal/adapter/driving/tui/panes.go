@@ -12,13 +12,16 @@ import (
 // sideLine is what one pane shows of a row: the line's index in its side,
 // -1 for none, its text and how it is marked and coloured.
 type sideLine struct {
-	index  int
-	text   string
-	tone   tone
-	mark   string
-	spans  []diff.Span
-	runs   []syntax.Run
-	points []filediff.Checkpoint
+	index int
+	text  string
+	tone  tone
+	mark  string
+	// note is the mark of the notes on the line, blank for none.
+	note    string
+	noteDim bool
+	spans   []diff.Span
+	runs    []syntax.Run
+	points  []filediff.Checkpoint
 }
 
 // writeRow writes one line of file's view: both panes, the unified one, or
@@ -38,7 +41,7 @@ func writeRow(b *strings.Builder, s *state, th *theme, file int, l view.Line) {
 		writeUnified(&ln, s, lay, file, l)
 		return
 	}
-	left, right := sides(s.snapOf(file), l.Rows.Start)
+	left, right := s.notedSides(file, l.Rows.Start)
 	writePane(&ln, lay.Left, left, s.HScroll, s.caretOn(file, l.Rows.Start, filediff.OldSide))
 	ln.text("│", separatorStyle)
 	writePane(&ln, lay.Right, right, s.HScroll, s.caretOn(file, l.Rows.Start, filediff.NewSide))
@@ -49,7 +52,7 @@ func writeRow(b *strings.Builder, s *state, th *theme, file int, l view.Line) {
 // then a pane of the line's side with the new one. A changed row's halves
 // take the tones of a deletion and an insertion, as their words are marked.
 func writeUnified(ln *line, s *state, lay layout, file int, l view.Line) {
-	left, right := sides(s.snapOf(file), l.Rows.Start)
+	left, right := s.notedSides(file, l.Rows.Start)
 	sl, old := right, left.index
 	// A whole row shows the caret from either side: it keeps the side it
 	// had side by side.
@@ -69,10 +72,16 @@ func writeUnified(ln *line, s *state, lay layout, file int, l view.Line) {
 		if s.halfSide(file, l) == filediff.OldSide {
 			sl.text, sl.points, sl.runs = left.text, left.points, left.runs
 		}
+		// Both sides hold the line: either side's notes are on it.
+		if sl.note == "" {
+			sl.note, sl.noteDim = left.note, left.noteDim
+		}
 	}
 	gutter := paneStyle(sl.tone, gutterRole)
-	ln.spaces(1, gutter)
+	writeNoteMark(ln, sl)
 	writeNumber(ln, old, lay.Left.Digits, gutter)
+	// The mark stands before both numbers, not again before the new one.
+	sl.note = ""
 	writePane(ln, pane{Width: ln.free, Digits: lay.Right.Digits}, sl, s.HScroll, s.caretOn(file, l.Rows.Start, w))
 	ln.end(plain)
 }
@@ -127,7 +136,7 @@ func sides(snap *filediff.Snapshot, i int) (left, right sideLine) {
 func writePane(ln *line, p pane, sl sideLine, skip int, c caret) {
 	rest := ln.narrow(p.Width)
 	gutter := paneStyle(sl.tone, gutterRole)
-	ln.spaces(1, gutter)
+	writeNoteMark(ln, sl)
 	writeNumber(ln, sl.index, p.Digits, gutter)
 	ln.spaces(1, gutter)
 	ln.text(sl.mark, gutter)
@@ -135,4 +144,29 @@ func writePane(ln *line, p pane, sl sideLine, skip int, c caret) {
 	ln.window(sl.text, sl.points, skip, cellStyle{pane: true, tone: sl.tone, spans: sl.spans, syntax: sl.runs, caret: c})
 	ln.spaces(ln.free, textStyle(sl.tone, syntax.Plain, false))
 	ln.free = rest
+}
+
+// notedSides is sides with the marks of the notes on either side.
+func (s *state) notedSides(file, row int) (left, right sideLine) {
+	left, right = sides(s.snapOf(file), row)
+	if left.index >= 0 {
+		left.note, left.noteDim = s.noteMark(file, filediff.OldSide, left.index)
+	}
+	if right.index >= 0 {
+		right.note, right.noteDim = s.noteMark(file, filediff.NewSide, right.index)
+	}
+	return left, right
+}
+
+// writeNoteMark writes the first column of a gutter: the mark of the notes
+// on the line, or a blank.
+func writeNoteMark(ln *line, sl sideLine) {
+	switch {
+	case sl.note == "":
+		ln.spaces(1, paneStyle(sl.tone, gutterRole))
+	case sl.noteDim:
+		ln.text(sl.note, paneStyle(sl.tone, gutterRole))
+	default:
+		ln.text(sl.note, paneStyle(sl.tone, noteRole))
+	}
 }

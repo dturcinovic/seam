@@ -46,7 +46,10 @@ type Snapshot struct {
 	Columns           Columns
 	Highlights        Highlights
 	LeftDoc, RightDoc hover.Document
-	Notices           []Notice
+	// WorktreeBlob is what git would name the right side's text, where
+	// it is a worktree file: git names only what it stores.
+	WorktreeBlob change.ObjectID
+	Notices      []Notice
 }
 
 // Doc is the document of side w.

@@ -10,7 +10,7 @@ import (
 
 // WatchPaths implements out.WatchPathsReader.
 func (r *Repo) WatchPaths(ctx context.Context) (change.WatchPaths, error) {
-	dir, err := run(ctx, r.root, "rev-parse", "--absolute-git-dir")
+	dir, err := FindGitDir(ctx, r.root)
 	if err != nil {
 		return change.WatchPaths{}, err
 	}
@@ -18,7 +18,7 @@ func (r *Repo) WatchPaths(ctx context.Context) (change.WatchPaths, error) {
 	if err != nil {
 		return change.WatchPaths{}, err
 	}
-	return change.WatchPaths{Root: r.root, GitDir: strings.TrimSuffix(string(dir), "\n"), Ignored: ignored}, nil
+	return change.WatchPaths{Root: r.root, GitDir: dir, Ignored: ignored}, nil
 }
 
 // ignoredDirs lists the directories a pattern ignores. --directory names a
@@ -58,4 +58,13 @@ func (r *Repo) Ignored(ctx context.Context, paths []string) ([]string, error) {
 		return nil, err
 	}
 	return splitNUL(out), nil
+}
+
+// ObjectFormat implements out.ObjectFormatReader.
+func (r *Repo) ObjectFormat(ctx context.Context) (change.ObjectFormat, error) {
+	out, err := run(ctx, r.root, "rev-parse", "--show-object-format")
+	if err != nil {
+		return 0, err
+	}
+	return change.ParseObjectFormat(strings.TrimSuffix(string(out), "\n"))
 }

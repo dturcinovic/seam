@@ -128,6 +128,7 @@ Without a mouse, use the caret.
 | `o` | The other side of the line |
 | `K` | Hover at the caret |
 | `d` | Go to the definition |
+| `v` | Mark the line, for a note on the lines up to the caret |
 
 ## Definitions
 
@@ -140,6 +141,41 @@ Without a mouse, use the caret.
   only its new side.
 - A definition outside the repository, such as in the standard library or a
   module cache, is named in the footer.
+
+## Notes
+
+Notes are questions and findings you set at lines of the diff, to come back
+to them or, later, to hand them to an agent. They are kept per worktree in
+git's directory (`.git/seam/notes.json`), so `git status` stays clean, and
+seam processes of the same worktree see each other's notes at once.
+
+| Key | Does |
+|---|---|
+| `c` | A note at the caret's line, at the lines marked with `v`, or without the caret at the first change on screen |
+| `m` / `M` | Next, previous note, also in other files |
+| `x` | In the popup of a note: resolve it |
+
+`c` opens a field: `tab` switches between question and finding, `enter`
+saves, `alt+enter` starts a new line, `esc` discards. While it is open,
+every other key is text.
+
+A note shows in the gutter as `?` for a question or `!` for a finding, and
+`╎` along its further lines; the caret or the mouse on it opens its text. A
+note belongs to the commit, the index or the worktree it was set in, and
+shows wherever that is a side of the comparison: a note in the index only
+with `--staged`. When the file changes, seam looks for the lines again by
+their text and the three lines around them:
+
+- found once with all around them: the note stands there;
+- found once with at least half around them, or a copy of lines that
+  stood more than once: the mark is dimmed, it likely belongs there;
+- the lines changed but what is around them is still there: the note
+  stands at the changed lines;
+- found in several places as good, or nowhere: the note has no place. The
+  footer counts those on screen.
+
+With `--files` notes go only on a side that lies in the worktree. The file
+list shows the open notes of each file in its gutter.
 
 ## Watching
 

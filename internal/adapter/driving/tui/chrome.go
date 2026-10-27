@@ -188,15 +188,19 @@ func footer(s *state) (string, style) {
 		return s.Note, footerStyle
 	}
 	if s.Field.Open {
+		if s.Field.Hint != "" {
+			return fieldHints + "  " + s.Field.Hint, footerStyle
+		}
 		return fieldHints, footerStyle
 	}
+	notes := s.notesText()
 	if s.List.Focus {
-		return s.KeyText.list, footerStyle
+		return notes + s.KeyText.list, footerStyle
 	}
 	if s.Caret.On {
-		return s.KeyText.caret, footerStyle
+		return notes + s.markText() + s.KeyText.caret, footerStyle
 	}
-	return s.KeyText.view, footerStyle
+	return notes + s.KeyText.view, footerStyle
 }
 
 func modeName(m view.Mode) string {

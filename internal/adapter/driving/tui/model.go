@@ -18,6 +18,7 @@ type (
 	changesetReady struct{}
 	lspUpdated     struct{}
 	watchUpdated   struct{}
+	notesUpdated   struct{}
 )
 
 // model is the Bubble Tea model: the state, the ports Update calls, the

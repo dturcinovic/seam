@@ -85,3 +85,10 @@ type IgnoreChecker interface {
 	// ignores.
 	Ignored(ctx context.Context, paths []string) ([]string, error)
 }
+
+//counterfeiter:generate . ObjectFormatReader
+
+// ObjectFormatReader names the hash the repository names its objects by.
+type ObjectFormatReader interface {
+	ObjectFormat(ctx context.Context) (change.ObjectFormat, error)
+}

@@ -50,6 +50,9 @@ type state struct {
 	// Field is the input field, while open in front of all else. No
 	// update but its own keys changes it, so a draft survives reloads.
 	Field field
+	// Notes are the review notes: the book in brief, those on screen and
+	// the one being written.
+	Notes notesState
 	// Note is a word for the footer in place of the keys, as why a
 	// definition was not jumped to, until the next key.
 	Note string

@@ -94,12 +94,17 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.WatchPathsReader { return f.paths },
 			func() out.IgnoreChecker { return f.ignores },
 			func() out.ChangeWatcher { return f.watcher },
+			func() out.ObjectFormatReader { return &outfakes.FakeObjectFormatReader{} },
+			func() out.NoteStore { return &outfakes.FakeNoteStore{} },
+			func() out.NoteWatcher { return &outfakes.FakeNoteWatcher{} },
 			func() supervise.PanicFunc { return nil },
 		),
-		fx.Supply(limits.DefaultFileSize, lang.Defaults()),
+		// No notes: their file is that of a repository.
+		fx.Supply(limits.DefaultFileSize, lang.Defaults(), usecase.NotesSettings{}),
 		usecase.Module,
 		fx.NopLogger,
-		fx.Populate(&ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch, &loader),
+		fx.Populate(&ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch,
+			&ports.NoteWriter, &ports.NoteReader, &ports.NoteUpdates, &loader),
 	)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))

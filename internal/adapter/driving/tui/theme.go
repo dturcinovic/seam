@@ -150,6 +150,8 @@ const (
 	// changed stretch; both are dimmed rather than coloured by kind.
 	standInRole
 	inlineStandInRole
+	// noteRole is a note's mark in the gutter.
+	noteRole
 	textRole
 	// inlineRole is a changed stretch within a changed line.
 	inlineRole = textRole + role(syntax.Kinds)
@@ -263,6 +265,7 @@ func lipglossStyles(c palette) map[style]lipgloss.Style {
 	for t, bg := range backgrounds {
 		normal, strong := base.Background(bg[0]), base.Background(bg[1])
 		all[paneStyle(tone(t), gutterRole)] = normal.Foreground(c(ui.DimFg))
+		all[paneStyle(tone(t), noteRole)] = normal.Foreground(c(ui.DirFg)).Bold(true)
 		all[paneStyle(tone(t), standInRole)] = normal.Faint(true)
 		all[paneStyle(tone(t), inlineStandInRole)] = strong.Faint(true)
 		for k := range syntax.Kinds {

@@ -19,10 +19,14 @@ const popupFrame = 2
 // popupTab is how many blanks a tab takes, see lineBuilder.
 const popupTab = "    "
 
-// popup is the answer of a hover on screen: its text wrapped to its box.
+// popup is the answer of a hover on screen, or the notes at a line: its
+// text wrapped to its box. Notes is that line, nil for a hover, opened at
+// NotesX, NotesY.
 type popup struct {
-	Open  bool
-	Lines []popupLine
+	Open           bool
+	Lines          []popupLine
+	Notes          *noteLine
+	NotesX, NotesY int
 	box
 }
 

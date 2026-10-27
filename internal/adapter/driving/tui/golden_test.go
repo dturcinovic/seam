@@ -67,7 +67,7 @@ func fixtures(t *testing.T) []fixture {
 	return append([]fixture{
 		{"hunks", hunks}, {"full", full}, {"scrolled", scrolled}, {"list", list}, {"list-focused", focused},
 		{"unified-hunks", unifiedHunks}, {"unified-full", unifiedFull}, {"stream", streamFixture(t)},
-	}, append(unicode, fieldFixtures(t)...)...)
+	}, append(append(unicode, fieldFixtures(t)...), noteFixtures(t)...)...)
 }
 
 // fieldFixtures are the input field over the full view: empty, one line,

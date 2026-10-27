@@ -107,7 +107,7 @@ func fakeGraph(t *testing.T, root, fakelsp string, targets ...any) (stop func() 
 	logger, err := observability.NewLogger(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, logger.Close()) })
-	app := fx.New(append(options(cfg, logger, root, configfile.File{Languages: table}), fx.Populate(targets...))...)
+	app := fx.New(append(options(cfg, logger, root, "", configfile.File{Languages: table}), fx.Populate(targets...))...)
 	require.NoError(t, app.Err())
 	require.NoError(t, app.Start(t.Context()))
 	var once sync.Once

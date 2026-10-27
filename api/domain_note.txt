@@ -1,0 +1,288 @@
+package note // import "github.com/dturcinovic/seam/internal/domain/note"
+
+Package note holds the review notes set at places of a diff: what a note is,
+where it is anchored, how its place is found again in a later version of the
+file, and the book that keeps them all. It reads and writes no file and knows no
+format of storage.
+
+CONSTANTS
+
+const (
+	// MaxText is the most bytes of a note's text.
+	MaxText = 8 << 10
+	// MaxLines is the most lines a selection holds.
+	MaxLines = 200
+	// MaxNotes is the most notes not resolved a book holds. Resolved ones
+	// do not count, as nothing removes them; MaxFile bounds them all.
+	MaxNotes = 2000
+	// MaxFile is the most bytes the stored book may take.
+	MaxFile = 16 << 20
+)
+    Limits of the book; anything beyond is refused with a named error.
+
+
+VARIABLES
+
+var (
+	ErrTextTooLong  = errors.New("note text too long")
+	ErrEmptyText    = errors.New("note text empty")
+	ErrTooManyLines = errors.New("selection too long")
+	ErrTooManyNotes = errors.New("too many notes")
+	ErrBookTooLarge = errors.New("notes file too large")
+	ErrNoNote       = errors.New("no such note")
+	ErrDuplicateID  = errors.New("note id taken")
+	ErrInvalidRange = errors.New("invalid selection")
+	ErrInvalidKind  = errors.New("invalid note kind")
+	ErrNoOrigin     = errors.New("note anchored in no commit, index or worktree")
+	// ErrResolved is an answer to a note already resolved.
+	ErrResolved = errors.New("note resolved")
+	// ErrNotesDamaged is a stored book that cannot be read; it is never
+	// written over, as that would lose the notes in it.
+	ErrNotesDamaged = errors.New("notes file damaged")
+	// ErrNotesVersion is a stored book of a version this seam does not
+	// know; it is never written over either.
+	ErrNotesVersion = errors.New("notes file of unknown version")
+	// ErrNoBook is notes asked for outside a repository.
+	ErrNoBook = errors.New("no notes outside a repository")
+	// ErrNotesFailed answers every change once the notes' background
+	// work has panicked and runs no more.
+	ErrNotesFailed = errors.New("notes failed")
+)
+    Errors of the book and of its storage.
+
+
+TYPES
+
+type Anchor struct {
+	Path            string
+	Origin          Origin
+	Blob            change.ObjectID
+	Start, End      int
+	Lines           []string
+	Before, After   []string
+	Copies, Ordinal int
+}
+    Anchor is where a note is set: the lines Start to End of Path, 1-based and
+    End included, in the version Blob of Origin. Lines is the selection as it
+    stood, kept unchanged for the agent; Before and After are up to three lines
+    around it, to find it again. Copies is how often selection and context stood
+    in that version, and Ordinal which of them is meant.
+
+func NewAnchor(path string, origin Origin, blob change.ObjectID, lines []string, start, end int) (Anchor, error)
+    NewAnchor anchors the lines start to end of lines, the version blob of path
+    in origin.
+
+type Batch struct {
+	ID      ID
+	Session ID
+	Notes   []ID
+	At      time.Time
+}
+    Batch is a set of notes sent to one agent session.
+
+type Book struct {
+	Notes    []Note
+	Sessions []Session
+	Batches  []Batch
+}
+    Book holds all notes of a worktree, with the sessions and batches of the
+    agents that read them.
+
+func (b *Book) Add(d Draft, id ID, at time.Time) error
+    Add takes d as a new open note named id, set at at.
+
+func (b *Book) Resolve(id ID) error
+    Resolve marks note id done; a note resolved already stays so.
+
+type Claim struct {
+	ID      ID
+	Session ID
+	At      time.Time
+}
+    Claim is an agent session having taken a note.
+
+type Draft struct {
+	Kind       Kind
+	Anchor     Anchor
+	Comparison string
+	Text       string
+}
+    Draft is a note as the user writes it, before the book takes it.
+
+type Head struct {
+	ID     ID
+	Path   string
+	Origin Origin
+	Kind   Kind
+	State  State
+}
+    Head is a note in brief, as the file list and the footer count them.
+
+type ID string
+    ID names a note, a reply, a claim, a batch or a session.
+
+type Kind uint8
+    Kind is what a note asks for.
+
+const (
+	Question Kind
+	Finding
+)
+    The kinds of note. The zero value is no valid kind.
+
+func (k Kind) String() string
+    String is the kind's name in storage.
+
+type Note struct {
+	ID         ID
+	Kind       Kind
+	Anchor     Anchor
+	Comparison string
+	Text       string
+	State      State
+	Created    time.Time
+	// Claim, Batch and Replies belong to an agent taking, being sent and
+	// answering the note; the book keeps them as they are.
+	Claim   *Claim
+	Batch   ID
+	Replies []Reply
+}
+    Note is a question or finding at an anchor. Comparison describes the
+    comparison it was set in, for people and agents only: the note belongs to
+    the anchor's origin.
+
+type Op uint64
+    Op names a change to the book asked for; its outcome comes as Done.
+
+type Origin struct {
+	Kind   change.SourceKind
+	Commit change.ObjectID
+}
+    Origin is where the text a note is set on comes from: a commit, the index or
+    the worktree. A note shows in every comparison with its origin on a side.
+
+func OriginOf(s change.Source) (Origin, bool)
+    OriginOf is the origin of side s; ok is false for a file on disk, which is
+    no place for notes.
+
+func (o Origin) String() string
+    String names the origin as the user would.
+
+type Placement struct {
+	Where      Where
+	Start, End int
+}
+    Placement is where a note stands in a version of its file: Start to End,
+    1-based and End included, when Where is Shown.
+
+func Locate(a Anchor, blob change.ObjectID, lines []string) Placement
+    Locate finds a's place in lines, the version blob of a's file. In the
+    version it was set in it stands where it was set. Elsewhere it is a best
+    guess from the text around it, no proof of identity: a block pasted in with
+    the same selection and context cannot be told from the original. Rather than
+    guess between places, it answers Ambiguous.
+
+type Reply struct {
+	ID     ID
+	Author string
+	Claim  ID
+	Text   string
+	At     time.Time
+}
+    Reply is an answer to a note.
+
+type Session struct {
+	ID      ID
+	Client  string
+	PID     int
+	Started time.Time
+}
+    Session is an agent session that reads notes.
+
+type SnapshotKey struct {
+	Path   string
+	Origin Origin
+	Blob   change.ObjectID
+}
+    SnapshotKey names a side of a file as shown: its path, origin and blob.
+    The blob names the text, so a placement that comes late is still right for
+    every side with the same key.
+
+type Spot struct {
+	Note  Note
+	Place Placement
+}
+    Spot is a note and its place in a side.
+
+type State uint8
+    State is where a note stands. Only Open and Resolved are set here;
+    the states of an agent taking and answering notes come with that.
+
+const (
+	Open State
+	Resolved
+)
+    The states. The zero value is no valid state.
+
+func (s State) String() string
+    String is the state's name in storage.
+
+type Update struct {
+	Kind UpdateKind
+
+	Key   SnapshotKey
+	Spots []Spot
+
+	Op  Op
+	Err error
+
+	Heads []Head
+	Live  bool
+}
+    Update is news from the notes.
+
+type UpdateKind uint8
+    UpdateKind tells which fields of an Update are set.
+
+const (
+
+	// Placed sets Key and Spots: the notes of that side and where they
+	// stand.
+	Placed UpdateKind
+	// Done sets Op and, if it failed, Err.
+	Done
+	// StoreStatus sets Heads, all notes in brief, and Err, why the book
+	// cannot be read or is not watched, nil once it is again. Live is
+	// whether changes from elsewhere show.
+	StoreStatus
+)
+    The kinds of update. The zero value is no valid kind.
+
+type Where uint8
+    Where is how surely a note was found again.
+
+const (
+
+	// Exact is the selection with its full context at exactly one place,
+	// of a selection that stood once.
+	Exact Where
+	// Likely is the best guess, but no proof: the one place with at least
+	// half the context, or the copy by its order among as many as there
+	// were.
+	Likely
+	// Changed is the lines between the context before and after, each
+	// found once: the selection was changed within.
+	Changed
+	// Ambiguous is more than one place, none better than the others.
+	Ambiguous
+	// Orphaned is no place.
+	Orphaned
+)
+    The outcomes of Locate. The zero value is no outcome.
+
+func (w Where) Shown() bool
+    Shown reports that the outcome has a place to show the note at.
+
+func (w Where) String() string
+    String names the outcome for the user.
+

@@ -316,6 +316,18 @@ linters:
             - github.com/dturcinovic/seam/internal/app/port/out
             - github.com/dturcinovic/seam/internal/adapter/driven/statefile
 
+        driven-notestore:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/notestore/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - go.uber.org/fx
+            - github.com/dturcinovic/seam/internal/domain
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/adapter/driven/notestore
+
         # The only adapter that reaches the network, through net/http alone.
         driven-github:
           list-mode: strict

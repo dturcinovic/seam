@@ -52,6 +52,9 @@ var ErrNotACommit = errors.New("only a commit source resolves to an object")
     ErrNotACommit is returned by Resolved for a source that is no commit or an
     id that names nothing.
 
+var ErrUnknownObjectFormat = errors.New("unknown object format")
+    ErrUnknownObjectFormat is a format git names that seam does not know.
+
 
 FUNCTIONS
 
@@ -129,11 +132,27 @@ const Gitlink Mode = 0o160000
     Gitlink is the mode of a submodule: its ID names a commit of the submodule,
     not an object of this repository.
 
+type ObjectFormat uint8
+    ObjectFormat is the hash a repository names its objects by.
+
+const (
+	SHA1 ObjectFormat
+	SHA256
+)
+    The object formats. The zero value is no format.
+
+func ParseObjectFormat(s string) (ObjectFormat, error)
+    ParseObjectFormat reads the format as git names it.
+
 type ObjectID struct {
 	// Has unexported fields.
 }
     ObjectID is a git object name in hex: 40 digits for SHA-1, 64 for SHA-256.
     The zero value means no object, as git's all-zero name does.
+
+func BlobID(f ObjectFormat, data []byte) ObjectID
+    BlobID is the id git gives a blob of data in format f, as git hash-object
+    would, without writing it; zero for no format.
 
 func ParseObjectID(s string) (ObjectID, error)
     ParseObjectID checks s and returns it as an ObjectID. git's all-zero name
