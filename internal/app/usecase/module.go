@@ -30,14 +30,14 @@ var Module = fx.Module("usecase",
 // workers': git, whose processes the workers read through, stops last.
 const stopReserve = 300 * time.Millisecond
 
-func newChangesets(lc fx.Lifecycle, r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister, panics supervise.PanicFunc) *Changesets {
-	s := NewChangesets(r, c, u, panics)
+func newChangesets(lc fx.Lifecycle, r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister, p out.PathLister, panics supervise.PanicFunc) *Changesets {
+	s := NewChangesets(r, c, u, p, panics)
 	runWorker(lc, s)
 	return s
 }
 
-func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, st out.WorktreeStatter, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
-	f := NewFileDiffs(b, w, sub, st, h, languages, max, panics)
+func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, st out.WorktreeStatter, paths pathPorts, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+	f := NewFileDiffs(b, w, sub, st, PathPorts{Reader: paths.Reader, Locator: paths.Locator}, h, languages, max, panics)
 	runWorker(lc, f)
 	return f
 }
@@ -85,6 +85,14 @@ func newReleaseChecks(lc fx.Lifecycle, settings ReleaseSettings, f out.ReleaseFe
 	r := NewReleaseChecks(settings, f, s, panics)
 	lc.Append(fx.StopHook(reserved(r.Stop)))
 	return r
+}
+
+// pathPorts gathers the ports of PathPorts from the graph.
+type pathPorts struct {
+	fx.In
+
+	Reader  out.PathReader
+	Locator out.WorktreeLocator
 }
 
 // hoverPorts gathers the ports of Hovers from the graph.

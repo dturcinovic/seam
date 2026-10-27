@@ -26,4 +26,10 @@ func TestWatchesWorktree(t *testing.T) {
 	_, err = change.WatchesWorktree(commits)
 	require.ErrorIs(t, err, change.ErrNotWatchable)
 	assert.Contains(t, err.Error(), "a and b are commits")
+
+	files, err := change.NewComparison(change.File("a"), change.File("b"))
+	require.NoError(t, err)
+	_, err = change.WatchesWorktree(files)
+	require.ErrorIs(t, err, change.ErrNotWatchable)
+	assert.Contains(t, err.Error(), "files on disk")
 }

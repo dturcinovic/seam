@@ -167,10 +167,7 @@ func TestCommandLineErrors(t *testing.T) {
 }
 
 func TestOutsideARepository(t *testing.T) {
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	t.Setenv("GIT_CEILING_DIRECTORIES", os.TempDir())
-	dir := t.TempDir()
-	t.Chdir(dir)
+	dir := outsideRepo(t)
 
 	code, stdout, stderr := runSeam(t)
 

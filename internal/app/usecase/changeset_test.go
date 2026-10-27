@@ -19,6 +19,7 @@ type fakes struct {
 	revisions *outfakes.FakeRevisionResolver
 	changes   *outfakes.FakeChangeLister
 	untracked *outfakes.FakeUntrackedLister
+	paths     *outfakes.FakePathLister
 }
 
 func newChangesets() (*usecase.Changesets, fakes) {
@@ -26,11 +27,12 @@ func newChangesets() (*usecase.Changesets, fakes) {
 		revisions: &outfakes.FakeRevisionResolver{},
 		changes:   &outfakes.FakeChangeLister{},
 		untracked: &outfakes.FakeUntrackedLister{},
+		paths:     &outfakes.FakePathLister{},
 	}
 	f.revisions.ResolveCommitCalls(func(_ context.Context, rev string) (change.ObjectID, error) {
 		return change.ParseObjectID(strings.Repeat(rev[:1], 40))
 	})
-	return usecase.NewChangesets(f.revisions, f.changes, f.untracked, nil), f
+	return usecase.NewChangesets(f.revisions, f.changes, f.untracked, f.paths, nil), f
 }
 
 func comparison(t *testing.T, left, right change.Source) change.Comparison {
@@ -256,4 +258,44 @@ func TestReloadNeverBlocks(t *testing.T) {
 		uc.Drain()
 	}()
 	testsupport.Until(t, done)
+}
+
+func TestTwoFilesOnDiskAreOneChangedFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		left, right change.Source
+		want        change.ChangedFile
+	}{
+		{"both there", change.File("/tmp/x_a.go"), change.File("a.go"), change.ChangedFile{Status: change.Modified, OldPath: "a.go", NewPath: "a.go"}},
+		{"added", change.File(""), change.File("a.go"), change.ChangedFile{Status: change.Added, NewPath: "a.go"}},
+		{"deleted", change.File("/tmp/x_a.go"), change.File(""), change.ChangedFile{Status: change.Deleted, OldPath: "/tmp/x_a.go"}},
+	}
+	for _, tt := range tests {
+		uc, f := newChangesets()
+
+		cs, err := uc.LoadChangeset(t.Context(), comparison(t, tt.left, tt.right))
+		require.NoError(t, err)
+
+		assert.Equal(t, []change.ChangedFile{tt.want}, cs.Files, tt.name)
+		assert.Zero(t, f.paths.ListPathsCallCount()+f.changes.ListChangesCallCount()+f.revisions.ResolveCommitCallCount(), "%s: nothing asked", tt.name)
+	}
+}
+
+func TestTwoDirectoriesOnDiskAreListedWithoutGit(t *testing.T) {
+	uc, f := newChangesets()
+	files := []change.ChangedFile{{Status: change.Added, NewPath: "a.go"}}
+	f.paths.ListPathsReturns(files, nil)
+	c := comparison(t, change.Dir("/tmp/left"), change.Dir("/tmp/right"))
+
+	cs, err := uc.LoadChangeset(t.Context(), c)
+	require.NoError(t, err)
+
+	assert.Equal(t, change.Changeset{Comparison: c, Files: files}, cs)
+	_, left, right := f.paths.ListPathsArgsForCall(0)
+	assert.Equal(t, []string{"/tmp/left", "/tmp/right"}, []string{left, right})
+	assert.Zero(t, f.changes.ListChangesCallCount()+f.untracked.ListUntrackedCallCount())
+
+	f.paths.ListPathsReturns(nil, errors.New("boom"))
+	_, err = uc.LoadChangeset(t.Context(), c)
+	assert.ErrorContains(t, err, "boom")
 }

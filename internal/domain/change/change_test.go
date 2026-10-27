@@ -59,11 +59,32 @@ func TestSources(t *testing.T) {
 	assert.Equal(t, "unset", change.Source{}.String())
 }
 
+func TestPathSources(t *testing.T) {
+	dir := change.Dir("/tmp/left")
+	assert.Equal(t, change.KindPath, dir.Kind())
+	assert.True(t, dir.IsDir())
+	assert.Equal(t, "/tmp/left", dir.Path())
+	assert.Equal(t, "/tmp/left/sub/a.go", dir.At("sub/a.go"))
+	assert.Equal(t, "/tmp/left", dir.String())
+
+	file := change.File("/tmp/x_a.go")
+	assert.False(t, file.IsDir())
+	assert.Equal(t, "/tmp/x_a.go", file.At("x_a.go"), "a file side is its own file")
+	assert.Equal(t, "/dev/null", change.File("").String())
+
+	_, err := file.Resolved(change.ObjectID{})
+	assert.ErrorIs(t, err, change.ErrNotACommit)
+}
+
 func TestNewComparison(t *testing.T) {
 	valid := []struct{ left, right change.Source }{
 		{change.Commit("HEAD"), change.Worktree()},
 		{change.Commit("HEAD"), change.Index()},
 		{change.Commit("a"), change.Commit("b")},
+		{change.File("a"), change.File("b")},
+		{change.File(""), change.File("b")},
+		{change.File("a"), change.File("")},
+		{change.Dir("a"), change.Dir("b")},
 	}
 	for _, tt := range valid {
 		c, err := change.NewComparison(tt.left, tt.right)
@@ -80,6 +101,11 @@ func TestNewComparison(t *testing.T) {
 		{"left commit without revision", change.Commit(""), change.Worktree()},
 		{"right commit without revision", change.Commit("HEAD"), change.Commit("")},
 		{"right side unset", change.Commit("HEAD"), change.Source{}},
+		{"file against commit", change.File("a"), change.Commit("HEAD")},
+		{"commit against file", change.Commit("HEAD"), change.File("a")},
+		{"file against directory", change.File("a"), change.Dir("b")},
+		{"directory without path", change.Dir(""), change.Dir("b")},
+		{"both files missing", change.File(""), change.File("")},
 	}
 	for _, tt := range invalid {
 		_, err := change.NewComparison(tt.left, tt.right)
