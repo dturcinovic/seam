@@ -42,7 +42,7 @@ func writeEntry(b *strings.Builder, s *state, th *theme, i int) {
 		writeHeading(&ln, s.List.Items[j])
 	default:
 		f := s.List.Items[j].file
-		writeFile(&ln, s.Files[f], s.List.CountWidth, shadeOf(s, f))
+		writeFile(&ln, s.Files[f], s.List.CountWidth, s.openNotesIn(f), shadeOf(s, f))
 	}
 	ln = newLine(b, th, s.Cells, separatorWidth)
 	ln.text("│", separatorStyle)
@@ -72,11 +72,20 @@ func writeHeading(ln *line, it listItem) {
 }
 
 // writeFile writes " │ M name   +3   -1 ", the counts in columns of cw;
-// a list too narrow for them drops them.
-func writeFile(ln *line, f change.ChangedFile, cw int, sh listShade) {
+// a list too narrow for them drops them. The gutter holds the number of
+// open notes in place of its bar, + from ten on.
+func writeFile(ln *line, f change.ChangedFile, cw, notes int, sh listShade) {
 	st := listStyle(listNamePart, sh)
 	ln.spaces(itemPad, st)
-	ln.text("│ ", listStyle(listGutterPart, sh))
+	switch {
+	case notes == 0:
+		ln.text("│", listStyle(listGutterPart, sh))
+	case notes < 10:
+		ln.number(notes, 1, listStyle(listDirPart, sh))
+	default:
+		ln.text("+", listStyle(listDirPart, sh))
+	}
+	ln.spaces(1, listStyle(listGutterPart, sh))
 	ln.text(f.Status.String(), listStyle(statusPart(f.Status), sh))
 	ln.spaces(1, st)
 	name := ln.free - 2*cw - itemPad

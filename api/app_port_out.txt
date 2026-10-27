@@ -85,6 +85,37 @@ type IgnoreChecker interface {
 }
     IgnoreChecker asks git what it ignores.
 
+type NoteListener interface {
+	// Changed reports that the file may have changed, and once when the
+	// watcher is set up, as what changed before cannot be told. It must
+	// not block.
+	Changed()
+}
+    NoteListener hears from a NoteWatcher, one call at a time.
+
+type NoteStore interface {
+	// Load reads the book as it is; a missing one is empty, one that
+	// cannot be read is note.ErrNotesDamaged or note.ErrNotesVersion.
+	Load(ctx context.Context) (note.Book, error)
+	// Change reads the book, hands it to change and writes what change
+	// left, all under a lock other processes wait for. An error from
+	// change, or a book that cannot be read, writes nothing.
+	Change(ctx context.Context, change func(*note.Book) error) error
+}
+    NoteStore keeps the book of notes, shared with other processes.
+
+type NoteWatcher interface {
+	// WatchNotes watches the file named file until ctx ends and tells l.
+	// It returns nil once ctx ends and an error if watching fails.
+	WatchNotes(ctx context.Context, file string, l NoteListener) error
+}
+    NoteWatcher watches the book's file for changes from any process.
+
+type ObjectFormatReader interface {
+	ObjectFormat(ctx context.Context) (change.ObjectFormat, error)
+}
+    ObjectFormatReader names the hash the repository names its objects by.
+
 type PathLister interface {
 	ListPaths(ctx context.Context, left, right string) ([]change.ChangedFile, error)
 }

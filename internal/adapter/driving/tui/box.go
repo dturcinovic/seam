@@ -8,10 +8,11 @@ import (
 
 // box is a framed box over the body, as the hover's popup and the input
 // field are: at X, Y of W by H cells, frame included, its rows scrolled by
-// Scroll.
+// Scroll, with Title in its top edge.
 type box struct {
 	X, Y, W, H int
 	Scroll     int
+	Title      string
 }
 
 func (b box) contains(x, y int) bool {
@@ -57,7 +58,7 @@ func writeBoxLine(b *strings.Builder, bx box, row rowWriter, th *theme, m textce
 	ln := newLine(b, th, m, bx.W)
 	switch i {
 	case 0:
-		writeEdge(&ln, bx.W, "┌", "┐")
+		writeTop(&ln, bx.W, bx.Title)
 		return
 	case bx.H - 1:
 		writeEdge(&ln, bx.W, "└", "┘")
@@ -77,6 +78,18 @@ func writeBoxLine(b *strings.Builder, bx box, row rowWriter, th *theme, m textce
 func writeEdge(ln *line, w int, left, right string) {
 	ln.text(left+strings.Repeat("─", max(w-popupFrame, 0))+right, popupFrameStyle)
 	ln.end(popupFrameStyle)
+}
+
+// writeTop writes the top of the frame, with title after its corner where
+// it fits whole.
+func writeTop(ln *line, w int, title string) {
+	if title == "" || textWidth(title, ln.method)+4 > w {
+		writeEdge(ln, w, "┌", "┐")
+		return
+	}
+	ln.text("┌ ", popupFrameStyle)
+	ln.text(title, popupFrameStyle)
+	writeEdge(ln, w-textWidth(title, ln.method)-2, " ", "┐")
 }
 
 // overlay is screen line under with line i of bx over it.

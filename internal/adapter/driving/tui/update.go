@@ -27,6 +27,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 	m.s.keepCaret()
 	if m.s.screenKey() != before || m.s.Caret != caret {
 		m.dropHover()
+		if m.s.Caret != caret && m.s.Caret.On {
+			m.s.notesAtCaret()
+		}
 	}
 	return m, cmd
 }
@@ -62,6 +65,8 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 		m.onWatch()
 	case changesetReady:
 		m.onChangesets()
+	case notesUpdated:
+		m.onNotes()
 	}
 	return m, nil
 }
@@ -72,7 +77,7 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 func (m *model) fieldTakes(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		m.s.fieldKey(msg.Key())
+		m.noteField(m.s.fieldKey(msg.Key()))
 	case tea.PasteMsg:
 		m.s.fieldPaste(msg.Content)
 	case tea.MouseClickMsg, tea.MouseWheelMsg, tea.MouseMotionMsg, hoverDue:
@@ -88,12 +93,14 @@ func (m *model) onFileDiffs() {
 			m.track()
 		}
 	}
+	m.placeNotes(false)
 }
 
 func (m *model) onStream() {
 	for _, f := range m.s.streamApply(m.p.Stream.Drain()) {
 		m.trackStream(f)
 	}
+	m.placeNotes(false)
 }
 
 // onChangesets takes the reloads, and starts the one a change the watcher
@@ -150,7 +157,12 @@ func (m *model) onLSP() {
 func (m model) onKeyPress(key string) (model, tea.Cmd) {
 	m.s.Note = ""
 	k := m.s.Keys
-	if _, ok := k.Action(ui.PopupLayer, key); ok && m.s.Hover.Popup.Open {
+	popup := m.s.Hover.Popup
+	if a, ok := k.Action(ui.PopupLayer, key); ok && popup.Open && (a != ui.ResolveNote || popup.Notes != nil) {
+		if a == ui.ResolveNote {
+			m.resolveNote()
+			return m, nil
+		}
 		m.dropHover()
 		return m, nil
 	}
@@ -194,6 +206,8 @@ func (m *model) onCaretAction(a ui.Action) {
 		m.hoverAtCaret()
 	case ui.Definition:
 		m.defineAtCaret()
+	case ui.SelectLines:
+		s.markLines()
 	}
 }
 
@@ -233,6 +247,12 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		s.startCaret()
 	case ui.JumpBack:
 		m.load(s.jumpBack())
+	case ui.AddNote:
+		m.addNote()
+	case ui.NextNote:
+		m.load(s.seekNote(1))
+	case ui.PrevNote:
+		m.load(s.seekNote(-1))
 	}
 	return m, nil
 }

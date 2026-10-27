@@ -175,6 +175,13 @@ func (s *state) hoverUpdate(u hover.Update) (retry bool) {
 // onMotion follows the mouse, and waits for it to rest on a new target:
 // moving across the code asks nothing.
 func (m *model) onMotion(x, y int) tea.Cmd {
+	if l, ok := m.s.noteMarkAt(x, y); ok {
+		if p := m.s.Hover.Popup; p.Notes == nil || *p.Notes != l {
+			m.dropHover()
+			m.s.openNotes(l, x, y)
+		}
+		return nil
+	}
 	cancel, due := m.s.hoverMove(x, y)
 	m.cancel(cancel)
 	if !due {

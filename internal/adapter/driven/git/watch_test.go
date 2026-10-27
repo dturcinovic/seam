@@ -3,6 +3,7 @@ package git_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,4 +58,17 @@ func TestIgnored(t *testing.T) {
 	got, err = repo.Ignored(t.Context(), nil)
 	require.NoError(t, err)
 	assert.Empty(t, got)
+}
+
+func TestAWorktreeBlobIsNamedAsGitWouldName(t *testing.T) {
+	f := newFixture(t)
+	f.Write("a.go", "package a\r\n\x00\n")
+
+	format, err := f.open(t).ObjectFormat(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, change.SHA1, format)
+	data, err := os.ReadFile(filepath.Join(f.Dir, "a.go"))
+	require.NoError(t, err)
+	assert.Equal(t, strings.TrimSpace(f.Git("hash-object", "a.go")), change.BlobID(format, data).String())
 }

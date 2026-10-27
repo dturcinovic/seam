@@ -37,7 +37,7 @@ func TestAFileLine(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := rendered(tt.width, func(ln *line) { writeFile(ln, tt.file, 6, plainShade) })
+			got := rendered(tt.width, func(ln *line) { writeFile(ln, tt.file, 6, 0, plainShade) })
 
 			assert.Equal(t, tt.want, got)
 		})

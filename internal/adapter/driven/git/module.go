@@ -26,6 +26,7 @@ var Module = fx.Module("git",
 		fx.As(new(out.WorktreeStatter)),
 		fx.As(new(out.WatchPathsReader)),
 		fx.As(new(out.IgnoreChecker)),
+		fx.As(new(out.ObjectFormatReader)),
 	)),
 	fx.Provide(fx.Annotate(newCheckouts, fx.As(new(out.CommitCheckouts)))),
 )

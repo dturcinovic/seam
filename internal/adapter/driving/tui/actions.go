@@ -30,7 +30,7 @@ func (s *state) open(i int, fresh bool) (r filediff.Request, ok bool) {
 	}
 	if i != s.Current {
 		s.unload()
-		s.Current, s.VisitPath = i, ""
+		s.Current, s.VisitPath, s.Notes.Seek = i, "", 0
 		s.List.follow(i, s.listLines())
 	}
 	s.LoadGen++
@@ -194,6 +194,7 @@ func (s *state) place(width, height int) (laid bool) {
 	}
 	s.scrollList(0)
 	s.layoutField()
+	s.refreshNotePopup()
 	return laid
 }
 

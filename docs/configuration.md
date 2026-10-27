@@ -165,6 +165,9 @@ same key in one place are an error.
 | | `toggle_files` | `b` |
 | | `start_caret` | `i` |
 | | `jump_back` | `ctrl+o` |
+| | `note` | `c` |
+| | `next_note` | `m` |
+| | `prev_note` | `M` |
 | file list | `open` | `enter` |
 | | `back` | `esc` |
 | | `prev_folder` | `[` |
@@ -180,7 +183,9 @@ same key in one place are an error.
 | | `other_side` | `o` |
 | | `hover` | `K` |
 | | `definition` | `d` |
+| | `select_lines` | `v` |
 | popup | `close_popup` | `esc` |
+| | `resolve_note` | `x` |
 
 What the actions do is in [Usage](usage.md).
 

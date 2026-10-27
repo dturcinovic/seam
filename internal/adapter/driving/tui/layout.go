@@ -71,12 +71,21 @@ func (l layout) text(w filediff.Which) (from, to int) {
 		from = l.List + l.gutter()
 		return from, max(from, l.List+l.panes())
 	}
-	start, p := l.List, l.Left
+	start, p := l.paneStart(w), l.Left
 	if w == filediff.NewSide {
-		start, p = l.List+l.Left.Width+separatorWidth, l.Right
+		p = l.Right
 	}
 	from = start + p.gutter()
 	return from, max(from, start+p.Width)
+}
+
+// paneStart is the first screen column of side w's pane, its gutter's;
+// the unified view's one pane starts where the left one would.
+func (l layout) paneStart(w filediff.Which) int {
+	if w == filediff.NewSide && !l.Unified {
+		return l.List + l.Left.Width + separatorWidth
+	}
+	return l.List
 }
 
 // sideAt is the side whose text holds screen column x.

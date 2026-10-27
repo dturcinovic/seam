@@ -23,6 +23,10 @@ type Ports struct {
 	Hover  in.Hoverer
 	Define in.Definer
 	Watch  in.WatchUpdates
+
+	NoteWriter  in.NoteWriter
+	NoteReader  in.NoteReader
+	NoteUpdates in.NoteUpdates
 }
 
 // IO is where the program reads keys and writes the screen; nil means the

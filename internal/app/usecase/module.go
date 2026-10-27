@@ -23,6 +23,7 @@ var Module = fx.Module("usecase",
 		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.Definer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 		fx.Annotate(newWatches, fx.As(new(in.WatchStarter)), fx.As(new(in.WatchUpdates))),
 		fx.Annotate(newReleaseChecks, fx.As(new(in.ReleaseNotifier))),
+		fx.Annotate(newNotes, fx.As(new(in.NoteWriter)), fx.As(new(in.NoteReader)), fx.As(new(in.NoteUpdates))),
 	),
 )
 
@@ -36,8 +37,8 @@ func newChangesets(lc fx.Lifecycle, r out.RevisionResolver, c out.ChangeLister, 
 	return s
 }
 
-func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, st out.WorktreeStatter, paths out.PathReader, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
-	f := NewFileDiffs(b, w, sub, st, paths, h, languages, max, panics)
+func newFileDiffs(lc fx.Lifecycle, b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, st out.WorktreeStatter, paths out.PathReader, formats out.ObjectFormatReader, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+	f := NewFileDiffs(b, w, sub, st, paths, formats, h, languages, max, panics)
 	runWorker(lc, f)
 	return f
 }
@@ -85,6 +86,12 @@ func newReleaseChecks(lc fx.Lifecycle, settings ReleaseSettings, f out.ReleaseFe
 	r := NewReleaseChecks(settings, f, s, panics)
 	lc.Append(fx.StopHook(reserved(r.Stop)))
 	return r
+}
+
+func newNotes(lc fx.Lifecycle, set NotesSettings, s out.NoteStore, w out.NoteWatcher, panics supervise.PanicFunc) *Notes {
+	n := NewNotes(set, s, w, panics)
+	runWorker(lc, n)
+	return n
 }
 
 // hoverPorts gathers the ports of Hovers from the graph.

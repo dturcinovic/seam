@@ -112,7 +112,10 @@ type Snapshot struct {
 	Columns           Columns
 	Highlights        Highlights
 	LeftDoc, RightDoc hover.Document
-	Notices           []Notice
+	// WorktreeBlob is what git would name the right side's text, where
+	// it is a worktree file: git names only what it stores.
+	WorktreeBlob change.ObjectID
+	Notices      []Notice
 }
     Snapshot is the loaded diff of a file. Notices say what it leaves out;
     a side that is too large or binary leaves the diff empty. Columns index the

@@ -37,6 +37,7 @@ type FileDiffs struct {
 	submodules  out.SubmoduleReader
 	stats       out.WorktreeStatter
 	paths       out.PathReader
+	formats     out.ObjectFormatReader
 	highlighter out.Highlighter
 	languages   lang.Table
 	max         limits.FileSize
@@ -45,13 +46,17 @@ type FileDiffs struct {
 	cache    *cache
 	seed     maphash.Seed
 	versions *versions
+	// format is asked once, by the worker alone; it stays zero outside a
+	// repository, and worktree files then have no blob.
+	format      change.ObjectFormat
+	formatAsked bool
 }
 
 // NewFileDiffs returns the use case over its ports. Its worker runs between
 // Start and Stop.
-func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, s out.WorktreeStatter, paths out.PathReader, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, s out.WorktreeStatter, paths out.PathReader, formats out.ObjectFormatReader, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
 	f := &FileDiffs{
-		blobs: b, worktree: w, submodules: sub, stats: s, paths: paths, highlighter: h, languages: languages, max: max, budget: diffBudget,
+		blobs: b, worktree: w, submodules: sub, stats: s, paths: paths, formats: formats, highlighter: h, languages: languages, max: max, budget: diffBudget,
 		cache:    newCache(cacheEntries, cacheBytes),
 		seed:     maphash.MakeSeed(),
 		versions: newVersions(),
@@ -194,19 +199,30 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	switch {
 	case s.File.NewMode == change.Gitlink:
 	case r.ReadsWorktree():
-		f.worktreeDoc(s, e, s.File.NewPath, newLang, new)
+		f.worktreeDoc(ctx, s, e, s.File.NewPath, newLang, new)
 	case r.Comparison.Right.Kind() == change.KindCommit && s.File.NewPath != "":
 		s.RightDoc = hover.Document{Commit: r.Comparison.Right.ID(), Path: s.File.NewPath, Lang: newLang, Version: commitVersion, Text: new}
 	case r.Comparison.Right.Kind() == change.KindPath && s.File.WorktreePath != "":
-		f.worktreeDoc(s, e, s.File.WorktreePath, newLang, new)
+		f.worktreeDoc(ctx, s, e, s.File.WorktreePath, newLang, new)
 	}
 	return nil
 }
 
 // worktreeDoc makes the worktree file path the right document.
-func (f *FileDiffs) worktreeDoc(s *filediff.Snapshot, e *cached, path string, l lang.Lang, text string) {
+func (f *FileDiffs) worktreeDoc(ctx context.Context, s *filediff.Snapshot, e *cached, path string, l lang.Lang, text string) {
 	e.sum = maphash.String(f.seed, text)
 	s.RightDoc = hover.Document{Path: path, Lang: l, Version: f.versions.of(path, e.sum), Text: text}
+	s.WorktreeBlob = change.BlobID(f.objectFormat(ctx), []byte(text))
+}
+
+// objectFormat is the repository's object format, asked the first time.
+// Failing to ask costs only the blobs of worktree files: notes on them.
+func (f *FileDiffs) objectFormat(ctx context.Context) change.ObjectFormat {
+	if !f.formatAsked {
+		f.format, _ = f.formats.ObjectFormat(ctx)
+		f.formatAsked = ctx.Err() == nil
+	}
+	return f.format
 }
 
 // detect is the language of one side; a submodule's has none.

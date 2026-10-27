@@ -35,7 +35,7 @@ func internalFileDiffs(old, new string) *FileDiffs {
 		}
 		return b.Tokens(), true
 	})
-	return NewFileDiffs(blobs, worktree, &outfakes.FakeSubmoduleReader{}, &outfakes.FakeWorktreeStatter{}, &outfakes.FakePathReader{}, highlighter, lang.Defaults(), limits.DefaultFileSize, nil)
+	return NewFileDiffs(blobs, worktree, &outfakes.FakeSubmoduleReader{}, &outfakes.FakeWorktreeStatter{}, &outfakes.FakePathReader{}, &outfakes.FakeObjectFormatReader{}, highlighter, lang.Defaults(), limits.DefaultFileSize, nil)
 }
 
 func request(t *testing.T, path string) filediff.Request {

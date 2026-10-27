@@ -68,6 +68,9 @@ const (
 	ToggleFiles
 	StartCaret
 	JumpBack
+	AddNote
+	NextNote
+	PrevNote
 
 	Open
 	Back
@@ -85,8 +88,10 @@ const (
 	OtherSide
 	Hover
 	Definition
+	SelectLines
 
 	ClosePopup
+	ResolveNote
 	// Actions is the number of actions, no action itself.
 	Actions
 )
