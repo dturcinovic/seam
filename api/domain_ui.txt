@@ -19,7 +19,7 @@ const (
     The bounds and defaults of the settings; the bounds catch a typo rather than
     limit a taste.
 
-const Colours = ChangedFg + 1 + Colour(syntax.Kinds)
+const Colours = firstKindColour + Colour(syntax.Kinds)
     Colours is the number of roles, no role itself.
 
 
@@ -136,6 +136,11 @@ const (
 	DeletedFg
 	InsertedFg
 	ChangedFg
+	// The backgrounds of the line under the mouse, by what happened to it.
+	HoverBg
+	DeletedHoverBg
+	InsertedHoverBg
+	ChangedHoverBg
 )
     The roles of the palette.
 

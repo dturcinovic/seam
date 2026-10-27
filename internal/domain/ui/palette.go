@@ -45,12 +45,17 @@ const (
 	DeletedFg
 	InsertedFg
 	ChangedFg
+	// The backgrounds of the line under the mouse, by what happened to it.
+	HoverBg
+	DeletedHoverBg
+	InsertedHoverBg
+	ChangedHoverBg
 )
 
-const firstKindColour = ChangedFg + 1
+const firstKindColour = ChangedHoverBg + 1
 
 // Colours is the number of roles, no role itself.
-const Colours = ChangedFg + 1 + Colour(syntax.Kinds)
+const Colours = firstKindColour + Colour(syntax.Kinds)
 
 // KindColour is the role of text of kind k.
 func KindColour(k syntax.Kind) Colour {
@@ -83,6 +88,8 @@ func colourNames() [Colours]string {
 		SelectedBg: "selected_bg", SelectedFg: "selected_fg", DirFg: "dir_fg",
 		GutterFg: "gutter_fg", ZeroFg: "zero_fg",
 		DeletedFg: "deleted_fg", InsertedFg: "inserted_fg", ChangedFg: "changed_fg",
+		HoverBg: "hover_bg", DeletedHoverBg: "deleted_hover_bg",
+		InsertedHoverBg: "inserted_hover_bg", ChangedHoverBg: "changed_hover_bg",
 	}
 	copy(names[firstKindColour:], kinds[:])
 	return names
@@ -164,6 +171,7 @@ func Dark() Palette {
 		GutterFg: "#393b40", ZeroFg: "#4a4d52",
 		// Bright enough to find on the scrollbar's thumb.
 		DeletedFg: "#e06c75", InsertedFg: "#98c379", ChangedFg: "#61afef",
+		HoverBg: "#232528", DeletedHoverBg: "#4a292d", InsertedHoverBg: "#25432b", ChangedHoverBg: "#253858",
 		firstKindColour + Colour(syntax.Keyword):   "#c678dd",
 		firstKindColour + Colour(syntax.Type):      "#e5c07b",
 		firstKindColour + Colour(syntax.Function):  "#61afef",
@@ -192,6 +200,7 @@ func Light() Palette {
 		SelectedBg: "#cfe0ff", SelectedFg: "#000000", DirFg: "#0550ae",
 		GutterFg: "#d0d0d0", ZeroFg: "#b0b0b0",
 		DeletedFg: "#cf222e", InsertedFg: "#1a7f37", ChangedFg: "#0969da",
+		HoverBg: "#f2f3f5", DeletedHoverBg: "#ffd9d4", InsertedHoverBg: "#d0f8da", ChangedHoverBg: "#cfe5ff",
 		firstKindColour + Colour(syntax.Keyword):   "#a626a4",
 		firstKindColour + Colour(syntax.Type):      "#986801",
 		firstKindColour + Colour(syntax.Function):  "#4078f2",

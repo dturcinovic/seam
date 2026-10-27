@@ -13,6 +13,10 @@ const chrome = 2
 // separatorWidth is the column between the panes.
 const separatorWidth = 1
 
+// noteMarkCols is the columns at the start of a gutter for the marks of
+// the notes, as wide as the plus the mouse is offered.
+const noteMarkCols = 3
+
 // scrollbarWidth is the column at the right edge that shows where the
 // changes are and which part of the file is on the screen.
 const scrollbarWidth = 1
@@ -58,7 +62,7 @@ func (l layout) bodyLine(x, y int) (i int, ok bool) {
 // the old line number before the new side's, as writeUnified does.
 func (l layout) gutter() int {
 	if l.Unified {
-		return 1 + l.Left.Digits + l.Right.gutter()
+		return noteMarkCols + l.Left.Digits + l.unifiedRight().gutter()
 	}
 	return l.Left.gutter()
 }
@@ -86,6 +90,16 @@ func (l layout) paneStart(w filediff.Which) int {
 		return l.List + l.Left.Width + separatorWidth
 	}
 	return l.List
+}
+
+// onMarks reports whether screen column x lies in the marks of side w's
+// gutter.
+func (l layout) onMarks(w filediff.Which, x int) bool {
+	start, p := l.paneStart(w), l.Left
+	if w == filediff.NewSide && !l.Unified {
+		p = l.Right
+	}
+	return x >= start && x < start+p.Marks
 }
 
 // paneAt is the side whose pane, gutter included, holds screen column x
@@ -153,13 +167,21 @@ func (l layout) shown() int {
 }
 
 // pane is one side on the screen: its Width in columns, the gutter
-// included, and Digits for the largest line number of its side.
+// included, Digits for the largest line number of its side and Marks for
+// the column of the notes' marks.
 type pane struct {
-	Width, Digits int
+	Width, Digits, Marks int
 }
 
-// gutter is the width of " 123 ~ ": a line number and the mark of the row.
-func (p pane) gutter() int { return p.Digits + 4 }
+// gutter is the width of " ? 123 ~ ": the marks of the notes, a line
+// number and the mark of the row.
+func (p pane) gutter() int { return p.Marks + p.Digits + 3 }
+
+// unifiedRight is the new side's part of the unified gutter: the marks
+// stand before both numbers, so one column parts them.
+func (l layout) unifiedRight() pane {
+	return pane{Digits: l.Right.Digits, Marks: 1}
+}
 
 // computeLayout splits width between a file list of list columns, both
 // panes of d, or the one of a unified view if unified says so for the
@@ -169,6 +191,7 @@ func computeLayout(width, height, list int, d diff.FileDiff, unified func(width 
 	l := layout{Width: width, Height: height, Body: max(height-chrome, 1), List: list}
 	l.Unified = unified(max(width-list, 0))
 	l.Left.Digits, l.Right.Digits = digits(len(d.Old.Lines)), digits(len(d.New.Lines))
+	l.Left.Marks, l.Right.Marks = noteMarkCols, noteMarkCols
 	if !l.Unified {
 		l.Left.Width = max((l.panes()-separatorWidth)/2, 0)
 		l.Right.Width = max(l.panes()-separatorWidth-l.Left.Width, 0)

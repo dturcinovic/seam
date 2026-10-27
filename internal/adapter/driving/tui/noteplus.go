@@ -1,6 +1,10 @@
 package tui
 
-import "github.com/dturcinovic/seam/internal/domain/filediff"
+import (
+	"fmt"
+
+	"github.com/dturcinovic/seam/internal/domain/filediff"
+)
 
 // plusAt is the line whose gutter offers the mouse at screen cell x, y a
 // new note: the line of the side under it, if that side takes notes and
@@ -26,6 +30,20 @@ func (s *state) plusAt(x, y int) (noteLine, bool) {
 	return noteLine{}, false
 }
 
+// plusText is the footer's word on the plus, empty while none shows.
+func (s *state) plusText() string {
+	h := s.Hover
+	// A note that came since the mouse moved takes the line, as markSide
+	// draws it.
+	if !h.PlusOn {
+		return ""
+	}
+	if mark, _ := s.noteMark(h.Plus.File, h.Plus.Side, h.Plus.Line); mark != "" {
+		return ""
+	}
+	return fmt.Sprintf("click %s to note line %d  ", plusMark, h.Plus.Line+1)
+}
+
 // plusOn reports whether line i of side w of file shows the plus.
 func (s *state) plusOn(file int, w filediff.Which, i int) bool {
 	h := &s.Hover
@@ -38,7 +56,7 @@ func (s *state) plusOn(file int, w filediff.Which, i int) bool {
 func (m *model) clickPlus(x, y int) bool {
 	h := m.s.Hover
 	l, ok := m.s.plusAt(x, y)
-	if !ok || !h.PlusOn || l != h.Plus || x != m.s.layoutOf(l.File).paneStart(l.Side) {
+	if !ok || !h.PlusOn || l != h.Plus || !m.s.layoutOf(l.File).onMarks(l.Side, x) {
 		return false
 	}
 	m.s.List.blur()

@@ -16,9 +16,11 @@ type sideLine struct {
 	text  string
 	tone  tone
 	mark  string
-	// note is the mark of the notes on the line, blank for none.
+	// note is the mark of the notes on the line, blank for none; hover says
+	// the line is under the mouse, which offers a new note there.
 	note    string
 	noteDim bool
+	hover   bool
 	spans   []diff.Span
 	runs    []syntax.Run
 	points  []filediff.Checkpoint
@@ -74,15 +76,20 @@ func writeUnified(ln *line, s *state, lay layout, file int, l view.Line) {
 		}
 		// Both sides hold the line: either side's notes are on it.
 		if sl.note == "" {
-			sl.note, sl.noteDim = left.note, left.noteDim
+			sl.note, sl.noteDim, sl.hover = left.note, left.noteDim, left.hover
 		}
 	}
+	if sl.hover {
+		sl.tone, sl.hover = sl.tone.hovered(), false
+	}
 	gutter := paneStyle(sl.tone, gutterRole)
-	writeNoteMark(ln, sl)
+	writeNoteMark(ln, sl, noteMarkCols)
 	writeNumber(ln, old, lay.Left.Digits, gutter)
 	// The mark stands before both numbers, not again before the new one.
 	sl.note = ""
-	writePane(ln, pane{Width: ln.free, Digits: lay.Right.Digits}, sl, s.HScroll, s.caretOn(file, l.Rows.Start, w))
+	p := lay.unifiedRight()
+	p.Width = ln.free
+	writePane(ln, p, sl, s.HScroll, s.caretOn(file, l.Rows.Start, w))
 	ln.end(plain)
 }
 
@@ -135,8 +142,11 @@ func sides(snap *filediff.Snapshot, i int) (left, right sideLine) {
 // narrow.
 func writePane(ln *line, p pane, sl sideLine, skip int, c caret) {
 	rest := ln.narrow(p.Width)
+	if sl.hover {
+		sl.tone = sl.tone.hovered()
+	}
 	gutter := paneStyle(sl.tone, gutterRole)
-	writeNoteMark(ln, sl)
+	writeNoteMark(ln, sl, p.Marks)
 	writeNumber(ln, sl.index, p.Digits, gutter)
 	ln.spaces(1, gutter)
 	ln.text(sl.mark, gutter)
@@ -161,19 +171,28 @@ func (s *state) markSide(sl *sideLine, file int, w filediff.Which) {
 	}
 	sl.note, sl.noteDim = s.noteMark(file, w, sl.index)
 	if sl.note == "" && s.plusOn(file, w, sl.index) {
-		sl.note = "+"
+		sl.note, sl.hover = plusMark, true
 	}
 }
 
-// writeNoteMark writes the first column of a gutter: the mark of the notes
-// on the line, or a blank.
-func writeNoteMark(ln *line, sl sideLine) {
-	switch {
-	case sl.note == "":
-		ln.spaces(1, paneStyle(sl.tone, gutterRole))
-	case sl.noteDim:
-		ln.text(sl.note, paneStyle(sl.tone, gutterRole))
-	default:
-		ln.text(sl.note, paneStyle(sl.tone, noteRole))
+// plusMark is the plus the mouse is offered, as wide as the column of the
+// marks.
+const plusMark = "[+]"
+
+// writeNoteMark writes the first marks columns of a gutter: the mark of the
+// notes on the line in their middle, or blanks.
+func writeNoteMark(ln *line, sl sideLine, marks int) {
+	gutter := paneStyle(sl.tone, gutterRole)
+	if sl.note == "" {
+		ln.spaces(marks, gutter)
+		return
 	}
+	st := paneStyle(sl.tone, noteRole)
+	if sl.noteDim {
+		st = gutter
+	}
+	pad := max(marks-textWidth(sl.note, ln.method), 0)
+	ln.spaces(pad/2, gutter)
+	ln.text(sl.note, st)
+	ln.spaces(pad-pad/2, gutter)
 }

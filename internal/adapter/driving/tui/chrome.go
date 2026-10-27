@@ -202,7 +202,7 @@ func footer(s *state) (string, style) {
 	if s.Field.Open {
 		return s.Field.keysText(), footerStyle
 	}
-	notes := s.notesText()
+	notes := s.notesText() + s.plusText()
 	if s.Notes.Overview.Open {
 		return notes + s.KeyText.overview, footerStyle
 	}

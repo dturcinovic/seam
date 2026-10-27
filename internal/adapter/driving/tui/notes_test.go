@@ -218,7 +218,8 @@ func TestPlacedNotesShowInTheGutter(t *testing.T) {
 	}})
 
 	lines := plainLines(&m.s)
-	right := m.s.Layout.Left.Width + separatorWidth
+	// The mark stands in the middle of its columns.
+	right := m.s.Layout.Left.Width + separatorWidth + 1
 	mark := func(line int) string { return string([]rune(lines[bodyTop+line])[right]) }
 	assert.Equal(t, "?", mark(1))
 	assert.Equal(t, "╎", mark(2), "the note's further lines")

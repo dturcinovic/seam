@@ -160,9 +160,10 @@ seam processes of the same worktree see each other's notes at once.
 saves, `alt+enter` starts a new line, `esc` discards; its bottom edge
 names these keys. While it is open, every other key is text.
 
-With the mouse, a line without a note shows a `+` in the gutter of the
-side under the mouse; a click on it opens the field for that line, on
-either side. Several lines are noted with the caret and `v`.
+With the mouse, a line without a note lights up and shows `[+]` in the
+gutter of the side under the mouse, and the footer names it; a click on
+it opens the field for that line, on either side. Several lines are noted
+with the caret and `v`.
 
 A note shows in the gutter as `?` for a question or `!` for a finding, and
 `╎` along its further lines; the caret or the mouse on it opens its text. A
