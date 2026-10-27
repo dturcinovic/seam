@@ -148,3 +148,19 @@ func TestTheGoldenFieldsShowTheirCases(t *testing.T) {
 	assert.Greater(t, scrolled.Scroll, 0)
 	assert.Less(t, scrolled.H, len(scrolled.Rows)+popupFrame)
 }
+
+func TestTheFrameNamesTheKeysWhereTheyFit(t *testing.T) {
+	for _, c := range []struct {
+		width int
+		want  string
+	}{
+		{80, "└ " + fieldHints + "  tab question or finding ─"},
+		{40, "└" + strings.Repeat("─", 38) + "┘"},
+	} {
+		s := screen(t, c.width)
+		s.openField(noteLimit, 0, 5)
+		s.Field.Hint = "tab question or finding"
+		box := boxLines(*s)
+		assert.Contains(t, box[len(box)-1], c.want, "width %d", c.width)
+	}
+}

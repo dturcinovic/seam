@@ -12,7 +12,8 @@ import (
 )
 
 // hoverState is the hover under the mouse: the target it rests on, the
-// request out for it and the popup with its answer.
+// request out for it, the popup with its answer and the plus it is
+// offered for a new note.
 type hoverState struct {
 	// Target is what the mouse rests on, if On; X and Y are the cell, where
 	// the popup opens.
@@ -29,6 +30,9 @@ type hoverState struct {
 	Inflight hover.ReqID
 	Waiting  bool
 	Popup    popup
+	// Plus is the line whose gutter offers the mouse a new note, if PlusOn.
+	Plus   noteLine
+	PlusOn bool
 }
 
 // screenKey is what decides the text under each cell of the panes.
@@ -89,13 +93,15 @@ func (s *state) hoverNow(t hoverTarget, x, y int) (cancel hover.ReqID, seq uint6
 }
 
 // hoverReset forgets the target and closes the popup, as when what is under
-// the mouse moved; cancel names the request to drop.
+// the mouse moved, and so takes the plus away; cancel names the request to
+// drop.
 func (s *state) hoverReset() (cancel hover.ReqID) {
 	h := &s.Hover
 	cancel = h.Inflight
 	h.Target, h.On = hoverTarget{}, false
 	h.Inflight, h.Waiting = 0, false
 	h.Popup = popup{}
+	h.PlusOn = false
 	return cancel
 }
 
@@ -180,10 +186,16 @@ func (m *model) onMotion(x, y int) tea.Cmd {
 			m.dropHover()
 			m.s.openNotes(l, x, y)
 		}
+		m.s.Hover.PlusOn = false
 		return nil
 	}
 	cancel, due := m.s.hoverMove(x, y)
 	m.cancel(cancel)
+	// After the move, whose reset takes the plus away. Over the popup the
+	// mouse points at no line.
+	h := &m.s.Hover
+	h.Plus, h.PlusOn = m.s.plusAt(x, y)
+	h.PlusOn = h.PlusOn && !h.Popup.contains(x, y)
 	if !due {
 		return nil
 	}

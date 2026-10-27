@@ -41,7 +41,8 @@ func notedState(t *testing.T, set ui.Settings, width int) *state {
 }
 
 // noteFixtures are the marks of notes side by side and unified, with the
-// counts of the list, the popup of a note and the field writing one.
+// counts of the list, the popup of a note, the field writing one, the
+// overview and the plus offered for a new one.
 func noteFixtures(t *testing.T) []fixture {
 	t.Helper()
 	split := notedState(t, splitSettings(), 140)
@@ -66,7 +67,14 @@ func noteFixtures(t *testing.T) []fixture {
 		book = append(book, n)
 	}
 	overview.takeOverview(note.Update{Kind: note.Overview, Notes: book})
-	return []fixture{{"notes-split", split}, {"notes-unified", unified}, {"notes-popup", popup}, {"notes-field", field}, {"notes-overview", overview}}
+	plusSplit := notedState(t, splitSettings(), 140)
+	plusSplit.Hover.Plus, plusSplit.Hover.PlusOn = noteLine{Side: filediff.NewSide, Line: 0}, true
+	plusUnified := notedState(t, ui.DefaultSettings(), 100)
+	plusUnified.Hover.Plus, plusUnified.Hover.PlusOn = noteLine{Side: filediff.NewSide, Line: 0}, true
+	return []fixture{
+		{"notes-split", split}, {"notes-unified", unified}, {"notes-popup", popup}, {"notes-field", field}, {"notes-overview", overview},
+		{"notes-plus-split", plusSplit}, {"notes-plus-unified", plusUnified},
+	}
 }
 
 func TestTheGoldenNotesShowTheirCases(t *testing.T) {
@@ -89,4 +97,7 @@ func TestTheGoldenNotesShowTheirCases(t *testing.T) {
 	assert.Contains(t, strings.Join(byName["notes-field"], "\n"), "┌ finding ")
 	assert.Contains(t, byName["notes-field"][len(byName["notes-field"])-1], "tab question or finding")
 	assert.Contains(t, strings.Join(byName["notes-overview"], "\n"), "┌ notes ")
+	assert.Contains(t, byName["notes-plus-split"][bodyTop], "│+ 1   0", "the plus stands where a mark would")
+	assert.Contains(t, byName["notes-plus-unified"][bodyTop], "+ 1  1   0")
+	assert.Contains(t, strings.Join(byName["notes-field"], "\n"), "└ enter done  alt+enter new line  esc discard  tab question or finding ─")
 }

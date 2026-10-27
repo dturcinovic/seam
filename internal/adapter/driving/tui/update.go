@@ -338,8 +338,9 @@ func (mo motion) steps(n, height int) int {
 	return mo.lines
 }
 
-// onClick opens the file clicked in the list; a click in the panes takes
-// the focus from the list and unfolds a fold. Only the left button counts.
+// onClick opens the file clicked in the list, or the field for a note at a
+// plus; a click in the panes takes the focus from the list and unfolds a
+// fold. Only the left button counts.
 func (m *model) onClick(c tea.MouseClickMsg) {
 	// A click on the popup is not for what lies under it.
 	if c.Button != tea.MouseLeft || m.s.Hover.Popup.contains(c.X, c.Y) {
@@ -354,6 +355,9 @@ func (m *model) onClick(c tea.MouseClickMsg) {
 	}
 	if m.s.Layout.inList(c.X, c.Y) {
 		m.load(m.s.clickList(c.X, c.Y))
+		return
+	}
+	if m.clickPlus(c.X, c.Y) {
 		return
 	}
 	if _, ok := m.s.Layout.bodyLine(c.X, c.Y); ok {

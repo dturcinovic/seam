@@ -78,6 +78,15 @@ func (s *state) layoutField() {
 	f.Scroll = min(max(f.Scroll, f.Row-shown+1, 0), f.Row, max(len(f.Rows)-shown, 0))
 }
 
+// keysText names the field's keys, with the owner's for tab, for the
+// footer and the bottom of the field's frame.
+func (f *field) keysText() string {
+	if f.Hint != "" {
+		return fieldHints + "  " + f.Hint
+	}
+	return fieldHints
+}
+
 func (f *field) contains(x, y int) bool {
 	return f.Open && f.box.contains(x, y)
 }

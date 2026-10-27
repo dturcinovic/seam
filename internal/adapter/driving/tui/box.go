@@ -8,11 +8,11 @@ import (
 
 // box is a framed box over the body, as the hover's popup and the input
 // field are: at X, Y of W by H cells, frame included, its rows scrolled by
-// Scroll, with Title in its top edge.
+// Scroll, with Title in its top edge and Foot in its bottom one.
 type box struct {
-	X, Y, W, H int
-	Scroll     int
-	Title      string
+	X, Y, W, H  int
+	Scroll      int
+	Title, Foot string
 }
 
 func (b box) contains(x, y int) bool {
@@ -58,10 +58,10 @@ func writeBoxLine(b *strings.Builder, bx box, row rowWriter, th *theme, m textce
 	ln := newLine(b, th, m, bx.W)
 	switch i {
 	case 0:
-		writeTop(&ln, bx.W, bx.Title)
+		writeTitled(&ln, bx.W, bx.Title, "┌", "┐")
 		return
 	case bx.H - 1:
-		writeEdge(&ln, bx.W, "└", "┘")
+		writeTitled(&ln, bx.W, bx.Foot, "└", "┘")
 		return
 	}
 	ln.text("│", popupFrameStyle)
@@ -80,16 +80,17 @@ func writeEdge(ln *line, w int, left, right string) {
 	ln.end(popupFrameStyle)
 }
 
-// writeTop writes the top of the frame, with title after its corner where
-// it fits whole.
-func writeTop(ln *line, w int, title string) {
+// writeTitled writes the top or the bottom of the frame between its
+// corners left and right, with title after the left one where it fits
+// whole.
+func writeTitled(ln *line, w int, title, left, right string) {
 	if title == "" || textWidth(title, ln.method)+4 > w {
-		writeEdge(ln, w, "┌", "┐")
+		writeEdge(ln, w, left, right)
 		return
 	}
-	ln.text("┌ ", popupFrameStyle)
+	ln.text(left+" ", popupFrameStyle)
 	ln.text(title, popupFrameStyle)
-	writeEdge(ln, w-textWidth(title, ln.method)-2, " ", "┐")
+	writeEdge(ln, w-textWidth(title, ln.method)-2, " ", right)
 }
 
 // overlay is screen line under with line i of bx over it.

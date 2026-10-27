@@ -27,21 +27,30 @@ func (m *model) addNote() {
 		m.s.Note = "no lines here to note"
 		return
 	}
+	if m.openNote(t) {
+		// The lines marked are taken; a click on a plus leaves them marked.
+		m.s.Notes.Mark = lineMark{}
+	}
+}
+
+// openNote opens the field for a note at the lines of t; ok is false
+// where none can go, as the footer then says.
+func (m *model) openNote(t noteTarget) (ok bool) {
 	k, ok := m.s.noteKey(t.File, t.Side)
 	if !ok {
 		m.s.Note = "no notes on this side: it is no commit, index or worktree file"
-		return
+		return false
 	}
 	a, err := note.NewAnchor(k.Path, k.Origin, k.Blob, sideText(m.s.snapOf(t.File), t.Side), t.From+1, t.To+1)
 	if err != nil {
 		m.s.Note = "no note: " + err.Error()
-		return
+		return false
 	}
-	m.s.Notes.Mark = lineMark{}
 	m.openField(note.MaxText, t.X, t.Y)
 	m.s.Notes.Draft = noteDraft{Kind: note.Question, Anchor: a, Comparison: comparisonText(&m.s)}
 	m.s.Field.Title = note.Question.String()
 	m.s.Field.Hint = "tab question or finding"
+	return true
 }
 
 // comparisonText names the comparison for whoever reads the note.

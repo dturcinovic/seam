@@ -76,7 +76,9 @@ func (s *state) boxesOver(y int, over []boxOn) []boxOn {
 		over = append(over, boxOn{p.box, p.writeRow})
 	}
 	if f := &s.Field; f.contains(f.X, y) {
-		over = append(over, boxOn{f.box, f.writeRow})
+		b := f.box
+		b.Foot = f.keysText()
+		over = append(over, boxOn{b, f.writeRow})
 	}
 	return over
 }

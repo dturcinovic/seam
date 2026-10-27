@@ -58,7 +58,7 @@ func (s *state) targetAt(x, y int, prev hoverTarget) (hoverTarget, bool) {
 	if !ok || cut(c, skip, end) {
 		return hoverTarget{}, false
 	}
-	return targetOn(file, w, lineOf(s.snapOf(file).Diff.Rows[l.Rows.Start], w), text, c, prev)
+	return targetOn(file, w, s.lineIn(file, l, w), text, c, prev)
 }
 
 // lineSide is the side of line l that w points at: w itself side by side,
