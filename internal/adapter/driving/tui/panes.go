@@ -146,16 +146,23 @@ func writePane(ln *line, p pane, sl sideLine, skip int, c caret) {
 	ln.free = rest
 }
 
-// notedSides is sides with the marks of the notes on either side.
+// notedSides is sides with the marks of the notes on either side, or the
+// plus the mouse is offered.
 func (s *state) notedSides(file, row int) (left, right sideLine) {
 	left, right = sides(s.snapOf(file), row)
-	if left.index >= 0 {
-		left.note, left.noteDim = s.noteMark(file, filediff.OldSide, left.index)
-	}
-	if right.index >= 0 {
-		right.note, right.noteDim = s.noteMark(file, filediff.NewSide, right.index)
-	}
+	s.markSide(&left, file, filediff.OldSide)
+	s.markSide(&right, file, filediff.NewSide)
 	return left, right
+}
+
+func (s *state) markSide(sl *sideLine, file int, w filediff.Which) {
+	if sl.index < 0 {
+		return
+	}
+	sl.note, sl.noteDim = s.noteMark(file, w, sl.index)
+	if sl.note == "" && s.plusOn(file, w, sl.index) {
+		sl.note = "+"
+	}
 }
 
 // writeNoteMark writes the first column of a gutter: the mark of the notes

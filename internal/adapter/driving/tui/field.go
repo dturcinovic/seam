@@ -23,7 +23,7 @@ type field struct {
 	Cursor, Row int
 	// Goal is the column up and down keep to, or -1 for the cursor's own.
 	Goal int
-	// Hint is the owner's word in the footer on what tab does.
+	// Hint is the owner's word on what tab does, see keysText.
 	Hint string
 	// Rows and the box are Text laid out by layoutField, as M counts
 	// columns, for line AtY and column AtX where the owner opened it.

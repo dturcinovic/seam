@@ -88,6 +88,19 @@ func (l layout) paneStart(w filediff.Which) int {
 	return l.List
 }
 
+// paneAt is the side whose pane, gutter included, holds screen column x
+// side by side; none on the separator.
+func (l layout) paneAt(x int) (filediff.Which, bool) {
+	right := l.paneStart(filediff.NewSide)
+	switch {
+	case x >= right:
+		return filediff.NewSide, true
+	case x >= l.List && x < right-separatorWidth:
+		return filediff.OldSide, true
+	}
+	return 0, false
+}
+
 // sideAt is the side whose text holds screen column x.
 func (l layout) sideAt(x int) (filediff.Which, bool) {
 	for _, w := range []filediff.Which{filediff.OldSide, filediff.NewSide} {

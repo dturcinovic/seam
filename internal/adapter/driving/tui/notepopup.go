@@ -81,31 +81,46 @@ func (s *state) caretNoteLine() (l noteLine, x, y int, ok bool) {
 
 // noteMarkAt is the line whose gutter mark lies at screen cell x, y.
 func (s *state) noteMarkAt(x, y int) (noteLine, bool) {
-	i, ok := s.Layout.bodyLine(x, y)
+	file, l, sides, ok := s.gutterAt(x, y)
 	if !ok {
 		return noteLine{}, false
 	}
-	file, l, ok := s.rowLine(s.top() + i)
-	if !ok || l.Fold {
-		return noteLine{}, false
-	}
-	lay := s.layoutOf(file)
-	sides := []filediff.Which{filediff.OldSide, filediff.NewSide}
-	switch {
-	case !lay.Unified:
-	case l.Half == view.Whole:
-		// As writeUnified marks a whole row with either side's notes.
-		sides = []filediff.Which{filediff.NewSide, filediff.OldSide}
-	default:
-		sides = []filediff.Which{s.halfSide(file, l)}
-	}
 	for _, w := range sides {
-		line := lineOf(s.snapOf(file).Diff.Rows[l.Rows.Start], w)
-		if x == lay.paneStart(w) && line >= 0 && len(s.notesAt(file, w, line)) > 0 {
+		line := s.lineIn(file, l, w)
+		if x == s.layoutOf(file).paneStart(w) && line >= 0 && len(s.notesAt(file, w, line)) > 0 {
 			return noteLine{File: file, Side: w, Line: line}, true
 		}
 	}
 	return noteLine{}, false
+}
+
+// gutterAt is the line at screen cell x, y and the sides whose marks its
+// gutter shows there: side by side the pane's under x; unified the half's,
+// or for a whole row either side, the new one first, as writeUnified marks
+// it.
+func (s *state) gutterAt(x, y int) (file int, l view.Line, sides []filediff.Which, ok bool) {
+	i, ok := s.Layout.bodyLine(x, y)
+	if !ok {
+		return 0, view.Line{}, nil, false
+	}
+	file, l, ok = s.rowLine(s.top() + i)
+	if !ok || l.Fold {
+		return 0, view.Line{}, nil, false
+	}
+	lay := s.layoutOf(file)
+	switch {
+	case !lay.Unified:
+		w, ok := lay.paneAt(x)
+		return file, l, []filediff.Which{w}, ok
+	case l.Half == view.Whole:
+		return file, l, []filediff.Which{filediff.NewSide, filediff.OldSide}, true
+	}
+	return file, l, []filediff.Which{s.halfSide(file, l)}, true
+}
+
+// lineIn is the line of side w on line l of file's view, -1 for none.
+func (s *state) lineIn(file int, l view.Line, w filediff.Which) int {
+	return lineOf(s.snapOf(file).Diff.Rows[l.Rows.Start], w)
 }
 
 // resolveNote resolves the note of the popup, or the first of a line's.

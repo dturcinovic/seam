@@ -16,6 +16,7 @@ import (
 	"github.com/dturcinovic/seam/internal/domain/filediff"
 	"github.com/dturcinovic/seam/internal/domain/hover"
 	"github.com/dturcinovic/seam/internal/domain/note"
+	"github.com/dturcinovic/seam/internal/domain/ui"
 	"github.com/dturcinovic/seam/internal/domain/view"
 )
 
@@ -50,11 +51,17 @@ func noteText() (old, new string) { return numbered(80), numbered(80, 3) }
 // note ports as fakes.
 func noteModel(t *testing.T, c change.Comparison) (model, noteFakes) {
 	t.Helper()
+	return noteModelWith(t, c, splitSettings())
+}
+
+// noteModelWith is noteModel with the view's settings set.
+func noteModelWith(t *testing.T, c change.Comparison, set ui.Settings) (model, noteFakes) {
+	t.Helper()
 	fs := files("a.go", "b.go")
 	fs[0].OldID, fs[0].NewID = objectID(t, "2"), objectID(t, "3")
 	p := fakePorts()
 	f := noteFakes{p.NoteWriter.(*infakes.FakeNoteWriter), p.NoteReader.(*infakes.FakeNoteReader), p.NoteUpdates.(*infakes.FakeNoteUpdates)}
-	m := newModel(change.Changeset{Comparison: c, Files: fs}, p, splitSettings())
+	m := newModel(change.Changeset{Comparison: c, Files: fs}, p, set)
 	m, _ = send(m, tea.WindowSizeMsg{Width: 80, Height: 24})
 	fl := p.Files.(*infakes.FakeFileDiffLoader)
 	r := fl.LoadArgsForCall(0)
