@@ -20,6 +20,7 @@ type Changesets struct {
 	changes   out.ChangeLister
 	untracked out.UntrackedLister
 	paths     out.PathLister
+	locator   out.WorktreeLocator
 
 	mu sync.Mutex
 	// asked is the comparison as the user named it, which each reload
@@ -29,8 +30,8 @@ type Changesets struct {
 
 // NewChangesets returns the use case over its ports. Its reload worker runs
 // between Start and Stop.
-func NewChangesets(r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister, p out.PathLister, panics supervise.PanicFunc) *Changesets {
-	s := &Changesets{revisions: r, changes: c, untracked: u, paths: p}
+func NewChangesets(r out.RevisionResolver, c out.ChangeLister, u out.UntrackedLister, p out.PathLister, l out.WorktreeLocator, panics supervise.PanicFunc) *Changesets {
+	s := &Changesets{revisions: r, changes: c, untracked: u, paths: p, locator: l}
 	s.worker = newWorker("changeset", change.ErrReloaderFailed, panics, s.reload,
 		// A newer reload makes the running one pointless.
 		func(change.Gen, change.Gen) bool { return true },
@@ -107,7 +108,7 @@ func (s *Changesets) listPaths(ctx context.Context, c change.Comparison) (change
 		if err != nil {
 			return change.Changeset{}, fmt.Errorf("list changes: %w", err)
 		}
-		return change.Changeset{Comparison: c, Files: files}, nil
+		return change.Changeset{Comparison: c, Files: s.located(c, files)}, nil
 	}
 	left, right := c.Left.Path(), c.Right.Path()
 	file := change.ChangedFile{Status: change.Modified, OldPath: right, NewPath: right}
@@ -117,7 +118,21 @@ func (s *Changesets) listPaths(ctx context.Context, c change.Comparison) (change
 	case right == "":
 		file = change.ChangedFile{Status: change.Deleted, OldPath: left}
 	}
-	return change.Changeset{Comparison: c, Files: []change.ChangedFile{file}}, nil
+	return change.Changeset{Comparison: c, Files: s.located(c, []change.ChangedFile{file})}, nil
+}
+
+// located gives each file on disk whose new side lies in the worktree its
+// path there.
+func (s *Changesets) located(c change.Comparison, files []change.ChangedFile) []change.ChangedFile {
+	for i, f := range files {
+		if f.NewPath == "" {
+			continue
+		}
+		if rel, ok := s.locator.LocateInWorktree(c.Right.At(f.NewPath)); ok {
+			files[i].WorktreePath = rel
+		}
+	}
+	return files
 }
 
 func (s *Changesets) resolve(ctx context.Context, c change.Comparison) (change.Comparison, error) {

@@ -75,6 +75,10 @@ type ChangedFile struct {
 	OldMode, NewMode Mode
 	OldID, NewID     ObjectID
 	Counts           LineCounts
+	// WorktreePath is where the new side of a file on disk lies in the
+	// worktree, by which a language server knows it; empty where it lies
+	// elsewhere, and for the other sources, which NewPath names already.
+	WorktreePath string
 }
 
 // LineCounts is how many lines a file gains and loses, as git counts them.

@@ -168,6 +168,20 @@ func NewComparison(left, right Source) (Comparison, error) {
 	return Comparison{Left: left, Right: right}, nil
 }
 
+// Visits is the comparison to read a worktree file outside the changeset
+// in, with the worktree on the right; false for commits and the index. For
+// files on disk it has no left side: a visit reads the right one only.
+func (c Comparison) Visits() (Comparison, bool) {
+	switch c.Right.kind {
+	case KindWorktree:
+		return c, true
+	case KindPath:
+		return Comparison{Right: Worktree()}, true
+	case KindCommit, KindIndex:
+	}
+	return Comparison{}, false
+}
+
 func pathComparison(left, right Source) (Comparison, error) {
 	switch {
 	case left.kind != KindPath || right.kind != KindPath:

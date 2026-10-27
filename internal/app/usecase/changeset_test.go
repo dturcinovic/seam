@@ -20,6 +20,7 @@ type fakes struct {
 	changes   *outfakes.FakeChangeLister
 	untracked *outfakes.FakeUntrackedLister
 	paths     *outfakes.FakePathLister
+	locator   *outfakes.FakeWorktreeLocator
 }
 
 func newChangesets() (*usecase.Changesets, fakes) {
@@ -28,11 +29,12 @@ func newChangesets() (*usecase.Changesets, fakes) {
 		changes:   &outfakes.FakeChangeLister{},
 		untracked: &outfakes.FakeUntrackedLister{},
 		paths:     &outfakes.FakePathLister{},
+		locator:   &outfakes.FakeWorktreeLocator{},
 	}
 	f.revisions.ResolveCommitCalls(func(_ context.Context, rev string) (change.ObjectID, error) {
 		return change.ParseObjectID(strings.Repeat(rev[:1], 40))
 	})
-	return usecase.NewChangesets(f.revisions, f.changes, f.untracked, f.paths, nil), f
+	return usecase.NewChangesets(f.revisions, f.changes, f.untracked, f.paths, f.locator, nil), f
 }
 
 func comparison(t *testing.T, left, right change.Source) change.Comparison {
@@ -298,4 +300,22 @@ func TestTwoDirectoriesOnDiskAreListedWithoutGit(t *testing.T) {
 	f.paths.ListPathsReturns(nil, errors.New("boom"))
 	_, err = uc.LoadChangeset(t.Context(), c)
 	assert.ErrorContains(t, err, "boom")
+}
+
+func TestFilesOnDiskKnowTheirPlaceInTheWorktree(t *testing.T) {
+	uc, f := newChangesets()
+	f.paths.ListPathsReturns([]change.ChangedFile{
+		{Status: change.Added, NewPath: "a.go"},
+		{Status: change.Deleted, OldPath: "b.go"},
+		{Status: change.Modified, OldPath: "c.go", NewPath: "c.go"},
+	}, nil)
+	f.locator.LocateInWorktreeCalls(func(path string) (string, bool) {
+		return "sub/a.go", path == "/tmp/right/a.go"
+	})
+
+	cs, err := uc.LoadChangeset(t.Context(), comparison(t, change.Dir("/tmp/left"), change.Dir("/tmp/right")))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"sub/a.go", "", ""}, []string{cs.Files[0].WorktreePath, cs.Files[1].WorktreePath, cs.Files[2].WorktreePath})
+	assert.Equal(t, 2, f.locator.LocateInWorktreeCallCount(), "a deleted file has no new side to locate")
 }

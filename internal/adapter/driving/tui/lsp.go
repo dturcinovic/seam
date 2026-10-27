@@ -33,7 +33,7 @@ type lspState struct {
 func (m *model) track() {
 	snap := &m.s.Snapshot
 	m.s.LSP.Left, m.s.LSP.Right = m.tracked(snap.LeftDoc), m.tracked(snap.RightDoc)
-	if path := snap.File.NewPath; snap.RightDoc.Path == "" && path != "" {
+	if path := m.s.serverPath(snap.File); snap.RightDoc.Path == "" && path != "" {
 		m.p.Docs.Untrack(hover.DocKey{Path: path})
 	}
 }
@@ -43,7 +43,7 @@ func (m *model) track() {
 func (m *model) trackStream(file int) {
 	h := m.s.Stream.Held[file]
 	h.servers = servers{m.tracked(h.snap.LeftDoc), m.tracked(h.snap.RightDoc)}
-	if path := h.snap.File.NewPath; h.snap.RightDoc.Path == "" && path != "" {
+	if path := m.s.serverPath(h.snap.File); h.snap.RightDoc.Path == "" && path != "" {
 		m.p.Docs.Untrack(hover.DocKey{Path: path})
 	}
 }
@@ -82,17 +82,18 @@ func (m *model) retrackFile(snap *filediff.Snapshot, sv *servers, commit change.
 	}
 }
 
-// gone are the paths of the right sides in before that after has not: a
-// server must not keep their text, which a revert has made old.
-func gone(before, after []change.ChangedFile) []string {
+// gone are the paths, as the server knows them by path, of the right sides
+// in before that after has not: a server must not keep their text, which a
+// revert has made old.
+func gone(before, after []change.ChangedFile, path func(change.ChangedFile) string) []string {
 	kept := make(map[string]bool, len(after))
 	for _, f := range after {
-		kept[f.NewPath] = true
+		kept[path(f)] = true
 	}
 	var out []string
 	for _, f := range before {
-		if f.NewPath != "" && !kept[f.NewPath] {
-			out = append(out, f.NewPath)
+		if p := path(f); p != "" && !kept[p] {
+			out = append(out, p)
 		}
 	}
 	return out

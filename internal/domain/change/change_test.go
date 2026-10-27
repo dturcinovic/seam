@@ -157,3 +157,23 @@ func TestStampEqual(t *testing.T) {
 	assert.False(t, s.Equal(change.Stamp{Size: 3, ModTime: now.Add(time.Nanosecond), Inode: 7}))
 	assert.False(t, s.Equal(change.Stamp{Size: 3, ModTime: now, Inode: 8}))
 }
+
+func TestVisits(t *testing.T) {
+	tests := []struct {
+		name string
+		c    change.Comparison
+		ok   bool
+	}{
+		{"worktree", change.Comparison{Left: change.Commit("HEAD"), Right: change.Worktree()}, true},
+		{"files on disk", change.Comparison{Left: change.File("/tmp/x_a.go"), Right: change.File("a.go")}, true},
+		{"index", change.Comparison{Left: change.Commit("HEAD"), Right: change.Index()}, false},
+		{"commits", change.Comparison{Left: change.Commit("a"), Right: change.Commit("b")}, false},
+	}
+	for _, tt := range tests {
+		got, ok := tt.c.Visits()
+		assert.Equal(t, tt.ok, ok, tt.name)
+		if ok {
+			assert.Equal(t, change.KindWorktree, got.Right.Kind(), tt.name)
+		}
+	}
+}
