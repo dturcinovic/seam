@@ -37,21 +37,33 @@ func render(s *state, th *theme) string {
 		return b.String()
 	}
 	start, end := thumb(s.lineCount(), s.top(), l.Body)
-	p := s.Hover.Popup
 	for i := range l.shown() {
 		b.WriteByte('\n')
 		onThumb := start <= i && i < end
-		if !p.contains(p.X, bodyTop+i) {
+		bx, row, ok := s.boxOver(bodyTop + i)
+		if !ok {
 			writeBodyLine(&b, s, th, i, onThumb)
 			continue
 		}
 		var under strings.Builder
 		writeBodyLine(&under, s, th, i, onThumb)
-		b.WriteString(overlay(under.String(), p, th, s.Cells, l.Width, bodyTop+i-p.Y))
+		b.WriteString(overlay(under.String(), bx, row, th, s.Cells, l.Width, bodyTop+i-bx.Y))
 	}
 	b.WriteByte('\n')
 	writeFooter(&b, s, th)
 	return b.String()
+}
+
+// boxOver is the box over screen line y and the writer of its rows; ok is
+// false for none. The field lies over the popup.
+func (s *state) boxOver(y int) (bx box, row rowWriter, ok bool) {
+	if f := &s.Field; f.contains(f.X, y) {
+		return f.box, f.writeRow, true
+	}
+	if p := &s.Hover.Popup; p.contains(p.X, y) {
+		return p.box, p.writeRow, true
+	}
+	return box{}, nil, false
 }
 
 // writeText writes text in st on a line of width columns.

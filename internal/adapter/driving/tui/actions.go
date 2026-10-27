@@ -193,6 +193,7 @@ func (s *state) place(width, height int) (laid bool) {
 		s.List.blur()
 	}
 	s.scrollList(0)
+	s.layoutField()
 	return laid
 }
 

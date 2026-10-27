@@ -187,6 +187,9 @@ func footer(s *state) (string, style) {
 	if s.Note != "" {
 		return s.Note, footerStyle
 	}
+	if s.Field.Open {
+		return fieldHints, footerStyle
+	}
 	if s.List.Focus {
 		return s.KeyText.list, footerStyle
 	}

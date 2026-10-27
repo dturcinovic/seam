@@ -90,9 +90,15 @@ const (
 )
 
 func (p spot) class() int {
-	r, _ := utf8.DecodeRuneInString(p.text[p.c.Start:])
+	return graphemeClass(p.text[p.c.Start:p.c.End], p.c.Replaced)
+}
+
+// graphemeClass is the class of grapheme g, replaced if textcell shows a
+// stand-in for it; the caret and the input field split words alike.
+func graphemeClass(g string, replaced bool) int {
+	r, _ := utf8.DecodeRuneInString(g)
 	switch {
-	case p.c.Replaced:
+	case replaced:
 		return otherClass
 	case unicode.IsSpace(r):
 		return blankClass

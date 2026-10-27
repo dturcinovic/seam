@@ -47,6 +47,9 @@ type state struct {
 	VisitPath string
 	// Jump is go-to-definition and the places to go back to.
 	Jump jumpState
+	// Field is the input field, while open in front of all else. No
+	// update but its own keys changes it, so a draft survives reloads.
+	Field field
 	// Note is a word for the footer in place of the keys, as why a
 	// definition was not jumped to, until the next key.
 	Note string
