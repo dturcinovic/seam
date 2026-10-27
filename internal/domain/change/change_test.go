@@ -102,6 +102,13 @@ func TestChangedFilePath(t *testing.T) {
 	assert.Equal(t, "gone", change.ChangedFile{OldPath: "gone"}.Path(), "a deleted file keeps its old path")
 }
 
+func TestSubprojectText(t *testing.T) {
+	id, err := change.ParseObjectID(sha1)
+	require.NoError(t, err)
+	assert.Equal(t, "Subproject commit "+sha1+"\n", change.SubprojectText(id, false))
+	assert.Equal(t, "Subproject commit "+sha1+"-dirty\n", change.SubprojectText(id, true))
+}
+
 func TestTooLargeError(t *testing.T) {
 	assert.EqualError(t, &change.TooLargeError{Size: 42}, "file too large: 42 bytes")
 }

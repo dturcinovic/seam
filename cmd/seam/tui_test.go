@@ -34,6 +34,7 @@ type outFakes struct {
 	untracked *outfakes.FakeUntrackedLister
 	blobs     *outfakes.FakeBlobReader
 	worktree  *outfakes.FakeWorktreeReader
+	submods   *outfakes.FakeSubmoduleReader
 	stats     *outfakes.FakeWorktreeStatter
 	highlight *outfakes.FakeHighlighter
 	docs      *outfakes.FakeDocumentSync
@@ -51,7 +52,7 @@ func newOutFakes(t *testing.T) outFakes {
 	t.Helper()
 	f := outFakes{
 		&outfakes.FakeRevisionResolver{}, &outfakes.FakeChangeLister{}, &outfakes.FakeUntrackedLister{},
-		&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeWorktreeStatter{},
+		&outfakes.FakeBlobReader{}, &outfakes.FakeWorktreeReader{}, &outfakes.FakeSubmoduleReader{}, &outfakes.FakeWorktreeStatter{},
 		&outfakes.FakeHighlighter{}, &outfakes.FakeDocumentSync{}, &outfakes.FakeHoverRequester{}, &outfakes.FakeDefinitionRequester{}, &outfakes.FakeServerEvents{},
 		&outfakes.FakeCommitCheckouts{}, &outfakes.FakeCheckoutRoots{},
 		&outfakes.FakeWatchPathsReader{}, &outfakes.FakeIgnoreChecker{}, &outfakes.FakeChangeWatcher{},
@@ -78,6 +79,7 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.UntrackedLister { return f.untracked },
 			func() out.BlobReader { return f.blobs },
 			func() out.WorktreeReader { return f.worktree },
+			func() out.SubmoduleReader { return f.submods },
 			func() out.WorktreeStatter { return f.stats },
 			func() out.Highlighter { return f.highlight },
 			func() out.DocumentSync { return f.docs },

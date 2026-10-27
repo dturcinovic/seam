@@ -34,6 +34,7 @@ type FileDiffs struct {
 
 	blobs       out.BlobReader
 	worktree    out.WorktreeReader
+	submodules  out.SubmoduleReader
 	stats       out.WorktreeStatter
 	highlighter out.Highlighter
 	languages   lang.Table
@@ -47,9 +48,9 @@ type FileDiffs struct {
 
 // NewFileDiffs returns the use case over its ports. Its worker runs between
 // Start and Stop.
-func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, s out.WorktreeStatter, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
+func NewFileDiffs(b out.BlobReader, w out.WorktreeReader, sub out.SubmoduleReader, s out.WorktreeStatter, h out.Highlighter, languages lang.Table, max limits.FileSize, panics supervise.PanicFunc) *FileDiffs {
 	f := &FileDiffs{
-		blobs: b, worktree: w, stats: s, highlighter: h, languages: languages, max: max, budget: diffBudget,
+		blobs: b, worktree: w, submodules: sub, stats: s, highlighter: h, languages: languages, max: max, budget: diffBudget,
 		cache:    newCache(cacheEntries, cacheBytes),
 		seed:     maphash.MakeSeed(),
 		versions: newVersions(),
@@ -82,7 +83,10 @@ func (f *FileDiffs) load(ctx context.Context, r filediff.Request) filediff.Updat
 		return filediff.Update{Gen: r.Gen, File: r.File, Err: err}
 	}
 	// Colours cut short by time are not kept: the next visit may have it.
-	if !e.late {
+	// Nor is a submodule of the worktree: a commit in it leaves the stamp
+	// of its directory alone.
+	worktreeSubmodule := r.ReadsWorktree() && r.File.NewMode == change.Gitlink
+	if !e.late && !worktreeSubmodule {
 		f.cache.put(e)
 	}
 	return filediff.Update{Gen: r.Gen, File: r.File, Snapshot: e.snapshot}
@@ -158,7 +162,7 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	if s.Columns, err = indexColumns(ctx, d); err != nil {
 		return err
 	}
-	oldLang, newLang := f.languages.Detect(s.File.OldPath, old), f.languages.Detect(s.File.NewPath, new)
+	oldLang, newLang := f.detect(s.File.OldMode, s.File.OldPath, old), f.detect(s.File.NewMode, s.File.NewPath, new)
 	var oldLate, newLate bool
 	if s.Highlights.Old, oldLate, err = f.highlightSide(ctx, s, filediff.OldSide, oldLang, old, len(d.Old.Lines)); err != nil {
 		return err
@@ -168,10 +172,12 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 	}
 	e.late = oldLate || newLate
 	s.Diff = d
-	if s.File.OldPath != "" {
+	// A submodule's text is no code a server could work on.
+	if s.File.OldPath != "" && s.File.OldMode != change.Gitlink {
 		s.LeftDoc = hover.Document{Commit: r.Comparison.Left.ID(), Path: s.File.OldPath, Lang: oldLang, Version: commitVersion, Text: old}
 	}
 	switch {
+	case s.File.NewMode == change.Gitlink:
 	case r.ReadsWorktree():
 		e.sum = maphash.String(f.seed, new)
 		s.RightDoc = hover.Document{Path: s.File.NewPath, Lang: newLang, Version: f.versions.of(s.File.NewPath, e.sum), Text: new}
@@ -179,6 +185,14 @@ func (f *FileDiffs) showText(ctx context.Context, s *filediff.Snapshot, e *cache
 		s.RightDoc = hover.Document{Commit: r.Comparison.Right.ID(), Path: s.File.NewPath, Lang: newLang, Version: commitVersion, Text: new}
 	}
 	return nil
+}
+
+// detect is the language of one side; a submodule's has none.
+func (f *FileDiffs) detect(mode change.Mode, path, text string) lang.Lang {
+	if mode == change.Gitlink {
+		return ""
+	}
+	return f.languages.Detect(path, text)
 }
 
 func (f *FileDiffs) diff(ctx context.Context, old, new string) (diff.FileDiff, error) {
@@ -194,8 +208,11 @@ func (f *FileDiffs) diff(ctx context.Context, old, new string) (diff.FileDiff, e
 }
 
 func (f *FileDiffs) readOld(ctx context.Context, file change.ChangedFile) (string, *filediff.Notice, error) {
-	if file.OldPath == "" {
+	switch {
+	case file.OldPath == "":
 		return "", nil, nil
+	case file.OldMode == change.Gitlink:
+		return change.SubprojectText(file.OldID, false), nil, nil
 	}
 	data, err := f.blobs.ReadBlob(ctx, file.OldID, f.max)
 	return asText(filediff.OldSide, data, err)
@@ -211,13 +228,26 @@ func (f *FileDiffs) readNew(ctx context.Context, r filediff.Request) (string, ch
 		stamp change.Stamp
 		err   error
 	)
-	if r.ReadsWorktree() {
+	switch {
+	case r.File.NewMode == change.Gitlink && r.ReadsWorktree():
+		return f.readSubmodule(ctx, r.File.NewPath)
+	case r.File.NewMode == change.Gitlink:
+		return change.SubprojectText(r.File.NewID, false), change.Stamp{}, nil, nil
+	case r.ReadsWorktree():
 		data, stamp, err = f.worktree.ReadWorktree(ctx, r.File.NewPath, f.max)
-	} else {
+	default:
 		data, err = f.blobs.ReadBlob(ctx, r.File.NewID, f.max)
 	}
 	text, n, err := asText(filediff.NewSide, data, err)
 	return text, stamp, n, err
+}
+
+func (f *FileDiffs) readSubmodule(ctx context.Context, path string) (string, change.Stamp, *filediff.Notice, error) {
+	commit, dirty, err := f.submodules.ReadSubmodule(ctx, path)
+	if err != nil {
+		return "", change.Stamp{}, nil, err
+	}
+	return change.SubprojectText(commit, dirty), change.Stamp{}, nil, nil
 }
 
 // asText judges a side and turns it into text at once, so its bytes, up to

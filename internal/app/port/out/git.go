@@ -52,6 +52,15 @@ type WorktreeReader interface {
 	ReadWorktree(ctx context.Context, path string, max limits.FileSize) ([]byte, change.Stamp, error)
 }
 
+//counterfeiter:generate . SubmoduleReader
+
+// SubmoduleReader reads a submodule of the worktree as git diff sees it: the
+// commit it is at, and dirty if its worktree has changes; untracked files do
+// not count. A submodule that is not checked out yields change.ErrNotExist.
+type SubmoduleReader interface {
+	ReadSubmodule(ctx context.Context, path string) (commit change.ObjectID, dirty bool, err error)
+}
+
 //counterfeiter:generate . WorktreeStatter
 
 // WorktreeStatter returns the stamp of a worktree file without reading it.
