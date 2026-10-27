@@ -17,9 +17,10 @@ type AgentSettings struct {
 	PID int
 }
 
-// NoteAgents implements in.NoteSessions and in.NoteAnswerer for an agent
-// session. It has no worker: each call is one change of the book, made
-// under the store's lock, so two sessions never take the same note.
+// NoteAgents implements in.NoteSessions, in.NoteAnswerer and
+// in.BatchTaker for an agent session. It has no worker: each call is one
+// change of the book, made under the store's lock, so two sessions never
+// take the same note.
 type NoteAgents struct {
 	store out.NoteStore
 	procs out.ProcessProber
@@ -67,6 +68,20 @@ func (a *NoteAgents) Take(ctx context.Context, session note.ID, ids []note.ID) (
 	})
 	if err != nil {
 		return note.Taking{}, fmt.Errorf("take notes: %w", err)
+	}
+	return t, nil
+}
+
+// TakeBatch implements in.BatchTaker.
+func (a *NoteAgents) TakeBatch(ctx context.Context, session, batch note.ID) (note.Taking, error) {
+	c := note.Claim{ID: newID(), Session: session, At: time.Now()}
+	var t note.Taking
+	err := a.store.Change(ctx, func(b *note.Book) (err error) {
+		t, err = b.TakeBatch(batch, c)
+		return err
+	})
+	if err != nil {
+		return note.Taking{}, fmt.Errorf("take batch: %w", err)
 	}
 	return t, nil
 }

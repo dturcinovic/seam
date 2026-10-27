@@ -83,8 +83,12 @@ func notesContent(spots []note.Spot, sessions []note.Session) hover.Content {
 }
 
 // stateText is a note's state as a popup tells it: a taken one names the
-// agent that took it and since when.
+// agent that took it and since when, and a sent one is never said to have
+// arrived, as no agent tells.
 func stateText(n note.Note, sessions []note.Session) string {
+	if n.State == note.Sent {
+		return "sent, not taken"
+	}
 	if n.State != note.Taken || n.Claim == nil {
 		return n.State.String()
 	}
@@ -92,8 +96,11 @@ func stateText(n note.Note, sessions []note.Session) string {
 	if s, ok := note.TakenBy(n, sessions); ok {
 		by = s.Client
 	}
-	return "taken by " + by + " since " + n.Claim.At.Local().Format("Jan 2 15:04")
+	return "taken by " + by + " since " + n.Claim.At.Local().Format(sessionTime)
 }
+
+// sessionTime is how a time of an agent session shows.
+const sessionTime = "Jan 2 15:04"
 
 // repliesBlocks are the answers to a note, each under its author and read
 // as Markdown, as agents write them. Their fences name no language seam

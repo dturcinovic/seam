@@ -33,6 +33,20 @@ func (s *state) boxMaxHeight() int {
 	return min(max(l.Height*popupMaxPercent/100, popupFrame+1), l.shown())
 }
 
+// centerBox places b, w cells wide with its frame, over the top of the
+// body in the middle, high enough for rows. ok is false where no row fits:
+// b then stays open without room, drawn once there is.
+func (s *state) centerBox(b *box, w, rows int) (ok bool) {
+	l := s.Layout
+	b.W, b.H = w, min(max(rows, 1)+popupFrame, l.shown())
+	b.X, b.Y = max((l.Width-b.W)/2, 0), bodyTop
+	if b.W <= popupFrame || b.H <= popupFrame {
+		b.W, b.H = 0, 0
+		return false
+	}
+	return true
+}
+
 // boxAt places a box of w by h cells for line y and column x: below the
 // line, or above if there is no room below, from the column, or further
 // left if the box would reach past the edge.

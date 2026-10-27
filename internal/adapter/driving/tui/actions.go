@@ -196,6 +196,7 @@ func (s *state) place(width, height int) (laid bool) {
 	s.scrollList(0)
 	s.layoutField()
 	s.layoutOverview()
+	s.layoutChoice()
 	s.refreshNotePopup()
 	return laid
 }

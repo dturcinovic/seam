@@ -23,8 +23,9 @@ var Module = fx.Module("usecase",
 		fx.Annotate(newHovers, fx.As(new(in.Hoverer)), fx.As(new(in.Definer)), fx.As(new(in.DocumentTracker)), fx.As(new(in.LSPUpdates))),
 		fx.Annotate(newWatches, fx.As(new(in.WatchStarter)), fx.As(new(in.WatchUpdates))),
 		fx.Annotate(newReleaseChecks, fx.As(new(in.ReleaseNotifier))),
-		fx.Annotate(newNotes, fx.As(new(in.NoteWriter)), fx.As(new(in.NoteReader)), fx.As(new(in.NoteOverview)), fx.As(new(in.NoteReleaser)), fx.As(new(in.NoteUpdates))),
-		fx.Annotate(NewNoteAgents, fx.As(new(in.NoteSessions)), fx.As(new(in.NoteAnswerer))),
+		fx.Annotate(newNotes, fx.As(new(in.NoteWriter)), fx.As(new(in.NoteReader)), fx.As(new(in.NoteOverview)), fx.As(new(in.NoteReleaser)), fx.As(new(in.NoteSender)), fx.As(new(in.NoteUpdates))),
+		fx.Annotate(newBatches, fx.As(new(in.BatchFeed))),
+		fx.Annotate(NewNoteAgents, fx.As(new(in.NoteSessions)), fx.As(new(in.NoteAnswerer)), fx.As(new(in.BatchTaker))),
 	),
 )
 
@@ -89,10 +90,16 @@ func newReleaseChecks(lc fx.Lifecycle, settings ReleaseSettings, f out.ReleaseFe
 	return r
 }
 
-func newNotes(lc fx.Lifecycle, set NotesSettings, s out.NoteStore, w out.NoteWatcher, panics supervise.PanicFunc) *Notes {
-	n := NewNotes(set, s, w, panics)
+func newNotes(lc fx.Lifecycle, set NotesSettings, s out.NoteStore, w out.NoteWatcher, p out.ProcessProber, panics supervise.PanicFunc) *Notes {
+	n := NewNotes(set, s, w, p, panics)
 	runWorker(lc, n)
 	return n
+}
+
+func newBatches(lc fx.Lifecycle, set NotesSettings, s out.NoteStore, w out.NoteWatcher, panics supervise.PanicFunc) *Batches {
+	b := NewBatches(set, s, w, panics)
+	runWorker(lc, b)
+	return b
 }
 
 // hoverPorts gathers the ports of Hovers from the graph.

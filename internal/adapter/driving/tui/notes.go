@@ -16,13 +16,14 @@ import (
 type notesState struct {
 	Heads []note.Head
 	// Open counts the notes of Heads no agent answered yet, by file and
-	// source; taken ones too, as they still wait.
+	// source; sent and taken ones too, as they still wait.
 	Open map[headKey]int
 	// Answered counts the notes answered and not yet resolved.
 	Answered map[headKey]int
 	// Sessions are the agent sessions of the book, to name who took a
-	// note.
+	// note; Targets those of them whose process runs, to send notes to.
 	Sessions []note.Session
+	Targets  []note.Session
 	// Err is why the book cannot be read or changed; Live that changes
 	// from elsewhere show; Known that the book was read once.
 	Err         error
@@ -51,6 +52,10 @@ type notesState struct {
 	// waits to show.
 	Overview noteOverview
 	Find     noteFind
+	// Choice is the choice of the session to send to; Sending the send
+	// whose outcome the footer tells.
+	Choice  noteChoice
+	Sending sending
 }
 
 // noteDraft is what the field writes: a note of Kind at Anchor. Op is the
@@ -183,7 +188,9 @@ func (m *model) onNotes() {
 		case note.Placed:
 			m.s.placed(u)
 		case note.Done:
-			m.s.noteDone(u)
+			if !m.s.sentDone(u) {
+				m.s.noteDone(u)
+			}
 		case note.StoreStatus:
 			m.s.Notes.status(u)
 			m.placeNotes(true)
@@ -206,11 +213,11 @@ type headKey struct {
 // status takes the book's state, and counts its open notes once rather
 // than for every file in every frame.
 func (n *notesState) status(u note.Update) {
-	n.Heads, n.Sessions, n.Err, n.Live, n.Known = u.Heads, u.Sessions, u.Err, u.Live, true
+	n.Heads, n.Sessions, n.Targets, n.Err, n.Live, n.Known = u.Heads, u.Sessions, u.Targets, u.Err, u.Live, true
 	n.Open, n.Answered = make(map[headKey]int), make(map[headKey]int)
 	for _, h := range u.Heads {
 		switch h.State {
-		case note.Open, note.Taken:
+		case note.Open, note.Sent, note.Taken:
 			n.Open[headKey{h.Origin, h.Path}]++
 		case note.Answered:
 			n.Answered[headKey{h.Origin, h.Path}]++

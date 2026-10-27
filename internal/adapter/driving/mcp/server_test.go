@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,14 +22,21 @@ import (
 type served struct {
 	sessions *infakes.FakeNoteSessions
 	answerer *infakes.FakeNoteAnswerer
-	client   *sdk.ClientSession
-	cancel   context.CancelFunc
-	done     chan error
+	taker    *infakes.FakeBatchTaker
+	batches  *infakes.FakeBatchFeed
+	// notices are the channel's notices the client read.
+	notices chan *jsonrpc.Request
+	client  *sdk.ClientSession
+	cancel  context.CancelFunc
+	done    chan error
 }
 
 func serve(t *testing.T) *served {
 	t.Helper()
-	s := &served{sessions: &infakes.FakeNoteSessions{}, answerer: &infakes.FakeNoteAnswerer{}, done: make(chan error, 1)}
+	s := &served{
+		sessions: &infakes.FakeNoteSessions{}, answerer: &infakes.FakeNoteAnswerer{}, taker: &infakes.FakeBatchTaker{}, batches: &infakes.FakeBatchFeed{},
+		notices: make(chan *jsonrpc.Request, 8), done: make(chan error, 1),
+	}
 	s.sessions.JoinCalls(func(_ context.Context, client string) (note.Session, error) {
 		return note.Session{ID: "s1", Client: client}, nil
 	})
@@ -36,10 +44,11 @@ func serve(t *testing.T) *served {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go func() {
-		s.done <- mcp.Serve(ctx, mcp.Ports{Sessions: s.sessions, Answerer: s.answerer}, serverT, "v1.2.3", zap.NewNop())
+		ports := mcp.Ports{Sessions: s.sessions, Answerer: s.answerer, Taker: s.taker, Batches: s.batches}
+		s.done <- mcp.Serve(ctx, ports, serverT, "v1.2.3", zap.NewNop())
 	}()
 	c := sdk.NewClient(&sdk.Implementation{Name: "claude-code", Version: "2"}, nil)
-	cs, err := c.Connect(t.Context(), clientT, nil)
+	cs, err := c.Connect(t.Context(), &noticeTransport{Transport: clientT, notices: s.notices}, nil)
 	require.NoError(t, err)
 	s.client = cs
 	t.Cleanup(func() {
@@ -191,6 +200,8 @@ func TestTheSessionLeavesWhenTheClientCloses(t *testing.T) {
 	require.Equal(t, 1, s.sessions.LeaveCallCount())
 	_, id := s.sessions.LeaveArgsForCall(0)
 	assert.Equal(t, note.ID("s1"), id)
+	require.Equal(t, 2, s.batches.FollowCallCount())
+	assert.Nil(t, s.batches.FollowArgsForCall(1), "no batch is told once the client is gone")
 }
 
 func TestTheSessionLeavesOnASignal(t *testing.T) {

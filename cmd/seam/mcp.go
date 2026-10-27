@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 
+	"github.com/dturcinovic/seam/internal/adapter/driven/fswatch"
 	"github.com/dturcinovic/seam/internal/adapter/driven/git"
 	"github.com/dturcinovic/seam/internal/adapter/driven/notestore"
 	"github.com/dturcinovic/seam/internal/adapter/driven/process"
@@ -60,12 +61,13 @@ func mcpSession(ctx context.Context, cfg config.Config, stdin io.Reader, stdout 
 
 	var ports mcp.Ports
 	app := fx.New(
-		fx.Supply(logger, notestore.Config{File: notes}, usecase.AgentSettings{PID: os.Getpid()}),
+		fx.Supply(logger, notestore.Config{File: notes}, usecase.NotesSettings{File: notes}, usecase.AgentSettings{PID: os.Getpid()}),
 		observability.Module,
 		notestore.Module,
 		process.Module,
+		fswatch.Module,
 		usecase.Module,
-		fx.Populate(&ports.Sessions, &ports.Answerer),
+		fx.Populate(&ports.Sessions, &ports.Answerer, &ports.Taker, &ports.Batches),
 		fxLogger(),
 	)
 	if err := app.Err(); err != nil {

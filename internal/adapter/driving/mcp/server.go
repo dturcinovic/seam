@@ -23,24 +23,32 @@ const leaveWait = 3 * time.Second
 type Ports struct {
 	Sessions in.NoteSessions
 	Answerer in.NoteAnswerer
+	Taker    in.BatchTaker
+	Batches  in.BatchFeed
 }
 
 // Serve answers one client over t until it closes the stream or ctx ends,
 // and then signs its session out, giving back the notes it took and did
-// not answer. Either end is an orderly one and no error.
+// not answer. Either end is an orderly one and no error. Meanwhile it
+// tells the client of each batch sent to its session.
 func Serve(ctx context.Context, p Ports, t sdk.Transport, version string, log *zap.Logger) error {
-	s := &server{ports: p, log: log}
+	s := &server{ports: p, log: log, channel: &channelTransport{Transport: t}}
 	srv := sdk.NewServer(&sdk.Implementation{Name: "seam", Version: version}, &sdk.ServerOptions{
 		Instructions: instructions,
-		Capabilities: &sdk.ServerCapabilities{Tools: &sdk.ToolCapabilities{}},
-		InitializedHandler: func(ctx context.Context, r *sdk.InitializedRequest) {
-			if _, err := s.session(ctx, r.ClientInfo()); err != nil {
-				log.Warn("join the notes", zap.Error(err))
-			}
+		Capabilities: &sdk.ServerCapabilities{
+			Tools: &sdk.ToolCapabilities{},
+			// Claimed whether or not the client turned the channel on,
+			// which it does not say.
+			Experimental: map[string]any{"claude/channel": map[string]any{}},
 		},
 	})
+	srv.AddReceivingMiddleware(s.joinFirst, statefulOnly)
 	s.addTools(srv)
-	err := srv.Run(ctx, t)
+	p.Batches.Follow(s)
+	err := srv.Run(ctx, s.channel)
+	// No notice may follow the client's end: stdout stays the process's.
+	p.Batches.Follow(nil)
+	s.channel.close()
 	leave := s.leave(context.WithoutCancel(ctx))
 	if ctx.Err() != nil || errors.Is(err, io.EOF) {
 		err = nil
@@ -50,16 +58,41 @@ func Serve(ctx context.Context, p Ports, t sdk.Transport, version string, log *z
 
 // server is one client's session in the book, joined at the first need.
 type server struct {
-	ports Ports
-	log   *zap.Logger
+	ports   Ports
+	log     *zap.Logger
+	channel *channelTransport
 
 	mu     sync.Mutex
 	joined note.ID
 }
 
-// session is the client's session, joined as the client names itself:
-// once initialized, or at the first call that needs it, as a client of
-// the stateless protocol never initializes.
+// joinFirst joins the client's session once a message of the client is
+// handled, whichever comes first: a client of the stateless protocol never
+// initializes, and Claude Code calls no tool before a batch reaches it.
+func (s *server) joinFirst(next sdk.MethodHandler) sdk.MethodHandler {
+	return func(ctx context.Context, method string, req sdk.Request) (sdk.Result, error) {
+		res, err := next(ctx, method, req)
+		s.log.Debug("mcp message", zap.String("method", method), zap.Error(err))
+		if err == nil {
+			if _, jerr := s.session(ctx, clientOf(req)); jerr != nil {
+				s.log.Warn("join the notes", zap.Error(jerr))
+			}
+		}
+		return res, err
+	}
+}
+
+// clientOf is how the client named itself, nil before it did.
+func clientOf(req sdk.Request) *sdk.Implementation {
+	if ss, ok := req.GetSession().(*sdk.ServerSession); ok {
+		if p := ss.InitializeParams(); p != nil {
+			return p.ClientInfo
+		}
+	}
+	return nil
+}
+
+// session is the client's session, joined as the client names itself.
 func (s *server) session(ctx context.Context, info *sdk.Implementation) (note.ID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

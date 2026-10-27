@@ -108,14 +108,8 @@ func (s *state) layoutOverview() {
 	if !o.Open {
 		return
 	}
-	l := s.Layout
-	o.W = s.boxMaxInner() + popupFrame
-	o.H = min(max(len(o.Rows), 1)+popupFrame, l.shown())
-	o.X, o.Y = max((l.Width-o.W)/2, 0), bodyTop
 	o.Title = "notes"
-	if o.W <= popupFrame || o.H <= popupFrame {
-		// No room for a row: it stays open, drawn once there is.
-		o.W, o.H = 0, 0
+	if !s.centerBox(&o.box, s.boxMaxInner()+popupFrame, len(o.Rows)) {
 		return
 	}
 	shown := o.shown()

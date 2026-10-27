@@ -50,8 +50,12 @@ func newBookStore(ids ...note.ID) *bookStore {
 
 func worktreeAnchor() note.Anchor { return note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}} }
 
-func (s *bookStore) copied() note.Book {
-	return note.Book{Notes: slices.Clone(s.book.Notes), Sessions: slices.Clone(s.book.Sessions)}
+func (s *bookStore) copied() note.Book { return cloneBook(s.book) }
+
+// cloneBook is b with lists of its own, as a store reads it anew: a change
+// that fails leaves the book as it was.
+func cloneBook(b note.Book) note.Book {
+	return note.Book{Notes: slices.Clone(b.Notes), Sessions: slices.Clone(b.Sessions), Batches: slices.Clone(b.Batches)}
 }
 
 func newAgents(s *bookStore, alive ...int) *usecase.NoteAgents {
@@ -167,4 +171,20 @@ func TestARefusedChangeOfAnAgent(t *testing.T) {
 	require.ErrorIs(t, a.Leave(t.Context(), "x"), broken)
 	_, err = a.View(t.Context(), nil)
 	require.ErrorIs(t, err, broken)
+}
+
+func TestASessionTakesTheBatchSentToIt(t *testing.T) {
+	s := newBookStore("a", "b")
+	a := newAgents(s, 7)
+	me, err := a.Join(t.Context(), "claude-code")
+	require.NoError(t, err)
+	s.send(t, "b1", me.ID)
+
+	got, err := a.TakeBatch(t.Context(), me.ID, "b1")
+	require.NoError(t, err)
+	assert.Len(t, got.Notes, 2)
+	assert.NotEmpty(t, got.Claim.ID)
+
+	_, err = a.TakeBatch(t.Context(), me.ID, "gone")
+	require.ErrorIs(t, err, note.ErrNoBatch)
 }

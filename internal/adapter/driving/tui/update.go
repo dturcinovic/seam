@@ -45,7 +45,7 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 	if m.s.Field.Open && m.fieldTakes(msg) {
 		return m, nil
 	}
-	if m.s.Notes.Overview.Open && m.s.overviewRests(msg) {
+	if (m.s.Notes.Overview.Open || m.s.Notes.Choice.Open) && m.s.boxRests(msg) {
 		return m, nil
 	}
 	switch msg := msg.(type) {
@@ -196,6 +196,9 @@ func (m model) onKeyPress(key string) (model, tea.Cmd) {
 	if m.s.Notes.Overview.Open && m.overviewKey(key) {
 		return m, nil
 	}
+	if m.s.Notes.Choice.Open && m.choiceKey(key) {
+		return m, nil
+	}
 	if a, ok := k.Action(ui.ListLayer, key); ok && m.s.List.Focus {
 		m.onListAction(a)
 		return m, nil
@@ -277,7 +280,7 @@ func (m model) onAction(a ui.Action) (model, tea.Cmd) {
 		s.startCaret()
 	case ui.JumpBack:
 		m.load(s.jumpBack())
-	case ui.AddNote, ui.NextNote, ui.PrevNote, ui.Notes, ui.NoteLines:
+	case ui.AddNote, ui.NextNote, ui.PrevNote, ui.Notes, ui.NoteLines, ui.SendNotes:
 		m.onNoteAction(a)
 	}
 	return m, nil

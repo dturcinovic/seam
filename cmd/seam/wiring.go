@@ -16,6 +16,7 @@ import (
 	"github.com/dturcinovic/seam/internal/adapter/driven/github"
 	"github.com/dturcinovic/seam/internal/adapter/driven/lsp"
 	"github.com/dturcinovic/seam/internal/adapter/driven/notestore"
+	"github.com/dturcinovic/seam/internal/adapter/driven/process"
 	"github.com/dturcinovic/seam/internal/adapter/driven/statefile"
 	"github.com/dturcinovic/seam/internal/app/port/out"
 	"github.com/dturcinovic/seam/internal/app/usecase"
@@ -45,6 +46,7 @@ func options(cfg config.Config, logger *observability.Logger, root, notes string
 		fswatch.Module,
 		statefile.Module,
 		notestore.Module,
+		process.Module,
 		github.Module,
 		usecase.Module,
 		// fx stops in the reverse order of construction. Nothing ties the

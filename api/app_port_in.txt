@@ -5,6 +5,33 @@ cases implement. It knows nothing but the domain.
 
 TYPES
 
+type BatchFeed interface {
+	// Follow hands l each batch sent to its session from now on, once; nil
+	// stops handing on.
+	Follow(l BatchListener)
+}
+    BatchFeed tells an agent session of the batches sent to it.
+
+type BatchListener interface {
+	// Session is the session the listener speaks for; ok is false while
+	// it has none.
+	Session() (id note.ID, ok bool)
+	// Sent hands on a batch sent to Session with its notes not taken yet.
+	Sent(ctx context.Context, s note.Sending)
+	// Unread tells why the book could not be read after a change; its
+	// batches wait for the next change.
+	Unread(err error)
+}
+    BatchListener hears from a BatchFeed, one call at a time.
+
+type BatchTaker interface {
+	// TakeBatch takes for session the notes of batch still sent in it, if
+	// the batch went to session; the others come back refused.
+	TakeBatch(ctx context.Context, session, batch note.ID) (note.Taking, error)
+}
+    BatchTaker lets an agent session take the notes of a batch sent to it;
+    the call returns once the book is written.
+
 type ChangesetLoader interface {
 	// LoadChangeset resolves the comparison's commits and returns them with
 	// the changed files, untracked ones included when the right side is the
@@ -122,6 +149,13 @@ type NoteReleaser interface {
     NoteReleaser gives back a note an agent session took and did not answer,
     as after the session died. It does not block; the outcome comes as note.Done
     through NoteUpdates.
+
+type NoteSender interface {
+	// Send sends the notes open, or sent and not taken, to session.
+	Send(session note.ID) note.Op
+}
+    NoteSender sends the waiting notes to one agent session in a batch. It does
+    not block; the outcome comes as note.Done through NoteUpdates.
 
 type NoteSessions interface {
 	// Join signs in this process as a session of client.

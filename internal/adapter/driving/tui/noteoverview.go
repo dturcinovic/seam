@@ -247,10 +247,10 @@ func (m *model) overviewKey(key string) bool {
 	return true
 }
 
-// overviewRests lets the mouse rest while the overview is open, as it does
-// for the field: the hovers would cover it. The wheel still scrolls a
+// boxRests lets the mouse rest while the overview or the choice of a
+// session is open, as it does for the field: the hovers would cover them. The wheel still scrolls a
 // note's popup opened from it.
-func (s *state) overviewRests(msg tea.Msg) bool {
+func (s *state) boxRests(msg tea.Msg) bool {
 	if w, ok := msg.(tea.MouseWheelMsg); ok && s.Hover.Popup.contains(w.X, w.Y) && len(s.Hover.Popup.Lines) > s.Hover.Popup.shown() {
 		return false
 	}

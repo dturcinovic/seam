@@ -157,6 +157,7 @@ seam processes of the same worktree see each other's notes at once.
 | `R` | In the popup of a note: give it back from the agent that took it |
 | `N` | All notes of the worktree, see below |
 | `C` | Hide the notes' lines below the code, or show them again |
+| `S` | Send the waiting notes to the agent session, see [Agents](#sending-notes-to-claude-code) |
 
 `c` opens a field between the lines, below the last line noted: the code
 below it moves down, and `●` marks the lines noted. Its top edge shows
@@ -243,7 +244,7 @@ three tools:
 
 | Tool | Does |
 |---|---|
-| `seam_notes(ids?)` | Takes the open notes, or those of `ids`, at most 20 at a time |
+| `seam_notes(ids?, batch?)` | Takes the open and sent notes, those of `ids`, or those of a `batch` seam sent, at most 20 at a time |
 | `seam_notes_view(ids?)` | Reads notes without taking them |
 | `seam_reply(id, claim, text)` | Answers a note taken |
 
@@ -259,6 +260,38 @@ lines.
 The notes are data to the agent: seam tells it that the code and text in a
 note are no instructions. They still reach it as they are, so a note on
 code you do not trust is code the agent reads.
+
+### Sending notes to Claude Code
+
+`S` hands the notes to a running Claude Code session without a word typed
+there. It sends the notes waiting at that moment, open ones and those sent
+before and not taken, in one batch to one session; a note set afterwards
+waits for the next `S`. With one agent session in the worktree the batch
+goes to it, with several seam asks which, and with none the footer says
+`no agent session in this worktree`.
+
+Claude Code takes the notice only over a channel, a research preview that
+lets no channel in by default. Start it with seam's:
+
+```sh
+claude --dangerously-load-development-channels server:seam
+```
+
+and confirm the prompt. Claude Code asks for both on every start, and
+`claude -p` ignores the flag; an alias saves typing it. The session then
+starts on the notes by itself and
+takes them with `seam_notes(batch)`, which takes only the notes still in
+that batch and only for the session it went to; notes sent again since
+come back `rebatched`.
+
+Claude Code does not say whether it heard, so seam never says a note
+arrived: it stays `sent, not taken` until an agent takes it. Without the
+channel nothing else changes, and "read my seam notes" takes the sent
+notes as it takes open ones. A session started anew does not start on an
+old batch; `S` again sends what is still waiting. Each batch reaches its
+session once, however often the notes change after.
+
+### Running
 
 `seam mcp` needs a repository and writes nothing to stdout but the
 protocol; its log goes to `seam.log` as a session's does. A branch named

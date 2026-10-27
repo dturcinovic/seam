@@ -25,8 +25,8 @@ var (
 // Reason is why a note asked for was not taken; agents read it as is.
 type Reason string
 
-// The reasons a note is not taken. Only open notes are: a question that
-// remains after an answer is a new note.
+// The reasons a note is not taken. Only waiting notes are, open or sent:
+// a question that remains after an answer is a new note.
 const (
 	RefusedUnknown  Reason = "unknown"
 	RefusedTaken    Reason = "taken"
@@ -72,14 +72,22 @@ func (b *Book) Leave(id ID) {
 	b.Sessions = slices.DeleteFunc(b.Sessions, func(s Session) bool { return s.ID == id })
 	for i := range b.Notes {
 		if n := &b.Notes[i]; n.State == Taken && n.takenBy(id) {
-			n.giveBack()
+			b.giveBack(n)
 		}
 	}
 }
 
 func (n Note) takenBy(session ID) bool { return n.Claim != nil && n.Claim.Session == session }
 
-func (n *Note) giveBack() { n.State, n.Claim = Open, nil }
+// giveBack makes a taken note of the book wait again: sent, if it came in
+// a batch the book still has, else open, as a batch dropped past
+// MaxBatches can be neither taken nor told of.
+func (b *Book) giveBack(n *Note) {
+	n.State, n.Claim = Open, nil
+	if _, ok := b.batch(n.Batch); ok {
+		n.State = Sent
+	}
+}
 
 // Prune removes the sessions whose process is no longer alive. A session
 // that holds a claim stays: its notes show who took them until the user
@@ -92,6 +100,18 @@ func (b *Book) Prune(alive func(pid int) bool) {
 
 func (b *Book) claims(session ID) bool {
 	return slices.ContainsFunc(b.Notes, func(n Note) bool { return n.takenBy(session) })
+}
+
+// Targets are the sessions whose process runs, the ones notes are sent
+// to. A dead session that holds a claim stays in the book but is none.
+func (b *Book) Targets(alive func(pid int) bool) []Session {
+	var out []Session
+	for _, s := range b.Sessions {
+		if alive(s.PID) {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // Session is the session named id.
@@ -117,26 +137,36 @@ func sessionIn(sessions []Session, id ID) (Session, bool) {
 }
 
 // Take takes notes under c, for its session: those of ids, or without ids
-// the open ones, at most MaxTake either way, and More says open ones are
-// left. Only open notes are taken; the others of ids come back refused.
+// the waiting ones, open or sent, at most MaxTake either way, and More
+// says waiting ones are left. Only waiting notes are taken, whatever
+// session their batch was sent to; the others of ids come back refused.
 func (b *Book) Take(ids []ID, c Claim) (Taking, error) {
 	if _, ok := b.Session(c.Session); !ok {
 		return Taking{}, fmt.Errorf("%w: %s", ErrNoSession, c.Session)
 	}
-	t := Taking{Claim: c}
 	if len(ids) == 0 {
-		ids = b.open(MaxTake + 1)
-	} else {
-		ids = uniq(ids)
+		ids = b.waiting(MaxTake + 1)
 	}
-	for _, id := range ids {
-		i, ok := b.find(id)
+	return b.takeEach(ids, c, func(*Note) (Reason, bool) { return "", false }), nil
+}
+
+// takeEach takes the notes of ids under c that are waiting and that
+// refuse lets through, at most MaxTake of them.
+func (b *Book) takeEach(ids []ID, c Claim, refuse func(*Note) (Reason, bool)) Taking {
+	t := Taking{Claim: c}
+	at := b.index()
+	for _, id := range uniq(ids) {
+		i, ok := at[id]
 		if !ok {
 			t.Refused = append(t.Refused, Refusal{ID: id, Reason: RefusedUnknown})
 			continue
 		}
 		n := &b.Notes[i]
-		if r, refused := refusal(n.State); refused {
+		r, refused := refusal(n.State)
+		if !refused {
+			r, refused = refuse(n)
+		}
+		if refused {
 			t.Refused = append(t.Refused, Refusal{ID: id, Reason: r})
 			continue
 		}
@@ -148,14 +178,14 @@ func (b *Book) Take(ids []ID, c Claim) (Taking, error) {
 		n.State, n.Claim = Taken, &claim
 		t.Notes = append(t.Notes, *n)
 	}
-	return t, nil
+	return t
 }
 
-// open are the first n open notes of the book.
-func (b *Book) open(n int) []ID {
+// waiting are the first n notes of the book open or sent.
+func (b *Book) waiting(n int) []ID {
 	var ids []ID
 	for i := 0; i < len(b.Notes) && len(ids) < n; i++ {
-		if b.Notes[i].State == Open {
+		if b.Notes[i].State.Waits() {
 			ids = append(ids, b.Notes[i].ID)
 		}
 	}
@@ -164,7 +194,7 @@ func (b *Book) open(n int) []ID {
 
 func refusal(s State) (Reason, bool) {
 	switch s {
-	case Open:
+	case Open, Sent:
 		return "", false
 	case Taken:
 		return RefusedTaken, true
@@ -227,6 +257,6 @@ func (b *Book) Release(id ID) error {
 	if n.State != Taken {
 		return fmt.Errorf("%w: %s is %s", ErrNotTaken, id, n.State)
 	}
-	n.giveBack()
+	b.giveBack(n)
 	return nil
 }
