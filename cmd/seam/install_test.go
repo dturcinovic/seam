@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
 func TestUpdateFor(t *testing.T) {
@@ -54,7 +56,7 @@ func TestWhereGoInstallWrites(t *testing.T) {
 }
 
 func TestALinkedGOPATHIsResolved(t *testing.T) {
-	real := t.TempDir()
+	real := testsupport.RealTempDir(t)
 	require.NoError(t, os.Mkdir(filepath.Join(real, "bin"), 0o700))
 	link := filepath.Join(t.TempDir(), "go")
 	require.NoError(t, os.Symlink(real, link))

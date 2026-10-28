@@ -333,7 +333,9 @@ HEAD.
 Directories git ignores are not watched, also those made after the start.
 On Linux each watched directory takes one of the user's inotify watches;
 when they run out, the footer says so, seam goes on without watching, and
-`fs.inotify.max_user_watches` is the setting to raise. Two commits never
+`fs.inotify.max_user_watches` is the setting to raise. On macOS each watched
+directory and file takes a file descriptor instead, and
+`kern.maxfilesperproc` is the setting to raise. Two commits never
 change, so `--watch` with two of them is an error.
 
 ## Limits

@@ -133,8 +133,8 @@ func TestALateAnswerThroughARealPipe(t *testing.T) {
 	}, log)
 }
 
-// TestServersEndWithAKilledSeam: Pdeathsig ends a server when seam is
-// killed with SIGKILL and cannot stop it itself.
+// TestServersEndWithAKilledSeam: Pdeathsig on Linux, the guard on macOS,
+// ends a server when seam is killed with SIGKILL and cannot stop it itself.
 func TestServersEndWithAKilledSeam(t *testing.T) {
 	root := t.TempDir()
 	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^$")

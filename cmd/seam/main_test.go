@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,8 +19,12 @@ import (
 
 // The session's logger starts lumberjack's goroutine, chroma regexp2's
 // clock; why they are exempt is in the TestMain of internal/observability
-// and internal/adapter/driven/chroma.
+// and internal/adapter/driven/chroma. On macOS the sessions' servers run
+// under a guard, which is this test binary started again.
 func TestMain(m *testing.M) {
+	if code, ok := serveGuard(); ok {
+		os.Exit(code)
+	}
 	goleak.VerifyTestMain(m,
 		goleak.IgnoreTopFunction("gopkg.in/natefinch/lumberjack%2ev2.(*Logger).millRun"),
 		goleak.IgnoreAnyFunction("github.com/dlclark/regexp2/v2.runClock"))

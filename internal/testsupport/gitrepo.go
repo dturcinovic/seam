@@ -32,7 +32,7 @@ func NewGitRepo(t *testing.T) *GitRepo {
 	t.Setenv("GIT_AUTHOR_EMAIL", "seam@example.com")
 	t.Setenv("GIT_COMMITTER_NAME", "seam")
 	t.Setenv("GIT_COMMITTER_EMAIL", "seam@example.com")
-	r := &GitRepo{t: t, Dir: t.TempDir()}
+	r := &GitRepo{t: t, Dir: RealTempDir(t)}
 	r.Git("init", "-q", "-b", "main")
 	return r
 }
@@ -50,4 +50,14 @@ func (r *GitRepo) Git(args ...string) string {
 func (r *GitRepo) Write(name, content string) {
 	r.t.Helper()
 	require.NoError(r.t, os.WriteFile(filepath.Join(r.Dir, name), []byte(content), 0o600))
+}
+
+// RealTempDir is t.TempDir by its real path, as git and the binary's own
+// path name it: on macOS the temporary directory lies behind the link
+// /var -> /private/var.
+func RealTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	return dir
 }

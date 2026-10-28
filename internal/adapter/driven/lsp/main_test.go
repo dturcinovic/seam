@@ -24,6 +24,11 @@ const fakelspEnv = "SEAM_TEST_FAKELSP"
 func fakelsp() string { return os.Getenv(fakelspEnv) }
 
 func TestMain(m *testing.M) {
+	// On macOS every server runs under a guard, which is this test binary
+	// started again.
+	if code, ok := ServeGuard(); ok {
+		os.Exit(code)
+	}
 	if os.Getenv(helperEnv) != "" {
 		os.Exit(helper(os.Getenv(helperEnv)))
 	}

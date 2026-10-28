@@ -145,8 +145,8 @@ func (c *client) status() hover.ServerStatus {
 }
 
 // run starts the process and stays with it until it ends. It never unlocks
-// its thread: Pdeathsig ends the server with the thread that started it,
-// which is then this goroutine's alone and ends with it.
+// its thread: on Linux, Pdeathsig ends the server with the thread that
+// started it, which is then this goroutine's alone and ends with it.
 func (c *client) run(context.Context) {
 	runtime.LockOSThread()
 	defer c.closeExited()
