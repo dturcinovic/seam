@@ -56,6 +56,7 @@ type notesState struct {
 	// whose outcome the footer tells.
 	Choice  noteChoice
 	Sending sending
+	Delete  noteDeletion
 }
 
 // noteDraft is what the field writes: a note of Kind at Anchor. Op is the
@@ -193,6 +194,7 @@ func (m *model) onNotes() {
 			}
 		case note.StoreStatus:
 			m.s.Notes.status(u)
+			m.s.dropGoneDeletion()
 			m.placeNotes(true)
 			if m.s.Notes.Overview.Open {
 				m.p.NoteOverview.Overview()

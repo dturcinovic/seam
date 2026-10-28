@@ -58,6 +58,15 @@ type NoteReleaser interface {
 	Release(id note.ID) note.Op
 }
 
+//counterfeiter:generate . NoteDeleter
+
+// NoteDeleter takes a note out of the book for good, in whatever state. It
+// does not block; the outcome comes as note.Done through NoteUpdates.
+type NoteDeleter interface {
+	// Delete takes note id out of the book.
+	Delete(id note.ID) note.Op
+}
+
 //counterfeiter:generate . NoteSessions
 
 // NoteSessions signs agent sessions in and out of the book. Unlike the

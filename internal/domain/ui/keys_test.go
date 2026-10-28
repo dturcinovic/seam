@@ -50,6 +50,7 @@ func TestTheDefaultKeys(t *testing.T) {
 		{ui.CaretLayer, "b", ui.WordBack},
 		{ui.CaretLayer, "esc", ui.LeaveCaret},
 		{ui.PopupLayer, "esc", ui.ClosePopup},
+		{ui.PopupLayer, "D", ui.DeleteNote},
 	}
 	for _, tt := range tests {
 		got, ok := k.Action(tt.layer, tt.key)
@@ -86,27 +87,28 @@ func TestABindingReplacesTheDefaultsOfItsAction(t *testing.T) {
 
 func TestNewKeymapRefuses(t *testing.T) {
 	tests := map[string]map[ui.Action][]string{
-		"no key to quit":       {ui.Quit: {}},
-		"a key twice in view":  {ui.Reload: {"x"}, ui.ToggleView: {"x"}},
-		"a motion in the list": {ui.Open: {"x"}, ui.Down: {"x"}},
-		"quit loses all keys":  {ui.Reload: {"q", "esc", "ctrl+c"}},
-		"no action":            {ui.Actions: {"x"}},
-		"two characters":       {ui.Quit: {"qq"}},
-		"empty":                {ui.Quit: {""}},
-		"a space":              {ui.Quit: {" "}},
-		"a control character":  {ui.Quit: {"\x01"}},
-		"shifted character":    {ui.Quit: {"shift+q"}},
-		"capital with alt":     {ui.Quit: {"alt+Q"}},
-		"capital with ctrl":    {ui.Quit: {"ctrl+G"}},
-		"capital with shift":   {ui.Quit: {"alt+shift+Q"}},
-		"modifier order":       {ui.Quit: {"alt+ctrl+q"}},
-		"modifier twice":       {ui.Quit: {"ctrl+ctrl+q"}},
-		"unknown modifier":     {ui.Quit: {"cmd+q"}},
-		"unknown name":         {ui.Quit: {"escape"}},
-		"function key 0":       {ui.Quit: {"f0"}},
-		"function key 64":      {ui.Quit: {"f64"}},
-		"function key padded":  {ui.Quit: {"f01"}},
-		"modifier alone":       {ui.Quit: {"ctrl+"}},
+		"no key to quit":        {ui.Quit: {}},
+		"a key twice in view":   {ui.Reload: {"x"}, ui.ToggleView: {"x"}},
+		"a motion in the list":  {ui.Open: {"x"}, ui.Down: {"x"}},
+		"quit loses all keys":   {ui.Reload: {"q", "esc", "ctrl+c"}},
+		"no action":             {ui.Actions: {"x"}},
+		"two characters":        {ui.Quit: {"qq"}},
+		"empty":                 {ui.Quit: {""}},
+		"a space":               {ui.Quit: {" "}},
+		"a control character":   {ui.Quit: {"\x01"}},
+		"shifted character":     {ui.Quit: {"shift+q"}},
+		"capital with alt":      {ui.Quit: {"alt+Q"}},
+		"capital with ctrl":     {ui.Quit: {"ctrl+G"}},
+		"capital with shift":    {ui.Quit: {"alt+shift+Q"}},
+		"modifier order":        {ui.Quit: {"alt+ctrl+q"}},
+		"modifier twice":        {ui.Quit: {"ctrl+ctrl+q"}},
+		"unknown modifier":      {ui.Quit: {"cmd+q"}},
+		"unknown name":          {ui.Quit: {"escape"}},
+		"function key 0":        {ui.Quit: {"f0"}},
+		"function key 64":       {ui.Quit: {"f64"}},
+		"function key padded":   {ui.Quit: {"f01"}},
+		"modifier alone":        {ui.Quit: {"ctrl+"}},
+		"delete on its confirm": {ui.DeleteNote: {"x", ui.ConfirmDeletion}},
 	}
 	for name, bindings := range tests {
 		_, err := ui.NewKeymap(bindings)

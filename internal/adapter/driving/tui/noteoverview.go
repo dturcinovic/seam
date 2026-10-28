@@ -112,7 +112,7 @@ func (o *noteOverview) moveSel(row, dir int) {
 }
 
 // onOverviewAction does an action of the open overview: the file list's
-// motions, enter and esc, and x of the popups. It reports whether the
+// motions, enter and esc, and x, R and D of the popups. It reports whether the
 // overview took a; it takes every action but quitting, so that no key
 // changes the view under it.
 func (m *model) onOverviewAction(a ui.Action) bool {
@@ -141,6 +141,10 @@ func (m *model) onOverviewAction(a ui.Action) bool {
 	case ui.ReleaseNote:
 		if n, ok := o.selected(); ok && n.State == note.Taken {
 			m.release(n.ID)
+		}
+	case ui.DeleteNote:
+		if n, ok := o.selected(); ok {
+			s.askDeletion(n)
 		}
 	}
 	return true
@@ -234,8 +238,8 @@ func (s *state) spotOf(id note.ID, ref sideRef) (note.Spot, bool) {
 }
 
 // overviewKey gives key to the open overview, which has no layer of its
-// own: it takes the file list's actions, x of the popups and N of the
-// view. A layer of its own would only repeat the list's keys in the
+// own: it takes the file list's actions, x, R and D of the popups and N of
+// the view. A layer of its own would only repeat the list's keys in the
 // configuration. It reports whether the key is done with.
 func (m *model) overviewKey(key string) bool {
 	k := m.s.Keys

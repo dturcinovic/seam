@@ -13,6 +13,11 @@ import (
 // ErrInvalidKeys is a key map that breaks one of the rules NewKeymap checks.
 var ErrInvalidKeys = errors.New("invalid keys")
 
+// ConfirmDeletion is the one key that deletes a note once DeleteNote asked.
+// It is no setting and never DeleteNote's key: a key held down repeats,
+// and most terminals do not tell a repeat from a press.
+const ConfirmDeletion = "y"
+
 // Action is what a key does.
 type Action uint8
 
@@ -72,6 +77,8 @@ const (
 	ResolveNote
 	// ReleaseNote gives back a note an agent took and did not answer.
 	ReleaseNote
+	// DeleteNote asks whether to take a note out of the book.
+	DeleteNote
 	// Actions is the number of actions, no action itself.
 	Actions
 )
@@ -110,7 +117,7 @@ func (l Layer) Takes(a Action) bool {
 // OnNote reports whether a acts on a note, which only the popup of a note
 // or the notes' overview takes.
 func (a Action) OnNote() bool {
-	return a == ResolveNote || a == ReleaseNote
+	return a == ResolveNote || a == ReleaseNote || a == DeleteNote
 }
 
 // String is the name of a in the configuration file.
@@ -142,7 +149,7 @@ func actionNames() [Actions]string {
 		CaretLeft: "caret_left", CaretRight: "caret_right",
 		WordForward: "word_forward", WordBack: "word_back", WordEnd: "word_end",
 		OtherSide: "other_side", Hover: "hover", Definition: "definition", SelectLines: "select_lines",
-		ClosePopup: "close_popup", ResolveNote: "resolve_note", ReleaseNote: "release_note",
+		ClosePopup: "close_popup", ResolveNote: "resolve_note", ReleaseNote: "release_note", DeleteNote: "delete_note",
 	}
 }
 
@@ -159,7 +166,7 @@ func defaultKeys() [Actions][]string {
 		LeaveCaret: {"i", "esc"}, CaretDown: {"j", "down"}, CaretUp: {"k", "up"},
 		CaretLeft: {"h", "left"}, CaretRight: {"l", "right"},
 		WordForward: {"w"}, WordBack: {"b"}, WordEnd: {"e"}, OtherSide: {"o"}, Hover: {"K"}, Definition: {"d"}, SelectLines: {"v"},
-		ClosePopup: {"esc"}, ResolveNote: {"x"}, ReleaseNote: {"R"},
+		ClosePopup: {"esc"}, ResolveNote: {"x"}, ReleaseNote: {"R"}, DeleteNote: {"D"},
 	}
 }
 
@@ -179,8 +186,8 @@ type keymap struct {
 // its action, an empty one leaves the action without. A bound key leaves
 // the defaults of the actions that share a layer with its own, so a new
 // default never breaks a configuration. Every key must be one the TUI can
-// receive, a layer must not take a key for two bound actions, and quitting
-// must keep a key.
+// receive, a layer must not take a key for two bound actions, quitting
+// must keep a key, and deleting must not take ConfirmDeletion.
 func NewKeymap(bindings map[Action][]string) (Keymap, error) {
 	for a := range bindings {
 		if a >= Actions {
@@ -199,6 +206,9 @@ func NewKeymap(bindings map[Action][]string) (Keymap, error) {
 			if err := checkKey(key); err != nil {
 				return Keymap{}, fmt.Errorf("%w: %s: %w", ErrInvalidKeys, a, err)
 			}
+		}
+		if a == DeleteNote && slices.Contains(keys, ConfirmDeletion) {
+			return Keymap{}, fmt.Errorf("%w: %s: %q confirms deleting", ErrInvalidKeys, a, ConfirmDeletion)
 		}
 		k.keys[a] = slices.Clone(keys)
 	}

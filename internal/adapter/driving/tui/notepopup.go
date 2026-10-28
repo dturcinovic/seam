@@ -183,27 +183,33 @@ func (s *state) lineIn(file int, l view.Line, w filediff.Which) int {
 
 // popupNote is the note a key in the popup acts on: the popup's own note,
 // or the first of a line's, that match takes. A note's popup without the
-// overview behind it leaves the check to the book.
-func (s *state) popupNote(match func(note.Note) bool) (note.ID, bool) {
+// overview behind it knows only the note's ID and leaves the check to the
+// book.
+func (s *state) popupNote(match func(note.Note) bool) (note.Note, bool) {
 	p := s.Hover.Popup
 	if p.Note != "" {
 		n, ok := s.overviewNote(p.Note)
-		return p.Note, !ok || match(n)
+		if !ok {
+			return note.Note{ID: p.Note}, true
+		}
+		return n, match(n)
 	}
 	if p.Notes == nil {
-		return "", false
+		return note.Note{}, false
 	}
 	for _, sp := range s.notesAt(p.Notes.File, p.Notes.Side, p.Notes.Line) {
 		if match(sp.Note) {
-			return sp.Note.ID, true
+			return sp.Note, true
 		}
 	}
-	return "", false
+	return note.Note{}, false
 }
+
+func anyNote(note.Note) bool { return true }
 
 // resolveNote resolves the note of the popup, or the first of a line's.
 func (m *model) resolveNote() {
-	id, ok := m.s.popupNote(func(note.Note) bool { return true })
+	n, ok := m.s.popupNote(anyNote)
 	if !ok {
 		return
 	}
@@ -211,7 +217,7 @@ func (m *model) resolveNote() {
 		// The popup of one note goes with it.
 		m.dropHover()
 	}
-	m.resolve(id)
+	m.resolve(n.ID)
 }
 
 // resolve marks note id done; the book's change brings the marks and
@@ -224,8 +230,8 @@ func (m *model) resolve(id note.ID) {
 // releaseNote gives back the note of the popup, or the first taken of a
 // line's.
 func (m *model) releaseNote() {
-	if id, ok := m.s.popupNote(func(n note.Note) bool { return n.State == note.Taken }); ok {
-		m.release(id)
+	if n, ok := m.s.popupNote(func(n note.Note) bool { return n.State == note.Taken }); ok {
+		m.release(n.ID)
 		return
 	}
 	m.s.Note = "no note taken here"

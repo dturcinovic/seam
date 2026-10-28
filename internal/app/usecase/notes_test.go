@@ -180,11 +180,47 @@ func TestADamagedBookIsReportedAndNotChanged(t *testing.T) {
 		require.True(t, ok)
 		require.ErrorIs(t, status.Err, note.ErrNotesDamaged)
 
-		n.Add(noteDraft(t, []string{"a"}, 1))
+		for _, do := range []func() note.Op{
+			func() note.Op { return n.Add(noteDraft(t, []string{"a"}, 1)) },
+			func() note.Op { return n.Delete("x") },
+		} {
+			op := do()
+			synctest.Wait()
+			done, ok := lastOf(n.Drain(), note.Done)
+			require.True(t, ok)
+			assert.Equal(t, op, done.Op)
+			require.ErrorIs(t, done.Err, note.ErrNotesDamaged)
+		}
+	})
+}
+
+func TestDeletingTakesTheNoteOutOfTheBook(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		n, f := newNotes(t)
+		f.elsewhere(func(b *note.Book) {
+			require.NoError(t, b.Add(noteDraft(t, []string{"a"}, 1), "x", time.Time{}))
+			require.NoError(t, b.Add(noteDraft(t, []string{"a"}, 1), "y", time.Time{}))
+		})
+		(<-f.listener).Changed()
 		synctest.Wait()
-		done, ok := lastOf(n.Drain(), note.Done)
+		n.Drain()
+
+		op := n.Delete("x")
+		synctest.Wait()
+		us := n.Drain()
+		done, ok := lastOf(us, note.Done)
 		require.True(t, ok)
-		require.ErrorIs(t, done.Err, note.ErrNotesDamaged)
+		assert.Equal(t, op, done.Op)
+		require.NoError(t, done.Err)
+		status, ok := lastOf(us, note.StoreStatus)
+		require.True(t, ok)
+		require.Len(t, status.Heads, 1)
+		assert.Equal(t, note.ID("y"), status.Heads[0].ID)
+
+		n.Delete("x")
+		synctest.Wait()
+		done, _ = lastOf(n.Drain(), note.Done)
+		require.ErrorIs(t, done.Err, note.ErrNoNote)
 	})
 }
 

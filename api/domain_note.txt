@@ -22,7 +22,7 @@ const (
 	// MaxLines is the most lines a selection holds.
 	MaxLines = 200
 	// MaxNotes is the most notes not resolved a book holds. Resolved ones
-	// do not count, as nothing removes them; MaxFile bounds them all.
+	// do not count, as only the user removes them; MaxFile bounds them all.
 	MaxNotes = 2000
 	// MaxFile is the most bytes the stored book may take.
 	MaxFile = 16 << 20
@@ -124,6 +124,10 @@ type Book struct {
 
 func (b *Book) Add(d Draft, id ID, at time.Time) error
     Add takes d as a new open note named id, set at at.
+
+func (b *Book) Delete(id ID) error
+    Delete takes note id out of the book, in whatever state. Its id stays in the
+    batches it was sent in, which skip notes the book no longer holds.
 
 func (b *Book) Join(s Session) error
     Join adds the agent session s.

@@ -42,6 +42,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 }
 
 func (m model) update(msg tea.Msg) (model, tea.Cmd) {
+	if m.s.Notes.Delete.asking() && m.deletionTakes(msg) {
+		return m, nil
+	}
 	if m.s.Field.Open && m.fieldTakes(msg) {
 		return m, nil
 	}
@@ -188,6 +191,9 @@ func (m model) onKeyPress(key string) (model, tea.Cmd) {
 			return m, nil
 		case ui.ReleaseNote:
 			m.releaseNote()
+			return m, nil
+		case ui.DeleteNote:
+			m.deletePopupNote()
 			return m, nil
 		}
 		m.dropHover()

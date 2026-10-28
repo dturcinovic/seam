@@ -127,6 +127,13 @@ type NoteAnswerer interface {
     NoteAnswerer lets an agent session take, read and answer notes; each call
     returns once the book is read or written.
 
+type NoteDeleter interface {
+	// Delete takes note id out of the book.
+	Delete(id note.ID) note.Op
+}
+    NoteDeleter takes a note out of the book for good, in whatever state.
+    It does not block; the outcome comes as note.Done through NoteUpdates.
+
 type NoteOverview interface {
 	// Overview asks for every note of the book.
 	Overview()

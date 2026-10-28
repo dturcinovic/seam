@@ -155,6 +155,7 @@ seam processes of the same worktree see each other's notes at once.
 | `m` / `M` | Next, previous note, also in other files |
 | `x` | In the popup of a note: resolve it |
 | `R` | In the popup of a note: give it back from the agent that took it |
+| `D` | In the popup of a note: delete it, after asking (see below) |
 | `N` | All notes of the worktree, see below |
 | `C` | Hide the notes' lines below the code, or show them again |
 | `S` | Send the waiting notes to the agent session, see [Agents](#sending-notes-to-claude-code) |
@@ -212,7 +213,14 @@ processes and keeps the note chosen. In it, `enter` goes to the note:
   even where the worktree has a file of that path.
 
 `x` resolves the note chosen, `R` gives it back from the agent that took
-it, `esc` or `N` closes the list.
+it, `D` deletes it, `esc` or `N` closes the list.
+
+Deleting takes a note out of the book for good, open or resolved, and
+cannot be undone, so `D` asks first in the footer, naming the note by its
+kind and first line: `y` deletes, any other key or a click keeps the note.
+A second `D` keeps it too, so that a key held down never confirms. An
+agent that took the note and answers it later is told there is no such
+note.
 
 ## Agents
 

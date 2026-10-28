@@ -22,6 +22,11 @@ const (
 const Colours = firstKindColour + Colour(syntax.Kinds)
     Colours is the number of roles, no role itself.
 
+const ConfirmDeletion = "y"
+    ConfirmDeletion is the one key that deletes a note once DeleteNote asked.
+    It is no setting and never DeleteNote's key: a key held down repeats,
+    and most terminals do not tell a repeat from a press.
+
 
 VARIABLES
 
@@ -98,6 +103,8 @@ const (
 	ResolveNote
 	// ReleaseNote gives back a note an agent took and did not answer.
 	ReleaseNote
+	// DeleteNote asks whether to take a note out of the book.
+	DeleteNote
 	// Actions is the number of actions, no action itself.
 	Actions
 )
@@ -181,8 +188,8 @@ func NewKeymap(bindings map[Action][]string) (Keymap, error)
     its action, an empty one leaves the action without. A bound key leaves the
     defaults of the actions that share a layer with its own, so a new default
     never breaks a configuration. Every key must be one the TUI can receive,
-    a layer must not take a key for two bound actions, and quitting must keep a
-    key.
+    a layer must not take a key for two bound actions, quitting must keep a key,
+    and deleting must not take ConfirmDeletion.
 
 func (k Keymap) Action(l Layer, key string) (a Action, ok bool)
     Action is what key does in layer l; ok is false for nothing.
