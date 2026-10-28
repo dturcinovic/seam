@@ -19,7 +19,7 @@ func TestEInAPopupRewritesItsNote(t *testing.T) {
 	require.True(t, m.s.Field.Open)
 	assert.Equal(t, "text of a", m.s.Field.Text)
 	assert.Equal(t, len("text of a"), m.s.Field.Cursor, "the cursor at the end")
-	assert.Equal(t, noteDraft{Edit: "a", Kind: note.Question, Lines: noteTarget{File: 0, Side: filediff.NewSide, From: 1, To: 1}}, m.s.Notes.Draft)
+	assert.Equal(t, noteDraft{Edit: "a", Kind: note.Question, Lines: noteTarget{File: 0, Side: filediff.NewSide, From: 1, To: 1}, Blob: worktreeSide().Blob}, m.s.Notes.Draft)
 
 	m, _ = typed(m, "!", "tab", "enter")
 

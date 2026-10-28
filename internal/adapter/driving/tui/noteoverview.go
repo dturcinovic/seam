@@ -209,11 +209,14 @@ func (s *state) jumpToSpot(ref sideRef, sp note.Spot) (filediff.Request, bool) {
 	return s.showTarget()
 }
 
+// probablyHere is the footer's word on a note placed only likely.
+const probablyHere = "note probably here"
+
 // targetSpot makes the note at sp in side ref the row a jump brings up.
 func (s *state) targetSpot(ref sideRef, sp note.Spot) {
 	s.Jump.Target = &target{File: ref.File, Side: ref.W, Line: sp.Place.Start - 1}
-	if sp.Place.Where == note.Likely {
-		s.Note = "note probably here"
+	if w := placeWord(sp.Place.Where); w != "" {
+		s.Note = w
 	}
 }
 

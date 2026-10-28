@@ -69,15 +69,22 @@ func noteModelWith(t *testing.T, c change.Comparison, set ui.Settings) (model, n
 	m, _ = send(m, tea.WindowSizeMsg{Width: 80, Height: 24})
 	fl := p.Files.(*infakes.FakeFileDiffLoader)
 	r := fl.LoadArgsForCall(0)
-	old, new := noteText()
-	fl.DrainReturns([]filediff.Update{{Gen: r.Gen, Snapshot: filediff.Snapshot{
-		File: r.File, Diff: diff.Compute(t.Context(), diff.Split(old), diff.Split(new)),
-		RightDoc:     hover.Document{Path: "a.go", Version: 1, Text: new},
-		WorktreeBlob: change.BlobID(change.SHA1, []byte(new)),
-	}}})
+	_, new := noteText()
+	fl.DrainReturns([]filediff.Update{{Gen: r.Gen, Snapshot: noteSnapshot(t, r.File, new)}})
 	m, _ = send(m, fileDiffsReady{})
 	m.s.toggleMode()
 	return m, f
+}
+
+// noteSnapshot is file of noteModel with text as its worktree side.
+func noteSnapshot(t *testing.T, file change.ChangedFile, text string) filediff.Snapshot {
+	t.Helper()
+	old, _ := noteText()
+	return filediff.Snapshot{
+		File: file, Diff: diff.Compute(t.Context(), diff.Split(old), diff.Split(text)),
+		RightDoc:     hover.Document{Path: file.NewPath, Version: 1, Text: text},
+		WorktreeBlob: change.BlobID(change.SHA1, []byte(text)),
+	}
 }
 
 // worktreeSide is the key of a.go's right side in noteModel.

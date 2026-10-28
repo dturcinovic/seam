@@ -42,7 +42,8 @@ func (s *state) fieldPaste(text string) {
 }
 
 func (s *state) afterField(r fieldResult) {
-	s.Note = ""
+	// The field's text shows again below.
+	s.Note, s.Notes.Draft.Away = "", false
 	switch r { //nolint:exhaustive // done and tab are the owner's
 	case fieldDiscard:
 		s.closeField()

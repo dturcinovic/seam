@@ -185,10 +185,11 @@ func (s *state) markSide(sl *sideLine, file int, w filediff.Which) {
 	}
 }
 
-// drafting reports whether the open field notes line i of side w of file.
+// drafting reports whether the open field notes line i of side w of file;
+// lines lost in a reload are none.
 func (s *state) drafting(file int, w filediff.Which, i int) bool {
 	t := s.Notes.Draft.Lines
-	return s.Field.Open && t.File == file && t.Side == w && t.From <= i && i <= t.To
+	return s.Field.Open && s.Notes.Draft.Lost == linesFound && t.File == file && t.Side == w && t.From <= i && i <= t.To
 }
 
 // plusMark is the plus the mouse is offered, as wide as the column of the

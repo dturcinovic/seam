@@ -66,6 +66,9 @@ func (m model) update(msg tea.Msg) (model, tea.Cmd) {
 		return m.onKeyPress(msg.String())
 	case tea.MouseWheelMsg:
 		m.onWheel(msg)
+		if m.s.Field.Open {
+			m.s.Notes.Draft.Away = !m.s.gapOnScreen(m.s.gap())
+		}
 	case tea.MouseClickMsg:
 		m.onClick(msg)
 	case tea.MouseMotionMsg:
@@ -138,6 +141,8 @@ func (m *model) onChangesets() {
 	for _, u := range m.p.Reload.Drain() {
 		before := m.s.Files
 		m.load(m.s.reloaded(u))
+		// The files' indexes changed before any of them loads afresh.
+		m.s.followDraft()
 		for _, path := range gone(before, m.s.Files, m.s.serverPath) {
 			m.p.Docs.Untrack(hover.DocKey{Path: path})
 		}

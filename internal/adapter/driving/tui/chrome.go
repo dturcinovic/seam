@@ -207,8 +207,12 @@ func footer(s *state) (string, style) {
 		return s.Note, footerStyle
 	}
 	if s.Field.Open {
-		if s.keysShown() {
-			return "", footerStyle
+		lost := s.Notes.Draft.Lost.String()
+		switch {
+		case s.keysShown():
+			return lost, footerStyle
+		case lost != "":
+			return lost + "  " + noteKeys, footerStyle
 		}
 		return noteKeys, footerStyle
 	}

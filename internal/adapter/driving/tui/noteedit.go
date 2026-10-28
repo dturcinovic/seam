@@ -69,14 +69,16 @@ func (s *state) editable(n note.Note) bool {
 // kind and text and the cursor at the end.
 func (m *model) openEdit(ref sideRef, sp note.Spot) {
 	n := sp.Note
+	// sp was placed in this side, so it has a key.
+	k, _ := m.s.noteKey(ref.File, ref.W)
 	m.s.Notes.Draft = noteDraft{
-		Edit: n.ID, Kind: n.Kind,
+		Edit: n.ID, Kind: n.Kind, Anchor: n.Anchor, Blob: k.Blob,
 		Lines: noteTarget{File: ref.File, Side: ref.W, From: sp.Place.Start - 1, To: sp.Place.End - 1},
 	}
 	m.openField(note.MaxText)
 	m.s.fieldPaste(n.Text)
-	if sp.Place.Where == note.Likely {
+	if w := placeWord(sp.Place.Where); w != "" {
 		// The field's opening cleared what targetSpot said.
-		m.s.Note = "note probably here"
+		m.s.Note = w
 	}
 }

@@ -168,7 +168,12 @@ between question and finding, and the frame takes the kind's colour.
 `enter` saves, `alt+enter` starts a new line, `esc` discards; the bottom
 edge names these keys, or the footer where the field is too narrow. While
 it is open, every other key is text, and the wheel scrolls the code with
-the field at its lines.
+the field at its lines. When `--watch` reloads the file meanwhile, the
+field moves with its lines, found as a saved note's are. Where they are
+not found, the field stays near where they were and marks none; where
+their side is no longer shown, as when the file left the changeset, the
+field shows nowhere until it is. The footer says so either way, and the
+note still goes to the lines as they were.
 
 With the mouse, a line without a note lights up and shows `[+]` in the
 gutter of the side under the mouse, and the footer names it; a click on

@@ -46,7 +46,7 @@ func (m *model) openNote(t noteTarget) (ok bool) {
 		return false
 	}
 	// The field lays itself out at the lines of the draft.
-	m.s.Notes.Draft = noteDraft{Kind: note.Question, Anchor: a, Comparison: comparisonText(&m.s), Lines: t}
+	m.s.Notes.Draft = noteDraft{Kind: note.Question, Anchor: a, Comparison: comparisonText(&m.s), Lines: t, Blob: k.Blob}
 	m.openField(note.MaxText)
 	return true
 }
