@@ -21,7 +21,8 @@ var (
 const (
 	// RefusedOtherSession is a batch sent to another session.
 	RefusedOtherSession Reason = "other_session"
-	// RefusedRebatched is a note sent again since, in a newer batch.
+	// RefusedRebatched is a note no longer sent in the batch: sent again
+	// since in a newer one, or edited.
 	RefusedRebatched Reason = "rebatched"
 )
 

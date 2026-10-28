@@ -51,6 +51,7 @@ func TestTheDefaultKeys(t *testing.T) {
 		{ui.CaretLayer, "esc", ui.LeaveCaret},
 		{ui.PopupLayer, "esc", ui.ClosePopup},
 		{ui.PopupLayer, "D", ui.DeleteNote},
+		{ui.PopupLayer, "E", ui.EditNote},
 	}
 	for _, tt := range tests {
 		got, ok := k.Action(tt.layer, tt.key)

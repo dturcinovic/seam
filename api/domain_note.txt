@@ -60,8 +60,11 @@ var (
 	ErrInvalidRange = errors.New("invalid selection")
 	ErrInvalidKind  = errors.New("invalid note kind")
 	ErrNoOrigin     = errors.New("note anchored in no commit, index or worktree")
-	// ErrResolved is an answer to a note already resolved.
+	// ErrResolved is an answer to, or an edit of, a note already resolved.
 	ErrResolved = errors.New("note resolved")
+	// ErrTaken is a note edited while an agent holds it, which would then
+	// answer a text it never read.
+	ErrTaken = errors.New("note taken by an agent")
 	// ErrNotesDamaged is a stored book that cannot be read; it is never
 	// written over, as that would lose the notes in it.
 	ErrNotesDamaged = errors.New("notes file damaged")
@@ -128,6 +131,14 @@ func (b *Book) Add(d Draft, id ID, at time.Time) error
 func (b *Book) Delete(id ID) error
     Delete takes note id out of the book, in whatever state. Its id stays in the
     batches it was sent in, which skip notes the book no longer holds.
+
+func (b *Book) Edit(id ID, k Kind, text string) error
+    Edit gives note id kind k and text, at the lines it was set at. A note sent
+    or answered waits again, for an agent to read what it now asks; its answers
+    stay, and it leaves its batch, which would else take it as still sent. A
+    note taken waits for the agent's answer or to be given back, and a resolved
+    one is done. The same kind and text again change nothing, so that saving the
+    field unchanged keeps a sent note in its batch and an answered one answered.
 
 func (b *Book) Join(s Session) error
     Join adds the agent session s.
@@ -288,7 +299,8 @@ const (
 const (
 	// RefusedOtherSession is a batch sent to another session.
 	RefusedOtherSession Reason = "other_session"
-	// RefusedRebatched is a note sent again since, in a newer batch.
+	// RefusedRebatched is a note no longer sent in the batch: sent again
+	// since in a newer one, or edited.
 	RefusedRebatched Reason = "rebatched"
 )
     The reasons a note of a batch is not taken, beside those of Take.

@@ -180,3 +180,13 @@ func TestTheFrameNamesTheKeysWhereTheyFit(t *testing.T) {
 	assert.Equal(t, "└"+strings.Repeat("─", s.Field.W-popupFrame)+"┘", box[len(box)-1], "too narrow beside the other side")
 	assert.Equal(t, noteKeys, strings.TrimSpace(plainLines(s)[s.Layout.Height-1]), "the footer names them")
 }
+
+func TestANarrowBoxStillSaysItEdits(t *testing.T) {
+	s := screen(t, 60)
+	s.Notes.Draft = noteDraft{Edit: "a", Kind: note.Question, Lines: noteTarget{Side: filediff.OldSide, From: 1, To: 20}}
+	s.openField(noteLimit)
+
+	top := boxLines(*s)[0]
+	assert.Contains(t, top, " edit ")
+	assert.NotContains(t, top, "L2–21", "the lines went first")
+}

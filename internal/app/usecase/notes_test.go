@@ -194,6 +194,35 @@ func TestADamagedBookIsReportedAndNotChanged(t *testing.T) {
 	})
 }
 
+func TestEditingRewritesTheNoteInTheBook(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		n, f := newNotes(t)
+		f.elsewhere(func(b *note.Book) {
+			require.NoError(t, b.Add(noteDraft(t, []string{"a"}, 1), "x", time.Time{}))
+		})
+		(<-f.listener).Changed()
+		synctest.Wait()
+		n.Drain()
+
+		op := n.Edit("x", note.Finding, "better")
+		synctest.Wait()
+		done, ok := lastOf(n.Drain(), note.Done)
+		require.True(t, ok)
+		assert.Equal(t, op, done.Op)
+		require.NoError(t, done.Err)
+		f.mu.Lock()
+		got := f.book.Notes[0]
+		f.mu.Unlock()
+		assert.Equal(t, note.Finding, got.Kind)
+		assert.Equal(t, "better", got.Text)
+
+		n.Edit("x", note.Finding, "")
+		synctest.Wait()
+		done, _ = lastOf(n.Drain(), note.Done)
+		require.ErrorIs(t, done.Err, note.ErrEmptyText)
+	})
+}
+
 func TestDeletingTakesTheNoteOutOfTheBook(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		n, f := newNotes(t)

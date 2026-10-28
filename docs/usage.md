@@ -156,6 +156,7 @@ seam processes of the same worktree see each other's notes at once.
 | `x` | In the popup of a note: resolve it |
 | `R` | In the popup of a note: give it back from the agent that took it |
 | `D` | In the popup of a note: delete it, after asking (see below) |
+| `E` | In the popup of a note: edit it (see below) |
 | `N` | All notes of the worktree, see below |
 | `C` | Hide the notes' lines below the code, or show them again |
 | `S` | Send the waiting notes to the agent session, see [Agents](#sending-notes-to-claude-code) |
@@ -213,7 +214,7 @@ processes and keeps the note chosen. In it, `enter` goes to the note:
   even where the worktree has a file of that path.
 
 `x` resolves the note chosen, `R` gives it back from the agent that took
-it, `D` deletes it, `esc` or `N` closes the list.
+it, `D` deletes it, `E` edits it, `esc` or `N` closes the list.
 
 Deleting takes a note out of the book for good, open or resolved, and
 cannot be undone, so `D` asks first in the footer, naming the note by its
@@ -221,6 +222,14 @@ kind and first line: `y` deletes, any other key or a click keeps the note.
 A second `D` keeps it too, so that a key held down never confirms. An
 agent that took the note and answers it later is told there is no such
 note.
+
+`E` opens the field at the note's lines with its text and kind, the top
+edge saying `edit`; from the list it goes to the note first. `enter` saves
+the new text and kind, `esc` leaves the note as it was, and the lines it
+was set at stay. A note sent or answered waits again, for an agent to
+answer what it now asks; its answers stay. A note an agent holds is
+given back with `R` first, and a resolved one, or one without a sure
+place in the file, is not edited.
 
 ## Agents
 
@@ -291,8 +300,8 @@ channel. Claude Code asks for both on every start, and
 `claude -p` ignores the flag; an alias saves typing it. The session then
 starts on the notes by itself and
 takes them with `seam_notes(batch)`, which takes only the notes still in
-that batch and only for the session it went to; notes sent again since
-come back `rebatched`.
+that batch and only for the session it went to; notes sent again or
+edited since come back `rebatched`.
 
 Claude Code does not say whether it heard, so seam never says a note
 arrived: it stays `sent, not taken` until an agent takes it. Without the

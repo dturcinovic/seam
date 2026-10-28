@@ -194,6 +194,7 @@ is no setting, and `delete_note` cannot take it.
 | | `resolve_note` | `x` |
 | | `release_note` | `R` |
 | | `delete_note` | `D` |
+| | `edit_note` | `E` |
 
 What the actions do is in [Usage](usage.md).
 

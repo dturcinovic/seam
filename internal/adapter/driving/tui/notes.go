@@ -59,9 +59,11 @@ type notesState struct {
 	Delete  noteDeletion
 }
 
-// noteDraft is what the field writes: a note of Kind at Anchor. Op is the
-// Add sent for it, zero while none waits for its outcome.
+// noteDraft is what the field writes: a note of Kind at Anchor, or the
+// new kind and text of note Edit. Op is the Add or Edit sent for it, zero
+// while none waits for its outcome.
 type noteDraft struct {
+	Edit       note.ID
 	Kind       note.Kind
 	Anchor     note.Anchor
 	Comparison string

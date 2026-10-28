@@ -134,6 +134,13 @@ type NoteDeleter interface {
     NoteDeleter takes a note out of the book for good, in whatever state.
     It does not block; the outcome comes as note.Done through NoteUpdates.
 
+type NoteEditor interface {
+	// Edit gives note id kind k and text.
+	Edit(id note.ID, k note.Kind, text string) note.Op
+}
+    NoteEditor rewrites a note at the lines it was set at. It does not block;
+    the outcome comes as note.Done through NoteUpdates.
+
 type NoteOverview interface {
 	// Overview asks for every note of the book.
 	Overview()

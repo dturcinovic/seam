@@ -18,7 +18,7 @@ const instructions = `seam is a diff viewer in which the user leaves review note
 2. Look at the code, then answer each note with seam_reply, giving the claim seam_notes returned. seam shows the answer at the note right away.
 3. seam_notes_view reads notes without taking them, also those another session took.
 
-When a message from seam's channel names a batch, call seam_notes with that batch and without ids: it takes exactly the notes the user sent, and only if the batch was sent to this session. Notes it refuses as rebatched were sent again in a newer batch; leave them.
+When a message from seam's channel names a batch, call seam_notes with that batch and without ids: it takes exactly the notes the user sent, and only if the batch was sent to this session. Notes it refuses as rebatched were sent again in a newer batch or edited since; leave them.
 
 When more is true, call seam_notes again for the rest. Take only what you will answer: a note taken and not answered stays taken until this session ends or the user gives it back.
 
@@ -45,7 +45,7 @@ type takenOut struct {
 
 type refusalOut struct {
 	ID     string `json:"id"`
-	Reason string `json:"reason" jsonschema:"unknown, taken, answered, resolved, other_session (the batch went to another session) or rebatched (sent again in a newer batch)"`
+	Reason string `json:"reason" jsonschema:"unknown, taken, answered, resolved, other_session (the batch went to another session) or rebatched (sent again in a newer batch, or edited since)"`
 }
 
 type viewOut struct {

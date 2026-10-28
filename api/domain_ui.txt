@@ -105,6 +105,8 @@ const (
 	ReleaseNote
 	// DeleteNote asks whether to take a note out of the book.
 	DeleteNote
+	// EditNote opens the field with a note's text, to rewrite it.
+	EditNote
 	// Actions is the number of actions, no action itself.
 	Actions
 )

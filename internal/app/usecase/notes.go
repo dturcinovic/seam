@@ -19,10 +19,10 @@ type NotesSettings struct {
 }
 
 // Notes implements in.NoteWriter, in.NoteReader, in.NoteOverview,
-// in.NoteReleaser, in.NoteDeleter, in.NoteSender and in.NoteUpdates. One
-// goroutine reads, places and changes the book, in the order asked; a
-// change from another process, which the watcher reports, reloads it
-// before the next job.
+// in.NoteReleaser, in.NoteDeleter, in.NoteEditor, in.NoteSender and
+// in.NoteUpdates. One goroutine reads, places and changes the book, in the
+// order asked; a change from another process, which the watcher reports,
+// reloads it before the next job.
 type Notes struct {
 	group   *supervise.Group
 	store   out.NoteStore
@@ -102,6 +102,11 @@ func (n *Notes) Release(id note.ID) note.Op {
 // Delete implements in.NoteDeleter.
 func (n *Notes) Delete(id note.ID) note.Op {
 	return n.change(func(b *note.Book) error { return b.Delete(id) })
+}
+
+// Edit implements in.NoteEditor.
+func (n *Notes) Edit(id note.ID, k note.Kind, text string) note.Op {
+	return n.change(func(b *note.Book) error { return b.Edit(id, k, text) })
 }
 
 // Send implements in.NoteSender.
