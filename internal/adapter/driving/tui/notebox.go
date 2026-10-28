@@ -66,7 +66,8 @@ func (s *state) gapOnScreen(g gapSpot) bool {
 func writeGapLine(b *strings.Builder, s *state, th *theme, j int) {
 	t := s.Notes.Draft.Lines
 	writeSideLine(b, s, th, t.File, t.Side, func(ln *line, lay layout, to func(int)) {
-		if j == 0 {
+		if j == 0 && s.Notes.Draft.Lost == linesFound {
+			// No hook to a line the field does not note.
 			ln.spaces((lay.sidePane(t.Side).Marks-1)/2, plain)
 			ln.text(noteHook, paneStyle(equalTone, lookOf(s.Notes.Draft.Kind).mark))
 		}
@@ -132,11 +133,16 @@ func (s *state) writeNoteBox(ln *line, j int) {
 }
 
 // writeNoteTop writes the top edge: both kinds with the one being written
-// filled, and the lines noted at the right. A narrow box keeps the kind
-// being written, then drops the lines, so its corner stays.
+// filled, and the lines noted at the right, unknown where a reload lost
+// them. A narrow box keeps the kind being written, then drops the lines,
+// so its corner stays.
 func (s *state) writeNoteTop(ln *line, frame style) {
 	d := &s.Notes.Draft
-	kinds, lines := []note.Kind{note.Question, note.Finding}, " "+linesText(d.Lines)+" "
+	at := linesText(d.Lines)
+	if d.Lost != linesFound {
+		at = "L?"
+	}
+	kinds, lines := []note.Kind{note.Question, note.Finding}, " "+at+" "
 	if d.Edit != "" {
 		lines = " edit" + lines
 	}
@@ -192,10 +198,14 @@ func writeNoteFoot(ln *line, w int, frame style) {
 // notePlaceholder is the empty field's word on what to write.
 func (s *state) notePlaceholder() string {
 	d := &s.Notes.Draft
-	if d.Kind == note.Finding {
-		return "Describe the finding on " + lineWord(d.Lines) + "…"
+	on := lineWord(d.Lines)
+	if d.Lost != linesFound {
+		on = "the lines noted"
 	}
-	return "Ask about " + lineWord(d.Lines) + "…"
+	if d.Kind == note.Finding {
+		return "Describe the finding on " + on + "…"
+	}
+	return "Ask about " + on + "…"
 }
 
 // linesText names the lines of t, counted from 1, as the top edge does.

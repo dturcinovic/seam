@@ -69,8 +69,13 @@ type noteDraft struct {
 	Comparison string
 	Op         note.Op
 	// Lines are the lines noted as the screen shows them, where the field
-	// stands.
+	// stands, in version Blob of their side; Lost is why it marks none.
+	// Away is the wheel having taken the field out of sight, where a
+	// reload leaves it.
 	Lines noteTarget
+	Blob  change.ObjectID
+	Lost  draftLost
+	Away  bool
 }
 
 // lineMark is a line marked with v, Row of Side of File: a note then takes
@@ -154,8 +159,9 @@ func (s *state) noteSides() map[note.SnapshotKey]sideRef {
 // placeNotes asks where the notes of the sides on screen stand, and
 // forgets the placements of sides no longer there. Unless again, it asks
 // only for sides not placed yet: a side's key names its text, so their
-// placement still holds.
+// placement still holds. The open field follows its lines first.
 func (m *model) placeNotes(again bool) {
+	m.s.followDraft()
 	n := &m.s.Notes
 	sides := m.s.noteSides()
 	for k := range n.Spots {
