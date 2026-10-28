@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 
 	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
@@ -219,16 +218,4 @@ func (t *tree) skipped(path string) bool {
 		return true
 	}
 	return slices.ContainsFunc(t.paths.Ignored, func(ignored string) bool { return strings.HasPrefix(dir, ignored) })
-}
-
-// limitHint names the setting to raise when the kernel runs out of watches
-// or watchers.
-func limitHint(err error) error {
-	switch {
-	case errors.Is(err, syscall.ENOSPC):
-		return fmt.Errorf("%w (raise fs.inotify.max_user_watches)", err)
-	case errors.Is(err, syscall.EMFILE):
-		return fmt.Errorf("%w (raise fs.inotify.max_user_instances)", err)
-	}
-	return err
 }

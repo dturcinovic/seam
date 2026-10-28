@@ -88,3 +88,7 @@ func releaseNotice(ctx context.Context, flags config.Flags, running release.Vers
 	}
 	return release.Notice(running, latest, updateCommand()), true
 }
+
+// serveGuard serves as a language server's guard if seam was started as
+// one; see lsp.ServeGuard.
+func serveGuard() (code int, ok bool) { return lsp.ServeGuard() }

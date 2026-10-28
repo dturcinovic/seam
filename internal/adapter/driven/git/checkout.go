@@ -291,21 +291,25 @@ func makeLock(name string) (*os.File, error) {
 	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {
 		return nil, fmt.Errorf("make checkout directory: %w", err)
 	}
+	var err error
 	for range 10 {
 		// Not MkdirAll: it fails when base is made and removed again
 		// while it looks.
 		if err := os.Mkdir(base, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 			return nil, fmt.Errorf("make checkout directory: %w", err)
 		}
-		lock, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+		var lock *os.File
+		lock, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 		if err == nil {
 			return lock, nil
 		}
-		if !errors.Is(err, os.ErrNotExist) {
+		// macOS reports a base removed during the open as EINVAL rather
+		// than ENOENT.
+		if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, syscall.EINVAL) {
 			return nil, fmt.Errorf("make session lock: %w", err)
 		}
 	}
-	return nil, fmt.Errorf("make session lock: %s was removed each time", base)
+	return nil, fmt.Errorf("make session lock: %s was removed each time: %w", base, err)
 }
 
 // takeLock locks the lock of the session at dir, if no running session

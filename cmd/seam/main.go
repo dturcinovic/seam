@@ -17,6 +17,11 @@ import (
 )
 
 func main() {
+	// A language server's guard is seam started again; it must not become
+	// a second seam.
+	if code, ok := serveGuard(); ok {
+		os.Exit(code)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	code := run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 	stop()

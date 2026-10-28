@@ -29,7 +29,7 @@ type checkoutRepo struct {
 
 func newCheckoutRepo(t *testing.T) checkoutRepo {
 	t.Helper()
-	r := checkoutRepo{GitRepo: testsupport.NewGitRepo(t), store: t.TempDir()}
+	r := checkoutRepo{GitRepo: testsupport.NewGitRepo(t), store: testsupport.RealTempDir(t)}
 	r.Write(".gitignore", "bin/\n")
 	r.Write("a.txt", "one\n")
 	r.Git("add", "-A")
@@ -166,7 +166,7 @@ func TestCleanLeavesRunningSessionsAndForeignDirectories(t *testing.T) {
 	// checkout of the repository.
 	foreign := filepath.Join(filepath.Dir(filepath.Dir(dir)), "0123456789abcdef")
 	require.NoError(t, os.MkdirAll(filepath.Join(foreign, r.second.String()), 0o700))
-	own := filepath.Join(t.TempDir(), "own")
+	own := filepath.Join(testsupport.RealTempDir(t), "own")
 	r.Git("worktree", "add", "-q", "--detach", own, r.second.String())
 
 	c := r.checkouts()

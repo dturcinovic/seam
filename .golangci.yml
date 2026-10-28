@@ -71,6 +71,11 @@ linters:
       - path: ^internal/adapter/driven/lsp/main_test\.go$
         text: "use of `(os\\.Std(out|err)|os\\.Exit|fmt\\.Println)`"
         linters: [forbidigo]
+      # On macOS a test binary that starts servers is also their guard, and
+      # ends as one: see serveGuard.
+      - path: ^cmd/seam/main_test\.go$
+        text: "use of `os\\.Exit`"
+        linters: [forbidigo]
       - path: _test\.go
         text: "use of `(panic|time\\.Now)`"
         linters: [forbidigo]

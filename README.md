@@ -26,7 +26,7 @@ file, and lets you move through them.
 
 ## Requirements
 
-- Linux
+- Linux or macOS
 - git 2.36 or newer
 - A terminal with mouse support for hover; without one, the caret does it
 - For hover, the language server of the language, see
@@ -36,9 +36,12 @@ file, and lets you move through them.
 ## Install
 
 Each [release](https://github.com/dturcinovic/seam/releases) has a static
-binary for Linux on `amd64` and `arm64`, which needs nothing else but git:
+binary for Linux and macOS on `amd64` and `arm64`, which needs nothing else
+but git:
 
 ```bash
+# macOS, with Homebrew
+brew install --cask dturcinovic/tap/seam
 # Debian, Ubuntu
 sudo apt install ./seam_<version>_amd64.deb
 # Fedora and other rpm systems

@@ -11,7 +11,7 @@ builds:
       - -trimpath
     ldflags:
       - -s -w -X main.version={{ .Tag }}
-    goos: [linux]
+    goos: [linux, darwin]
     goarch: [amd64, arm64]
 
 archives:
@@ -36,6 +36,29 @@ nfpms:
     formats: [deb, rpm]
     dependencies:
       - git
+
+# A cask, not a formula: it installs the built binary as is. The tap is a
+# repository of its own, which the release job's token cannot write to.
+homebrew_casks:
+  - name: seam
+    repository:
+      owner: dturcinovic
+      name: homebrew-tap
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
+    homepage: https://github.com/dturcinovic/seam
+    description: Side-by-side diff viewer for the terminal with type info from the language server
+    license: MIT
+    commit_author:
+      name: Damir Turcinovic
+      email: damir.turcinovic@googlemail.com
+    hooks:
+      post:
+        # The binary is not notarized; without this, Gatekeeper refuses to
+        # run what Homebrew downloaded.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/seam"]
+          end
 
 changelog:
   use: git
