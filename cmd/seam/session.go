@@ -69,7 +69,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 	)
 	app := fx.New(append(options(cfg, logger, root, notes, file),
 		fx.Populate(&changesets, &watches, &releases, &ports.Files, &ports.Stream, &ports.Reload, &ports.Docs, &ports.LSP, &ports.Hover, &ports.Define, &ports.Watch,
-			&ports.NoteWriter, &ports.NoteReader, &ports.NoteOverview, &ports.NoteReleaser, &ports.NoteDeleter, &ports.NoteSender, &ports.NoteUpdates, &panics))...)
+			&ports.NoteWriter, &ports.NoteReader, &ports.NoteOverview, &ports.NoteReleaser, &ports.NoteDeleter, &ports.NoteEditor, &ports.NoteSender, &ports.NoteUpdates, &panics))...)
 	if err := app.Err(); err != nil {
 		return fmt.Errorf("build application: %w", err)
 	}

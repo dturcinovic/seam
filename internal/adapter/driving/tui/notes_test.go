@@ -29,6 +29,7 @@ type noteFakes struct {
 	release *infakes.FakeNoteReleaser
 	sender  *infakes.FakeNoteSender
 	deleter *infakes.FakeNoteDeleter
+	editor  *infakes.FakeNoteEditor
 }
 
 func objectID(t *testing.T, c string) change.ObjectID {
@@ -63,7 +64,7 @@ func noteModelWith(t *testing.T, c change.Comparison, set ui.Settings) (model, n
 	fs := files("a.go", "b.go")
 	fs[0].OldID, fs[0].NewID = objectID(t, "2"), objectID(t, "3")
 	p := fakePorts()
-	f := noteFakes{p.NoteWriter.(*infakes.FakeNoteWriter), p.NoteReader.(*infakes.FakeNoteReader), p.NoteUpdates.(*infakes.FakeNoteUpdates), p.NoteReleaser.(*infakes.FakeNoteReleaser), p.NoteSender.(*infakes.FakeNoteSender), p.NoteDeleter.(*infakes.FakeNoteDeleter)}
+	f := noteFakes{p.NoteWriter.(*infakes.FakeNoteWriter), p.NoteReader.(*infakes.FakeNoteReader), p.NoteUpdates.(*infakes.FakeNoteUpdates), p.NoteReleaser.(*infakes.FakeNoteReleaser), p.NoteSender.(*infakes.FakeNoteSender), p.NoteDeleter.(*infakes.FakeNoteDeleter), p.NoteEditor.(*infakes.FakeNoteEditor)}
 	m := newModel(change.Changeset{Comparison: c, Files: fs}, p, set)
 	m, _ = send(m, tea.WindowSizeMsg{Width: 80, Height: 24})
 	fl := p.Files.(*infakes.FakeFileDiffLoader)

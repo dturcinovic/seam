@@ -37,8 +37,11 @@ var (
 	ErrInvalidRange = errors.New("invalid selection")
 	ErrInvalidKind  = errors.New("invalid note kind")
 	ErrNoOrigin     = errors.New("note anchored in no commit, index or worktree")
-	// ErrResolved is an answer to a note already resolved.
+	// ErrResolved is an answer to, or an edit of, a note already resolved.
 	ErrResolved = errors.New("note resolved")
+	// ErrTaken is a note edited while an agent holds it, which would then
+	// answer a text it never read.
+	ErrTaken = errors.New("note taken by an agent")
 	// ErrNotesDamaged is a stored book that cannot be read; it is never
 	// written over, as that would lose the notes in it.
 	ErrNotesDamaged = errors.New("notes file damaged")
@@ -228,13 +231,10 @@ type Book struct {
 
 // Add takes d as a new open note named id, set at at.
 func (b *Book) Add(d Draft, id ID, at time.Time) error {
+	if err := checkText(d.Kind, d.Text); err != nil {
+		return err
+	}
 	switch {
-	case d.Text == "":
-		return ErrEmptyText
-	case len(d.Text) > MaxText:
-		return fmt.Errorf("%w: %d bytes, at most %d", ErrTextTooLong, len(d.Text), MaxText)
-	case d.Kind != Question && d.Kind != Finding:
-		return fmt.Errorf("%w: %d", ErrInvalidKind, d.Kind)
 	case !d.Anchor.Origin.valid():
 		return ErrNoOrigin
 	case b.unresolved() >= MaxNotes:
@@ -246,6 +246,48 @@ func (b *Book) Add(d Draft, id ID, at time.Time) error {
 	b.Notes = append(b.Notes, Note{
 		ID: id, Kind: d.Kind, Anchor: d.Anchor, Comparison: d.Comparison, Text: d.Text, State: Open, Created: at,
 	})
+	return nil
+}
+
+func checkText(k Kind, text string) error {
+	switch {
+	case text == "":
+		return ErrEmptyText
+	case len(text) > MaxText:
+		return fmt.Errorf("%w: %d bytes, at most %d", ErrTextTooLong, len(text), MaxText)
+	case k != Question && k != Finding:
+		return fmt.Errorf("%w: %d", ErrInvalidKind, k)
+	}
+	return nil
+}
+
+// Edit gives note id kind k and text, at the lines it was set at. A note
+// sent or answered waits again, for an agent to read what it now asks;
+// its answers stay, and it leaves its batch, which would else take it as
+// still sent. A note taken waits for the agent's answer or to be given
+// back, and a resolved one is done. The same kind and text again change
+// nothing, so that saving the field unchanged keeps a sent note in its
+// batch and an answered one answered.
+func (b *Book) Edit(id ID, k Kind, text string) error {
+	if err := checkText(k, text); err != nil {
+		return err
+	}
+	i, ok := b.find(id)
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNoNote, id)
+	}
+	n := &b.Notes[i]
+	switch n.State {
+	case Resolved:
+		return fmt.Errorf("%w: %s", ErrResolved, id)
+	case Taken:
+		return fmt.Errorf("%w: %s", ErrTaken, id)
+	case Open, Sent, Answered:
+	}
+	if n.Kind == k && n.Text == text {
+		return nil
+	}
+	n.Kind, n.Text, n.State, n.Batch = k, text, Open, ""
 	return nil
 }
 

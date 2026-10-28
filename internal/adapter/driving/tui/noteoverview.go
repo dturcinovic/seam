@@ -37,12 +37,23 @@ type overviewRow struct {
 	Path string
 }
 
-// noteFind is a note enter went to whose place in File is not known yet:
-// once the file is loaded and its sides placed it shows there, or in a
-// popup.
+// noteFind is a note enter or E went to whose place in File is not known
+// yet: once the file is loaded and its sides placed it shows there, or in
+// a popup; for Edit the field opens there.
 type noteFind struct {
 	Note note.Note
 	File int
+	Edit bool
+}
+
+// found is what findPlaced leaves to the caller: Note to show in a popup,
+// or with Edit to rewrite in the field at Spot of side Ref; nothing for a
+// zero Note.
+type found struct {
+	Note note.Note
+	Edit bool
+	Ref  sideRef
+	Spot note.Spot
 }
 
 // openOverview opens the overview and asks for the book; it stays empty
@@ -112,7 +123,7 @@ func (o *noteOverview) moveSel(row, dir int) {
 }
 
 // onOverviewAction does an action of the open overview: the file list's
-// motions, enter and esc, and x, R and D of the popups. It reports whether the
+// motions, enter and esc, and x, R, D and E of the popups. It reports whether the
 // overview took a; it takes every action but quitting, so that no key
 // changes the view under it.
 func (m *model) onOverviewAction(a ui.Action) bool {
@@ -133,7 +144,9 @@ func (m *model) onOverviewAction(a ui.Action) bool {
 	case ui.Back, ui.Notes:
 		*o = noteOverview{}
 	case ui.Open:
-		m.load(s.enterNote())
+		m.load(s.enterNote(false))
+	case ui.EditNote:
+		m.editOverviewNote()
 	case ui.ResolveNote:
 		if n, ok := o.selected(); ok && n.State != note.Resolved {
 			m.resolve(n.ID)
@@ -155,8 +168,10 @@ func (m *model) onOverviewAction(a ui.Action) bool {
 // file outside the changeset opens that file to read. Either waits for
 // the note's place in the file, if not known yet. Every other note opens
 // in a popup: one resolved, one without a place, and a commit or index
-// note no side shows, even where the worktree has the same path.
-func (s *state) enterNote() (filediff.Request, bool) {
+// note no side shows, even where the worktree has the same path. To edit,
+// the field opens at the place through findPlaced, which also waits for
+// it, and without a place the footer says so.
+func (s *state) enterNote(edit bool) (filediff.Request, bool) {
 	o := &s.Notes.Overview
 	n, ok := o.selected()
 	if !ok {
@@ -166,6 +181,10 @@ func (s *state) enterNote() (filediff.Request, bool) {
 	sp, placed := s.spotOf(n.ID, ref)
 	visits := !onSide && n.Anchor.Origin.Kind == change.KindWorktree && s.canVisit()
 	if n.State == note.Resolved || onSide && placed && !sp.Place.Where.Shown() || !onSide && !visits {
+		if edit {
+			s.Note = noPlaceToEdit
+			return filediff.Request{}, false
+		}
 		s.openNotePopup(n, o.X+1, o.Y+1+o.selRow()-o.Scroll)
 		return filediff.Request{}, false
 	}
@@ -174,12 +193,12 @@ func (s *state) enterNote() (filediff.Request, bool) {
 	switch {
 	case visits:
 		s.Mode = view.Full
-		s.Notes.Find = noteFind{Note: n, File: -1}
+		s.Notes.Find = noteFind{Note: n, File: -1, Edit: edit}
 		return s.visit(n.Anchor.Path)
-	case placed:
+	case placed && !edit:
 		return s.jumpToSpot(ref, sp)
 	}
-	s.Notes.Find = noteFind{Note: n, File: ref.File}
+	s.Notes.Find = noteFind{Note: n, File: ref.File, Edit: edit}
 	return s.showSide(ref.File)
 }
 
@@ -198,18 +217,18 @@ func (s *state) targetSpot(ref sideRef, sp note.Spot) {
 	}
 }
 
-// findPlaced shows the note enter went to, once its file is loaded and
-// the file's sides are placed: at its place if it has one, else in a
+// findPlaced shows the note enter or E went to, once its file is loaded
+// and the file's sides are placed: at its place if it has one, else in a
 // popup, also where its side takes no notes, as an empty file. It jumps
-// itself and leaves the popup of n to the caller, if show.
-func (s *state) findPlaced() (n note.Note, show bool) {
+// itself and leaves the popup or the field to the caller.
+func (s *state) findPlaced() found {
 	f := s.Notes.Find
 	if f.Note.ID == "" {
-		return note.Note{}, false
+		return found{}
 	}
 	file := f.File
 	if _, loaded := s.loadedOf(file); !loaded || s.awaitsPlaces(file) {
-		return note.Note{}, false
+		return found{}
 	}
 	s.Notes.Find = noteFind{}
 	for _, w := range []filediff.Which{filediff.OldSide, filediff.NewSide} {
@@ -217,10 +236,17 @@ func (s *state) findPlaced() (n note.Note, show bool) {
 		if sp, ok := s.spotOf(f.Note.ID, ref); ok && sp.Place.Where.Shown() {
 			s.targetSpot(ref, sp)
 			s.bringTarget()
-			return note.Note{}, false
+			if !f.Edit {
+				return found{}
+			}
+			return found{Note: f.Note, Edit: true, Ref: ref, Spot: sp}
 		}
 	}
-	return f.Note, true
+	if f.Edit {
+		s.Note = noPlaceToEdit
+		return found{}
+	}
+	return found{Note: f.Note}
 }
 
 // spotOf is note id among the placed notes of side ref; ok is false while
@@ -238,8 +264,8 @@ func (s *state) spotOf(id note.ID, ref sideRef) (note.Spot, bool) {
 }
 
 // overviewKey gives key to the open overview, which has no layer of its
-// own: it takes the file list's actions, x, R and D of the popups and N of
-// the view. A layer of its own would only repeat the list's keys in the
+// own: it takes the file list's actions, x, R, D and E of the popups and
+// N of the view. A layer of its own would only repeat the list's keys in the
 // configuration. It reports whether the key is done with.
 func (m *model) overviewKey(key string) bool {
 	k := m.s.Keys

@@ -18,7 +18,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 	before, caret, stream := m.s.screenKey(), m.s.Caret, m.s.Stream.On
 	m.s.userActed(msg)
 	m, cmd := m.update(msg)
-	shown, show := m.s.findPlaced()
+	f := m.s.findPlaced()
 	if stream && !m.s.Stream.On {
 		// However the stream was left, its loads would hold up the file
 		// now asked for.
@@ -34,9 +34,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn // te
 			m.s.notesAtCaret()
 		}
 	}
-	if show {
-		// After the drop, which the load that brought its file would do.
-		m.s.openNotePopup(shown, 0, bodyTop-1)
+	// After the drop, which the load that brought its file would do.
+	switch {
+	case f.Edit:
+		m.editFound(f)
+	case f.Note.ID != "":
+		m.s.openNotePopup(f.Note, 0, bodyTop-1)
 	}
 	return m, cmd
 }
@@ -194,6 +197,9 @@ func (m model) onKeyPress(key string) (model, tea.Cmd) {
 			return m, nil
 		case ui.DeleteNote:
 			m.deletePopupNote()
+			return m, nil
+		case ui.EditNote:
+			m.editPopupNote()
 			return m, nil
 		}
 		m.dropHover()

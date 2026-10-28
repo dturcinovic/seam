@@ -155,7 +155,11 @@ func (m *model) noteFieldDone() {
 		m.s.Note = "a note needs a text"
 		return
 	}
-	d.Op = m.p.NoteWriter.Add(note.Draft{Kind: d.Kind, Anchor: d.Anchor, Comparison: d.Comparison, Text: m.s.Field.Text})
+	if d.Edit != "" {
+		d.Op = m.p.NoteEditor.Edit(d.Edit, d.Kind, m.s.Field.Text)
+	} else {
+		d.Op = m.p.NoteWriter.Add(note.Draft{Kind: d.Kind, Anchor: d.Anchor, Comparison: d.Comparison, Text: m.s.Field.Text})
+	}
 	m.s.Note = "saving the note…"
 }
 

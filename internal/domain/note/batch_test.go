@@ -2,6 +2,8 @@ package note_test
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -241,4 +243,73 @@ func TestDeletingTakesANoteOutInAnyState(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, took.Notes)
 	assert.Equal(t, []note.Refusal{{ID: "sent", Reason: note.RefusedUnknown}}, took.Refused, "the batch of a deleted note")
+}
+
+func TestEditingRewritesANoteAndLetsItWaitAgain(t *testing.T) {
+	b := agentBook(t, "sent", "answered")
+	_, err := b.Take([]note.ID{"answered"}, note.Claim{ID: "c0", Session: "s"})
+	require.NoError(t, err)
+	_, err = b.Reply("answered", note.Reply{ID: "r1", Claim: "c0", Text: "because"})
+	require.NoError(t, err)
+	_, err = b.Send("b1", "s", time.Time{}, anyPID)
+	require.NoError(t, err)
+	require.NoError(t, b.Add(note.Draft{Kind: note.Question, Text: "later", Anchor: worktreeAnchor()}, "open", time.Time{}))
+	require.Equal(t, []note.State{note.Sent, note.Answered, note.Open}, states(b))
+	anchor := b.Notes[1].Anchor
+
+	for _, id := range []note.ID{"sent", "answered", "open"} {
+		require.NoError(t, b.Edit(id, note.Finding, "now "+string(id)), id)
+	}
+
+	assert.Equal(t, []note.State{note.Open, note.Open, note.Open}, states(b))
+	for _, n := range b.Notes {
+		assert.Equal(t, note.Finding, n.Kind)
+		assert.Equal(t, "now "+string(n.ID), n.Text)
+		assert.Empty(t, n.Batch, "out of its batch")
+	}
+	assert.Equal(t, anchor, b.Notes[1].Anchor)
+	assert.Len(t, b.Notes[1].Replies, 1, "the answers stay")
+	took, err := b.TakeBatch("b1", note.Claim{ID: "c1", Session: "s"})
+	require.NoError(t, err)
+	assert.Empty(t, took.Notes, "the batch takes no note edited since")
+}
+
+func TestEditingRefusesWhatItMustNotChange(t *testing.T) {
+	b := agentBook(t, "taken", "resolved")
+	_, err := b.Take([]note.ID{"taken"}, note.Claim{ID: "c0", Session: "s"})
+	require.NoError(t, err)
+	require.NoError(t, b.Resolve("resolved"))
+	before := slices.Clone(b.Notes)
+
+	tests := []struct {
+		id   note.ID
+		k    note.Kind
+		text string
+		want error
+	}{
+		{"taken", note.Question, "x", note.ErrTaken},
+		{"resolved", note.Question, "x", note.ErrResolved},
+		{"gone", note.Question, "x", note.ErrNoNote},
+		{"taken", note.Question, "", note.ErrEmptyText},
+		{"taken", note.Question, strings.Repeat("x", note.MaxText+1), note.ErrTextTooLong},
+		{"taken", 0, "x", note.ErrInvalidKind},
+	}
+	for _, tt := range tests {
+		require.ErrorIs(t, b.Edit(tt.id, tt.k, tt.text), tt.want, "%s %q", tt.id, tt.text)
+	}
+	assert.Equal(t, before, b.Notes, "nothing changed")
+}
+
+func TestEditingWithoutAChangeKeepsTheNoteWhereItStands(t *testing.T) {
+	b := agentBook(t, "sent")
+	bt, err := b.Send("b1", "s", time.Time{}, anyPID)
+	require.NoError(t, err)
+	n := b.Notes[0]
+
+	require.NoError(t, b.Edit("sent", n.Kind, n.Text))
+
+	assert.Equal(t, n, b.Notes[0], "still sent in its batch")
+	took, err := b.TakeBatch(bt.ID, note.Claim{ID: "c0", Session: "s"})
+	require.NoError(t, err)
+	assert.Equal(t, []note.ID{"sent"}, noteIDsOf(took.Notes))
 }

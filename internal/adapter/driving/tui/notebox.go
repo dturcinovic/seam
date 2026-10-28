@@ -137,6 +137,9 @@ func (s *state) writeNoteBox(ln *line, j int) {
 func (s *state) writeNoteTop(ln *line, frame style) {
 	d := &s.Notes.Draft
 	kinds, lines := []note.Kind{note.Question, note.Finding}, " "+linesText(d.Lines)+" "
+	if d.Edit != "" {
+		lines = " edit" + lines
+	}
 	fits := func() bool {
 		n := 0
 		for _, k := range kinds {
@@ -146,6 +149,13 @@ func (s *state) writeNoteTop(ln *line, frame style) {
 	}
 	if !fits() {
 		kinds = []note.Kind{d.Kind}
+	}
+	if !fits() {
+		// What tells a rewrite from a new note goes last.
+		lines = ""
+		if d.Edit != "" {
+			lines = " edit "
+		}
 	}
 	if !fits() {
 		lines = ""

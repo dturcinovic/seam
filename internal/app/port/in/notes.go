@@ -67,6 +67,15 @@ type NoteDeleter interface {
 	Delete(id note.ID) note.Op
 }
 
+//counterfeiter:generate . NoteEditor
+
+// NoteEditor rewrites a note at the lines it was set at. It does not
+// block; the outcome comes as note.Done through NoteUpdates.
+type NoteEditor interface {
+	// Edit gives note id kind k and text.
+	Edit(id note.ID, k note.Kind, text string) note.Op
+}
+
 //counterfeiter:generate . NoteSessions
 
 // NoteSessions signs agent sessions in and out of the book. Unlike the
