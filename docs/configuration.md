@@ -141,7 +141,8 @@ not `shift+g`) or its name (`enter`, `tab`, `esc`, `space`, `backspace`,
 A key does one thing in each place. The popup, the focused file list and
 the caret hide the keys of the view beneath them. A key you bind leaves the
 defaults of the other actions in its place; two actions you bind to the
-same key in one place are an error.
+same key in one place are an error. `y`, which confirms deleting a note,
+is no setting, and `delete_note` cannot take it.
 
 | Place | Action | Default keys |
 |---|---|---|
@@ -192,6 +193,7 @@ same key in one place are an error.
 | popup | `close_popup` | `esc` |
 | | `resolve_note` | `x` |
 | | `release_note` | `R` |
+| | `delete_note` | `D` |
 
 What the actions do is in [Usage](usage.md).
 

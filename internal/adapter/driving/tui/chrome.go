@@ -61,7 +61,7 @@ func caretHints() []hint {
 }
 
 // overviewHints remind of the keys of the notes' overview, which takes
-// the file list's; x and R are the popups', see overviewKey.
+// the file list's; x, R and D are the popups', see overviewKey.
 func overviewHints() []hint {
 	return []hint{
 		firstKeys("open", ui.Open), firstKeys("move", ui.Down, ui.Up), firstKeys("first/last", ui.Top, ui.Bottom),
@@ -81,7 +81,7 @@ func newKeyTexts(k ui.Keymap) keyTexts {
 		list:  keyText(k, ui.ListLayer, listHints()),
 		caret: keyText(k, ui.CaretLayer, caretHints()),
 		overview: keyText(k, ui.ListLayer, overviewHints()) + "  " +
-			keyText(k, ui.PopupLayer, []hint{firstKeys("resolve", ui.ResolveNote), firstKeys("release", ui.ReleaseNote)}),
+			keyText(k, ui.PopupLayer, []hint{firstKeys("resolve", ui.ResolveNote), firstKeys("release", ui.ReleaseNote), firstKeys("delete", ui.DeleteNote)}),
 		// The numbers are no action: choiceKey takes them as they are, and
 		// they send as the open key does, which leads the hints.
 		choice: "1–9/" + keyText(k, ui.ListLayer, []hint{firstKeys("send", ui.Open), firstKeys("move", ui.Down, ui.Up), firstKeys("cancel", ui.Back)}),
@@ -196,6 +196,10 @@ func placeholder(s *state) string {
 
 // footer is the last error, or else the keys.
 func footer(s *state) (string, style) {
+	// The question before the error, as it is what the next key answers.
+	if s.Notes.Delete.asking() {
+		return s.Notes.Delete.question, footerStyle
+	}
 	if s.Err != nil {
 		return "error: " + s.Err.Error(), errorStyle
 	}

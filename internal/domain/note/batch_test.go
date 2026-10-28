@@ -216,3 +216,29 @@ func TestTakingTheRestOfABatchLeavesOutWhatTheSessionTook(t *testing.T) {
 	assert.Len(t, rest.Notes, 2)
 	assert.Empty(t, rest.Refused)
 }
+
+func TestDeletingTakesANoteOutInAnyState(t *testing.T) {
+	b := agentBook(t, "sent", "taken", "answered", "resolved")
+	_, err := b.Take([]note.ID{"taken", "answered"}, note.Claim{ID: "c0", Session: "s"})
+	require.NoError(t, err)
+	_, err = b.Reply("answered", note.Reply{ID: "r1", Claim: "c0", Text: "because"})
+	require.NoError(t, err)
+	require.NoError(t, b.Resolve("resolved"))
+	_, err = b.Send("b1", "s", time.Time{}, anyPID)
+	require.NoError(t, err)
+	require.NoError(t, b.Add(note.Draft{Kind: note.Question, Text: "later", Anchor: worktreeAnchor()}, "open", time.Time{}))
+	require.Equal(t, []note.State{note.Sent, note.Taken, note.Answered, note.Resolved, note.Open}, states(b))
+
+	for _, id := range []note.ID{"sent", "taken", "answered", "resolved", "open"} {
+		require.NoError(t, b.Delete(id), id)
+	}
+
+	assert.Empty(t, b.Notes)
+	require.ErrorIs(t, b.Delete("open"), note.ErrNoNote)
+	_, err = b.Reply("taken", note.Reply{ID: "r2", Claim: "c0", Text: "late"})
+	require.ErrorIs(t, err, note.ErrNoNote, "the agent's answer to a deleted note")
+	took, err := b.TakeBatch("b1", note.Claim{ID: "c1", Session: "s"})
+	require.NoError(t, err)
+	assert.Empty(t, took.Notes)
+	assert.Equal(t, []note.Refusal{{ID: "sent", Reason: note.RefusedUnknown}}, took.Refused, "the batch of a deleted note")
+}

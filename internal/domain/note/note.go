@@ -3,6 +3,7 @@ package note
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/dturcinovic/seam/internal/domain/change"
@@ -15,7 +16,7 @@ const (
 	// MaxLines is the most lines a selection holds.
 	MaxLines = 200
 	// MaxNotes is the most notes not resolved a book holds. Resolved ones
-	// do not count, as nothing removes them; MaxFile bounds them all.
+	// do not count, as only the user removes them; MaxFile bounds them all.
 	MaxNotes = 2000
 	// MaxFile is the most bytes the stored book may take.
 	MaxFile = 16 << 20
@@ -255,6 +256,17 @@ func (b *Book) Resolve(id ID) error {
 		return fmt.Errorf("%w: %s", ErrNoNote, id)
 	}
 	b.Notes[i].State, b.Notes[i].Claim = Resolved, nil
+	return nil
+}
+
+// Delete takes note id out of the book, in whatever state. Its id stays in
+// the batches it was sent in, which skip notes the book no longer holds.
+func (b *Book) Delete(id ID) error {
+	i, ok := b.find(id)
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNoNote, id)
+	}
+	b.Notes = slices.Delete(b.Notes, i, i+1)
 	return nil
 }
 
