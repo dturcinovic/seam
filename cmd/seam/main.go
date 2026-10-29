@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -37,6 +38,9 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		// A failed write of the last error has nowhere left to be reported.
 		_, _ = fmt.Fprintln(stderr, "seam:", printableLines(err.Error()))
+		if exitErr, ok := errors.AsType[*exitCodeError](err); ok {
+			return exitErr.code
+		}
 		return 1
 	}
 	return 0
@@ -92,9 +96,9 @@ disk, as git difftool hands them over.`,
 	// Not cobra's own --version, which prints before the configuration is
 	// known: the notice of a newer release needs it.
 	cmd.Flags().BoolVar(&showVersion, "version", false, "print the version")
-	cmd.AddCommand(newMCPCommand())
-	// A subcommand takes a name a revision could have; only mcp is worth
-	// that, not cobra's shell completion.
+	cmd.AddCommand(newMCPCommand(), newUpgradeCommand())
+	// A subcommand takes a name a revision could have; only mcp and upgrade
+	// are worth that, not cobra's shell completion.
 	cmd.CompletionOptions.DisableDefaultCmd = true
 	return cmd
 }

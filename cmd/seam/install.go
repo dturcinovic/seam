@@ -6,37 +6,73 @@ import (
 	"runtime/debug"
 	"slices"
 	"strings"
+
+	"github.com/dturcinovic/seam/internal/domain/release"
 )
 
 // repo is where seam is published: the release check asks it, and the
 // notice sends whoever installed seam by hand there.
 const repo = "dturcinovic/seam"
 
-// updateCommand is how to update this install of seam. It looks at the
-// running binary only once there is a newer release to tell of.
-func updateCommand() string {
-	pkg := ""
+// releasePage is the page of the latest release.
+const releasePage = "https://github.com/" + repo + "/releases/latest"
+
+// packageDir is where a .deb or .rpm of a release puts the binary.
+const packageDir = "/usr/bin"
+
+// thisInstall is how the running seam was installed, where its binary lies
+// and the main package go install would build.
+func thisInstall() (release.Install, string, string) {
+	module := ""
 	if bi, ok := debug.ReadBuildInfo(); ok {
-		pkg = bi.Path
+		module = bi.Path
 	}
-	return updateFor(executable(), goBins(), homebrewPrefixes(), pkg)
+	binary := executable()
+	return installOf(binary, goBins(), archiveDirs()), binary, module
 }
 
-// updateFor tells from where binary lies how it was installed: under a
-// Homebrew prefix, in a directory go install writes to, or anywhere else,
-// which gets the release page.
-func updateFor(binary string, goBins, homebrew []string, pkg string) string {
-	if binary != "" && (strings.Contains(binary, "/Cellar/") || slices.ContainsFunc(homebrew, func(p string) bool {
-		return p != "" && strings.HasPrefix(binary, filepath.Clean(p)+"/")
-	})) {
-		return "brew upgrade seam"
+// updateCommand is how to update this install of seam to release latest.
+// It looks at the running binary only once there is a newer release to
+// tell of.
+func updateCommand(latest release.Version) string {
+	install, _, module := thisInstall()
+	return install.Hint(module, releasePage, latest)
+}
+
+// installOf tells from where binary, its links resolved, lies how it was
+// installed: in Homebrew's Cellar or Caskroom, in a directory go install
+// writes to, where a package puts it, or in one of archiveDirs, unpacked by
+// hand. Anywhere else it is not known: seam upgrade would replace a binary
+// that a version manager such as mise, asdf or aqua, or a build in a
+// clone, keeps track of. Homebrew's own bin holds only links into its
+// Cellar and Caskroom, so its prefix tells nothing, and matching it would
+// take a binary unpacked into /usr/local/bin on an Intel Mac for
+// Homebrew's.
+func installOf(binary string, goBins, archiveDirs []string) release.Install {
+	switch {
+	case binary == "":
+		return 0
+	case strings.Contains(binary, "/Cellar/") || strings.Contains(binary, "/Caskroom/"):
+		return release.Homebrew
+	case slices.ContainsFunc(goBins, func(d string) bool { return d != "" && filepath.Clean(d) == filepath.Dir(binary) }):
+		return release.GoInstall
+	case filepath.Dir(binary) == packageDir:
+		return release.Package
+	case slices.Contains(archiveDirs, filepath.Dir(binary)):
+		return release.Archive
 	}
-	if binary != "" && pkg != "" && slices.ContainsFunc(goBins, func(d string) bool {
-		return d != "" && filepath.Clean(d) == filepath.Dir(binary)
-	}) {
-		return "go install " + pkg + "@latest"
+	return 0
+}
+
+// archiveDirs are where people put the binary of a release archive, as the
+// README shows: the user's own bin directories and /usr/local/bin, with
+// their links resolved as the binary's path is.
+func archiveDirs() []string {
+	dirs := []string{resolved("/usr/local/bin")}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, resolved(filepath.Join(home, ".local", "bin")), resolved(filepath.Join(home, "bin")))
 	}
-	return "https://github.com/" + repo + "/releases/latest"
+	return dirs
 }
 
 // executable is the running binary. A Homebrew install runs through a link
@@ -80,10 +116,4 @@ func resolved(dir string) string {
 		return r
 	}
 	return dir
-}
-
-// homebrewPrefixes are where Homebrew installs: its own variable, else its
-// defaults on macOS and Linux.
-func homebrewPrefixes() []string {
-	return []string{os.Getenv("HOMEBREW_PREFIX"), "/opt/homebrew", "/home/linuxbrew/.linuxbrew"}
 }

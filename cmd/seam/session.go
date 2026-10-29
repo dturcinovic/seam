@@ -145,7 +145,7 @@ func show(ctx context.Context, changesets in.ChangesetLoader, ports tui.Ports, p
 // closed stderr, does not fail a session that went well.
 func tellNewerRelease(ctx context.Context, releases in.ReleaseNotifier, running release.Version, stderr io.Writer) {
 	if latest, ok := releases.Newer(ctx); ok {
-		_, _ = fmt.Fprintln(stderr, release.Notice(running, latest, updateCommand()))
+		_, _ = fmt.Fprintln(stderr, release.Notice(running, latest, updateCommand(latest)))
 	}
 }
 

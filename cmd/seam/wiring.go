@@ -3,12 +3,14 @@ package main
 import (
 	"cmp"
 	"context"
+	"io"
 	"path/filepath"
 
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 
 	"github.com/dturcinovic/seam/internal/adapter/driven/chroma"
+	"github.com/dturcinovic/seam/internal/adapter/driven/command"
 	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
 	"github.com/dturcinovic/seam/internal/adapter/driven/files"
 	"github.com/dturcinovic/seam/internal/adapter/driven/fswatch"
@@ -17,7 +19,9 @@ import (
 	"github.com/dturcinovic/seam/internal/adapter/driven/lsp"
 	"github.com/dturcinovic/seam/internal/adapter/driven/notestore"
 	"github.com/dturcinovic/seam/internal/adapter/driven/process"
+	"github.com/dturcinovic/seam/internal/adapter/driven/selfbinary"
 	"github.com/dturcinovic/seam/internal/adapter/driven/statefile"
+	"github.com/dturcinovic/seam/internal/app/port/in"
 	"github.com/dturcinovic/seam/internal/app/port/out"
 	"github.com/dturcinovic/seam/internal/app/usecase"
 	"github.com/dturcinovic/seam/internal/config"
@@ -86,7 +90,15 @@ func releaseNotice(ctx context.Context, flags config.Flags, running release.Vers
 	if !ok {
 		return "", false
 	}
-	return release.Notice(running, latest, updateCommand()), true
+	return release.Notice(running, latest, updateCommand(latest)), true
+}
+
+// upgrades is seam upgrade over its adapters, without a graph: it runs once
+// and stops, with the terminal the command's own.
+func upgrades(cfg config.Config, set usecase.UpgradeSettings, stdin io.Reader, stdout, stderr io.Writer) in.Upgrader {
+	fetch := github.New(github.Config{BaseURL: cfg.UpdateURL, Repo: repo, Agent: "seam/" + thisBuild().tag()})
+	run := command.New(command.Config{Stdin: stdin, Stdout: stdout, Stderr: stderr})
+	return usecase.NewUpgrades(set, fetch, fetch, selfbinary.New(), run)
 }
 
 // serveGuard serves as a language server's guard if seam was started as

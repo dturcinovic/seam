@@ -5,6 +5,13 @@ call and the driven adapters implement. It knows nothing but the domain.
 
 TYPES
 
+type BinaryReplacer interface {
+	// Replace puts data in place of the file at path, with its mode, at
+	// once or not at all: on any error the file is as it was.
+	Replace(ctx context.Context, path string, data []byte) error
+}
+    BinaryReplacer replaces seam's own binary.
+
 type BlobReader interface {
 	ReadBlob(ctx context.Context, id change.ObjectID, max limits.FileSize) ([]byte, error)
 }
@@ -33,6 +40,14 @@ type CheckoutRoots interface {
 }
     CheckoutRoots tells the language servers where the checkout of a commit
     lies, so documents of that commit can be served from it.
+
+type CommandRunner interface {
+	// Run runs name with args; a command that ran and failed is an error
+	// whose chain has an ExitCode() int method.
+	Run(ctx context.Context, name string, args ...string) error
+}
+    CommandRunner runs the command that upgrades seam, with its output where the
+    user sees it.
 
 type CommitCheckouts interface {
 	// Checkout returns the directory of a checkout of commit id, making it
@@ -163,6 +178,13 @@ type ProcessProber interface {
 }
     ProcessProber tells whether a process of this machine still runs, for the
     agent sessions in the book that ended without leaving.
+
+type ReleaseAssets interface {
+	// Asset reads file name of release v, at most max bytes; a larger one
+	// fails.
+	Asset(ctx context.Context, v release.Version, name string, max int64) ([]byte, error)
+}
+    ReleaseAssets downloads the files of a release where seam is published.
 
 type ReleaseFetcher interface {
 	LatestRelease(ctx context.Context) (release.Version, error)

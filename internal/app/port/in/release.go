@@ -18,3 +18,13 @@ type ReleaseNotifier interface {
 	// than the running one; it asks no one.
 	Newer(ctx context.Context) (release.Version, bool)
 }
+
+//counterfeiter:generate . Upgrader
+
+// Upgrader brings this install of seam to the latest release.
+type Upgrader interface {
+	// Upgrade upgrades as the install's kind allows; with check it only
+	// tells what it would do. An error before the latest release is known
+	// comes with the zero Upgrade.
+	Upgrade(ctx context.Context, check bool) (release.Upgrade, error)
+}

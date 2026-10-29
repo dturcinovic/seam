@@ -64,7 +64,9 @@ Or from a clone, with [Task](https://taskfile.dev):
 task build    # bin/seam
 ```
 
-`seam --version` names the release, the commit and its date.
+`seam --version` names the release, the commit and its date, and
+`seam upgrade` brings an install to the latest release (see
+[Upgrading](docs/usage.md#upgrading)).
 
 ## Quick start
 

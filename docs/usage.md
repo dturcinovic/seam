@@ -329,7 +329,7 @@ session once, however often the notes change after.
 
 `seam mcp` needs a repository and writes nothing to stdout but the
 protocol; its log goes to `seam.log` as a session's does. A branch named
-`mcp` or `help` is compared as `seam refs/heads/mcp`.
+`mcp`, `upgrade` or `help` is compared as `seam refs/heads/mcp`.
 
 ## Watching
 
@@ -373,3 +373,30 @@ never ask. The last answer is kept in `$XDG_STATE_HOME/seam/release.json`.
 Turn the check off with `check = false` under [`[updates]`](configuration.md#updates)
 or with `SEAM_NO_UPDATE_CHECK=1`. `SEAM_UPDATE_URL` asks another server in
 GitHub's place, such as a mirror, at the same path.
+
+### Upgrading
+
+`seam upgrade` brings seam to the latest release the way it was installed,
+as seam tells from where its binary lies:
+
+| Installed with | `seam upgrade` |
+|---|---|
+| Homebrew | runs `brew upgrade seam` |
+| `go install` | runs `go install github.com/dturcinovic/seam/cmd/seam@<release>`, naming the release it found, as the module proxy may still name the one before as `@latest` |
+| a `.deb` or `.rpm` (in `/usr/bin`) | names the release page and the `apt` or `dnf` command; the package manager owns the binary, and without a package repository it finds no newer one by itself |
+| a release archive, in `~/.local/bin`, `~/bin` or `/usr/local/bin` | downloads the archive for this system, checks it against the release's `checksums.txt` and puts its `seam` in place of the running one |
+| anything else, such as mise, asdf, aqua or a build in a clone | names the release page and replaces nothing, as whatever put seam there keeps track of it |
+
+The archive's binary replaces the old one at once or not at all: written
+next to it, then renamed over it. A checksum that does not match, a
+download cut off, or a directory seam may not write to leave the binary as
+it was, and seam names the release page to upgrade by hand, or
+`sudo seam upgrade` when it may not write there. The checksum
+guards against a broken download, not against a release that was tampered
+with on GitHub. Upgrading by brew or go ends with the command's exit code,
+and what the command installed is its own to say. Ctrl-C reaches brew or go
+from the terminal; seam waits up to 30 seconds for it to end.
+
+`seam upgrade --check` only tells what it would do. A seam that is the
+latest release already does nothing, and a build that is no release, such
+as `dev`, is never upgraded. `SEAM_UPDATE_URL` counts here as well.

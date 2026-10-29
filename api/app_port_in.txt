@@ -225,6 +225,14 @@ type StreamLoader interface {
     StreamLoader loads the diffs of the files the stream shows, and of those
     near them, in the background. Like FileDiffLoader it never blocks.
 
+type Upgrader interface {
+	// Upgrade upgrades as the install's kind allows; with check it only
+	// tells what it would do. An error before the latest release is known
+	// comes with the zero Upgrade.
+	Upgrade(ctx context.Context, check bool) (release.Upgrade, error)
+}
+    Upgrader brings this install of seam to the latest release.
+
 type WatchStarter interface {
 	// Watch watches the worktree or the index of c in the background until
 	// seam stops; the outcome reaches WatchUpdates. It returns at once.

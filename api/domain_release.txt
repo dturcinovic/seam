@@ -1,27 +1,64 @@
 package release // import "github.com/dturcinovic/seam/internal/domain/release"
 
 Package release holds what seam knows about its own releases: a release version,
-the last check for a newer one and the notice that names it. It does not ask
-anyone, nor know how seam was installed; the use case and the composition root
-do.
+the last check for a newer one and the notice that names it, the kinds of
+install and how each is upgraded, and the archive of a release with its
+checksums. It does not ask anyone, nor tell from where seam lies how it was
+installed; the use case and the composition root do.
 
 CONSTANTS
+
+const ChecksumsName = "checksums.txt"
+    ChecksumsName is the file of a release that names each file's SHA-256.
 
 const Interval = 24 * time.Hour
     Interval is how often seam asks for the latest release at most.
 
+const MaxBinary = 128 << 20
+    MaxBinary bounds the binary an archive may hold; seam is some 25 MiB.
+
 
 VARIABLES
+
+var (
+	// ErrChecksum is an archive whose SHA-256 is not the one checksums.txt
+	// names, or that it does not name at all.
+	ErrChecksum = errors.New("checksum does not match")
+	// ErrNoBinary is an archive without a binary named seam in it.
+	ErrNoBinary = errors.New("no seam in the archive")
+)
+    Errors of an archive downloaded.
 
 var ErrNoRelease = errors.New("no release version")
     ErrNoRelease is returned by ParseVersion for anything but a release tag.
 
+var ErrNotARelease = errors.New("this seam is no release build")
+    ErrNotARelease is seam upgrade in a build that is no release, such as dev:
+    it would replace a build of its own with one it did not choose.
+
 
 FUNCTIONS
+
+func ArchiveName(v Version, goos, goarch string) string
+    ArchiveName is the archive of release v for goos and goarch, as
+    name_template in .goreleaser.yaml names it: seam_0.2.0_linux_amd64.tar.gz.
+
+func ExtractBinary(archive []byte) ([]byte, error)
+    ExtractBinary is the file named seam at the top of archive, a gzipped tar as
+    goreleaser builds it, of at most MaxBinary bytes.
 
 func Notice(running, latest Version, update string) string
     Notice is the line that tells of latest, a newer release than running,
     and how to update to it.
+
+func PackageCommands(v Version, goarch string) []string
+    PackageCommands are the commands that install the packages of release v for
+    goarch, named as nfpm's ConventionalFileName in .goreleaser.yaml names them:
+    a .deb for apt, an .rpm for dnf.
+
+func Verify(checksums []byte, name string, data []byte) error
+    Verify checks data, the file name of a release, against checksums,
+    the release's checksums.txt: lines of a hex SHA-256 and a name.
 
 
 TYPES
@@ -37,6 +74,74 @@ type Check struct {
 func (c Check) Due(now time.Time) bool
     Due reports whether it is time to ask again. A check from the future, as
     after the clock was set back, counts as due rather than blocking for long.
+
+type Install uint8
+    Install is how seam was installed, which decides how it is upgraded. The
+    zero value is not known: seam replaces nothing then, and the user upgrades
+    by hand.
+
+const (
+
+	// Homebrew installed seam; brew upgrades it.
+	Homebrew Install
+	// GoInstall built seam with go install; go install upgrades it.
+	GoInstall
+	// Package is a .deb or .rpm of a release. Its package manager owns the
+	// binary, so seam never replaces it; without a package repository,
+	// apt or dnf do not find a newer one either.
+	Package
+	// Archive is the binary of a release archive, put anywhere by hand.
+	// seam replaces it itself.
+	Archive
+)
+    The kinds of install.
+
+func (i Install) Command(module string, v Version) ([]string, bool)
+    Command is what upgrades an install of kind i to release v, if a command
+    does: brew, or go install of module, seam's main package. go install gets
+    v itself, as the module proxy may name an older @latest for a while after a
+    release; zero v is @latest. Without module go install cannot be named.
+
+func (i Install) Hint(module, page string, v Version) string
+    Hint is how to update an install of kind i to release v, for a person to do:
+    its command, seam upgrade for an archive, which it replaces itself, or else
+    the page of the latest release.
+
+type Outcome uint8
+    Outcome is what seam upgrade did, or why it left the upgrade to the user.
+
+const (
+
+	// Current is a seam that is the latest release already.
+	Current Outcome
+	// Ran is the install's command run to its end; what it installed is
+	// its own to say.
+	Ran
+	// Replaced is an archive's binary replaced by the latest release.
+	Replaced
+	// WouldRun is --check of an install with a command: Commands.
+	WouldRun
+	// WouldReplace is --check of an archive.
+	WouldReplace
+	// ByPackage is a .deb or .rpm, whose package manager owns the binary:
+	// Commands install the packages of the latest release.
+	ByPackage
+	// ByHand is an upgrade seam could not do: the command that failed in
+	// Commands to run again, or none for an archive or an install not
+	// known, from the release page.
+	ByHand
+)
+    The outcomes. The zero value is none: seam upgrade failed before it knew the
+    latest release.
+
+type Upgrade struct {
+	Outcome         Outcome
+	Running, Latest Version
+	Binary          string
+	Commands        []string
+}
+    Upgrade is the outcome of seam upgrade on Binary, a Running release,
+    to the Latest one.
 
 type Version struct {
 	// Has unexported fields.
