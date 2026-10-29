@@ -98,7 +98,11 @@ func (r *Repo) Close(ctx context.Context) error {
 
 // ResolveCommit implements out.RevisionResolver.
 func (r *Repo) ResolveCommit(ctx context.Context, rev string) (change.ObjectID, error) {
-	out, err := run(ctx, r.root, "rev-parse", "--verify", "--quiet", "--end-of-options", rev+"^{commit}")
+	return resolveCommit(ctx, r.root, rev)
+}
+
+func resolveCommit(ctx context.Context, root, rev string) (change.ObjectID, error) {
+	out, err := run(ctx, root, "rev-parse", "--verify", "--quiet", "--end-of-options", rev+"^{commit}")
 	// With --verify --quiet, exit code 1 and nothing else means no such
 	// commit; any other failure is git's own and passes through.
 	if gitErr, ok := errors.AsType[*commandError](err); ok && gitErr.code == 1 {

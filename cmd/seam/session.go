@@ -17,6 +17,7 @@ import (
 	"github.com/dturcinovic/seam/internal/adapter/driven/git"
 	"github.com/dturcinovic/seam/internal/adapter/driving/tui"
 	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/app/usecase"
 	"github.com/dturcinovic/seam/internal/config"
 	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/release"
@@ -58,7 +59,7 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 	if noRepo != nil {
 		logger.Zap().Info("no repository: files on disk without hovers", zap.Error(noRepo))
 	}
-	notes := notesFile(ctx, root, logger)
+	notes := notesFiles(ctx, root, logger)
 
 	var (
 		changesets in.ChangesetLoader
@@ -95,19 +96,20 @@ func session(ctx context.Context, cfg config.Config, c change.Comparison, watch 
 	return errors.Join(err, stopGraph(app))
 }
 
-// notesFile is where the review notes of the worktree at root lie, in
+// notesFiles are where the review notes of the worktree at root lie, in
 // git's directory so that git status stays clean and each linked worktree
-// has its own; empty without a repository, and then there are none.
-func notesFile(ctx context.Context, root string, logger *observability.Logger) string {
+// has its own, with git's HEAD of that worktree beside them; empty without
+// a repository, and then there are none.
+func notesFiles(ctx context.Context, root string, logger *observability.Logger) usecase.NotesSettings {
 	if root == "" {
-		return ""
+		return usecase.NotesSettings{}
 	}
 	dir, err := git.FindGitDir(ctx, root)
 	if err != nil {
 		logger.Zap().Warn("no git directory: no notes", zap.Error(err))
-		return ""
+		return usecase.NotesSettings{}
 	}
-	return filepath.Join(dir, "seam", "notes.json")
+	return usecase.NotesSettings{File: filepath.Join(dir, "seam", "notes.json"), Head: filepath.Join(dir, "HEAD")}
 }
 
 // stopGraph stops app within stopBudget. The deadline is fresh rather than

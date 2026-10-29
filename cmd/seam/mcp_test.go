@@ -129,7 +129,7 @@ func TestSeamMCPTellsItsSessionOfABatchOnce(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond, "joined once initialized")
 
 	require.NoError(t, store.Change(t.Context(), func(b *note.Book) error {
-		_, err := b.Send("b1", me, time.Now(), func(int) bool { return true })
+		_, err := b.Send("b1", me, time.Now(), func(int) bool { return true }, change.Head{})
 		return err
 	}))
 	notice := a.answer()

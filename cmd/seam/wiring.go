@@ -30,14 +30,14 @@ import (
 // log. root is empty outside a repository, where the working directory
 // stands in for it: only files on disk are compared there, without hovers,
 // and notes, which notes names the file of, are missing as well.
-func options(cfg config.Config, logger *observability.Logger, root, notes string, file configfile.File) []fx.Option {
+func options(cfg config.Config, logger *observability.Logger, root string, notes usecase.NotesSettings, file configfile.File) []fx.Option {
 	running := thisBuild().release()
 	dir := cmp.Or(root, cfg.Dir)
 	return []fx.Option{
 		fx.Supply(cfg, logger, git.Config{Root: dir, Checkouts: cfg.Checkouts}, lsp.Config{Root: dir, LogDir: filepath.Dir(cfg.LogFile), MaxInstances: file.MaxInstances}, cfg.FileSizeLimit(), file.Languages, files.Config{Root: root}),
 		fx.Supply(usecase.ReleaseSettings{Running: running, Ask: cfg.UpdateCheck}, statefile.Config{ReleaseFile: cfg.ReleaseFile},
 			github.Config{BaseURL: cfg.UpdateURL, Repo: repo, Agent: "seam/" + running.String()},
-			notestore.Config{File: notes}, usecase.NotesSettings{File: notes}),
+			notestore.Config{File: notes.File}, notes),
 		observability.Module,
 		git.Module,
 		files.Module,

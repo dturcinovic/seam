@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/note"
 )
 
@@ -23,11 +24,11 @@ func noteIDsOf(ns []note.Note) []note.ID {
 
 func TestSendingBatchesTheWaitingNotesOfThatMoment(t *testing.T) {
 	b := agentBook(t, "open", "taken", "resolved")
-	_, err := b.Take([]note.ID{"taken"}, note.Claim{ID: "c0", Session: "s"})
+	_, err := b.Take([]note.ID{"taken"}, note.Claim{ID: "c0", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	require.NoError(t, b.Resolve("resolved"))
 
-	bt, err := b.Send("b1", "s", time.Time{}, anyPID)
+	bt, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	require.NoError(t, b.Add(note.Draft{Kind: note.Question, Text: "later", Anchor: worktreeAnchor()}, "later", time.Time{}))
 
@@ -39,24 +40,24 @@ func TestSendingBatchesTheWaitingNotesOfThatMoment(t *testing.T) {
 
 func TestSendingRefusesWhatCannotBeSent(t *testing.T) {
 	b := agentBook(t)
-	_, err := b.Send("b1", "s", time.Time{}, anyPID)
+	_, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.ErrorIs(t, err, note.ErrNothingToSend)
 
 	require.NoError(t, b.Add(note.Draft{Kind: note.Question, Text: "why", Anchor: worktreeAnchor()}, "a", time.Time{}))
-	_, err = b.Send("b1", "gone", time.Time{}, anyPID)
+	_, err = b.Send("b1", "gone", time.Time{}, anyPID, change.Head{})
 	require.ErrorIs(t, err, note.ErrNoSession)
 	assert.Equal(t, []note.State{note.Open}, states(b), "a refused send changes nothing")
 
-	_, err = b.Send("b1", "s", time.Time{}, anyPID)
+	_, err = b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
-	_, err = b.Send("b1", "s", time.Time{}, anyPID)
+	_, err = b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.ErrorIs(t, err, note.ErrDuplicateID)
 }
 
 func TestTakingABatchTakesItsNotesForItsSession(t *testing.T) {
 	b := agentBook(t, "a", "b")
 	require.NoError(t, b.Join(note.Session{ID: "other", PID: 2}))
-	_, err := b.Send("b1", "s", time.Time{}, anyPID)
+	_, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 
 	other, err := b.TakeBatch("b1", note.Claim{ID: "c0", Session: "other"})
@@ -86,12 +87,12 @@ func TestTakingABatchTakesItsNotesForItsSession(t *testing.T) {
 
 func TestSendingAgainMovesTheNotesNotTakenToTheNewBatch(t *testing.T) {
 	b := agentBook(t, "a", "b")
-	_, err := b.Send("old", "s", time.Time{}, anyPID)
+	_, err := b.Send("old", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
-	_, err = b.Take([]note.ID{"a"}, note.Claim{ID: "c0", Session: "s"})
+	_, err = b.Take([]note.ID{"a"}, note.Claim{ID: "c0", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 
-	bt, err := b.Send("new", "s", time.Time{}, anyPID)
+	bt, err := b.Send("new", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	assert.Equal(t, []note.ID{"b"}, bt.Notes)
 
@@ -108,17 +109,17 @@ func TestSendingAgainMovesTheNotesNotTakenToTheNewBatch(t *testing.T) {
 func TestSentNotesAreTakenWithoutBatchByAnySession(t *testing.T) {
 	b := agentBook(t, "a", "b")
 	require.NoError(t, b.Join(note.Session{ID: "other", PID: 2}))
-	_, err := b.Send("b1", "s", time.Time{}, anyPID)
+	_, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 
-	got, err := b.Take(nil, note.Claim{ID: "c", Session: "other"})
+	got, err := b.Take(nil, note.Claim{ID: "c", Session: "other"}, change.Head{})
 	require.NoError(t, err)
 	assert.Equal(t, []note.ID{"a", "b"}, noteIDsOf(got.Notes))
 }
 
 func TestANoteOfABatchGivenBackIsSentAgain(t *testing.T) {
 	b := agentBook(t, "a", "b", "c")
-	_, err := b.Send("b1", "s", time.Time{}, anyPID)
+	_, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	_, err = b.TakeBatch("b1", note.Claim{ID: "c1", Session: "s"})
 	require.NoError(t, err)
@@ -132,9 +133,9 @@ func TestANoteOfABatchGivenBackIsSentAgain(t *testing.T) {
 
 func TestSendingDropsBatchesWithNothingLeft(t *testing.T) {
 	b := agentBook(t, "a")
-	_, err := b.Send("b1", "s", time.Time{}, anyPID)
+	_, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
-	_, err = b.Send("b2", "s", time.Time{}, anyPID)
+	_, err = b.Send("b2", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	got, err := b.TakeBatch("b2", note.Claim{ID: "c", Session: "s"})
 	require.NoError(t, err)
@@ -142,7 +143,7 @@ func TestSendingDropsBatchesWithNothingLeft(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, b.Add(note.Draft{Kind: note.Question, Text: "next", Anchor: worktreeAnchor()}, "next", time.Time{}))
-	_, err = b.Send("b3", "s", time.Time{}, anyPID)
+	_, err = b.Send("b3", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 
 	require.Len(t, b.Batches, 1)
@@ -152,7 +153,7 @@ func TestSendingDropsBatchesWithNothingLeft(t *testing.T) {
 func TestTheBookKeepsAtMostMaxBatches(t *testing.T) {
 	b := agentBook(t, "a")
 	for i := range note.MaxBatches + 1 {
-		_, err := b.Send(note.ID(fmt.Sprint(i)), "s", time.Time{}, anyPID)
+		_, err := b.Send(note.ID(fmt.Sprint(i)), "s", time.Time{}, anyPID, change.Head{})
 		require.NoError(t, err)
 	}
 	require.Len(t, b.Batches, note.MaxBatches)
@@ -162,13 +163,13 @@ func TestTheBookKeepsAtMostMaxBatches(t *testing.T) {
 func TestSendingsAreTheBatchesOfASessionWithNotesNotTaken(t *testing.T) {
 	b := agentBook(t, "a", "b")
 	require.NoError(t, b.Join(note.Session{ID: "other", PID: 2}))
-	_, err := b.Send("b1", "other", time.Time{}, anyPID)
+	_, err := b.Send("b1", "other", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	assert.Empty(t, b.Sendings("s"))
 
-	_, err = b.Send("b2", "s", time.Time{}, anyPID)
+	_, err = b.Send("b2", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
-	_, err = b.Take([]note.ID{"a"}, note.Claim{ID: "c", Session: "s"})
+	_, err = b.Take([]note.ID{"a"}, note.Claim{ID: "c", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 
 	got := b.Sendings("s")
@@ -183,14 +184,14 @@ func anyPID(int) bool { return true }
 
 func TestABatchGoesOnlyToASessionWhoseProcessRuns(t *testing.T) {
 	b := agentBook(t, "a")
-	_, err := b.Send("b1", "s", time.Time{}, func(int) bool { return false })
+	_, err := b.Send("b1", "s", time.Time{}, func(int) bool { return false }, change.Head{})
 	require.ErrorIs(t, err, note.ErrNoSession)
 	assert.Equal(t, []note.State{note.Open}, states(b))
 }
 
 func TestANoteOfABatchDroppedSinceIsGivenBackOpen(t *testing.T) {
 	b := agentBook(t, "a")
-	_, err := b.Send("b1", "s", time.Time{}, anyPID)
+	_, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	_, err = b.TakeBatch("b1", note.Claim{ID: "c", Session: "s"})
 	require.NoError(t, err)
@@ -207,7 +208,7 @@ func TestTakingTheRestOfABatchLeavesOutWhatTheSessionTook(t *testing.T) {
 		ids = append(ids, note.ID(fmt.Sprint(i)))
 	}
 	b := agentBook(t, ids...)
-	_, err := b.Send("b1", "s", time.Time{}, anyPID)
+	_, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	first, err := b.TakeBatch("b1", note.Claim{ID: "c1", Session: "s"})
 	require.NoError(t, err)
@@ -221,12 +222,12 @@ func TestTakingTheRestOfABatchLeavesOutWhatTheSessionTook(t *testing.T) {
 
 func TestDeletingTakesANoteOutInAnyState(t *testing.T) {
 	b := agentBook(t, "sent", "taken", "answered", "resolved")
-	_, err := b.Take([]note.ID{"taken", "answered"}, note.Claim{ID: "c0", Session: "s"})
+	_, err := b.Take([]note.ID{"taken", "answered"}, note.Claim{ID: "c0", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	_, err = b.Reply("answered", note.Reply{ID: "r1", Claim: "c0", Text: "because"})
 	require.NoError(t, err)
 	require.NoError(t, b.Resolve("resolved"))
-	_, err = b.Send("b1", "s", time.Time{}, anyPID)
+	_, err = b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	require.NoError(t, b.Add(note.Draft{Kind: note.Question, Text: "later", Anchor: worktreeAnchor()}, "open", time.Time{}))
 	require.Equal(t, []note.State{note.Sent, note.Taken, note.Answered, note.Resolved, note.Open}, states(b))
@@ -247,11 +248,11 @@ func TestDeletingTakesANoteOutInAnyState(t *testing.T) {
 
 func TestEditingRewritesANoteAndLetsItWaitAgain(t *testing.T) {
 	b := agentBook(t, "sent", "answered")
-	_, err := b.Take([]note.ID{"answered"}, note.Claim{ID: "c0", Session: "s"})
+	_, err := b.Take([]note.ID{"answered"}, note.Claim{ID: "c0", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	_, err = b.Reply("answered", note.Reply{ID: "r1", Claim: "c0", Text: "because"})
 	require.NoError(t, err)
-	_, err = b.Send("b1", "s", time.Time{}, anyPID)
+	_, err = b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	require.NoError(t, b.Add(note.Draft{Kind: note.Question, Text: "later", Anchor: worktreeAnchor()}, "open", time.Time{}))
 	require.Equal(t, []note.State{note.Sent, note.Answered, note.Open}, states(b))
@@ -276,7 +277,7 @@ func TestEditingRewritesANoteAndLetsItWaitAgain(t *testing.T) {
 
 func TestEditingRefusesWhatItMustNotChange(t *testing.T) {
 	b := agentBook(t, "taken", "resolved")
-	_, err := b.Take([]note.ID{"taken"}, note.Claim{ID: "c0", Session: "s"})
+	_, err := b.Take([]note.ID{"taken"}, note.Claim{ID: "c0", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	require.NoError(t, b.Resolve("resolved"))
 	before := slices.Clone(b.Notes)
@@ -302,7 +303,7 @@ func TestEditingRefusesWhatItMustNotChange(t *testing.T) {
 
 func TestEditingWithoutAChangeKeepsTheNoteWhereItStands(t *testing.T) {
 	b := agentBook(t, "sent")
-	bt, err := b.Send("b1", "s", time.Time{}, anyPID)
+	bt, err := b.Send("b1", "s", time.Time{}, anyPID, change.Head{})
 	require.NoError(t, err)
 	n := b.Notes[0]
 

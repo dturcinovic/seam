@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/dturcinovic/seam/internal/domain/change"
@@ -64,8 +65,12 @@ func (s *state) indexSides() {
 }
 
 // sideFor is the side that shows the source and path of n: a side of a
-// file of the changeset, or the file visited.
+// file of the changeset, or the file visited; none for a note of another
+// branch, which shows on no side.
 func (s *state) sideFor(n note.Note) (sideRef, bool) {
+	if s.Notes.Away[n.ID] {
+		return sideRef{}, false
+	}
 	k := headKey{n.Anchor.Origin, n.Anchor.Path}
 	if s.visiting() && k == (headKey{note.Origin{Kind: change.KindWorktree}, s.VisitPath}) {
 		return sideRef{File: s.Current, W: filediff.NewSide}, true
@@ -80,6 +85,9 @@ func (s *state) whereText(n note.Note) string {
 	if n.State == note.Resolved {
 		return ""
 	}
+	if s.Notes.Away[n.ID] {
+		return awayText(n.On, s.Notes.Overview.Gone)
+	}
 	ref, ok := s.sideFor(n)
 	if !ok {
 		return "not in this comparison"
@@ -91,13 +99,30 @@ func (s *state) whereText(n note.Note) string {
 	return sp.Place.Where.String()
 }
 
+// awayText names the branch or detached commit a note of another branch
+// belongs to, or says its branch is gone.
+func awayText(on change.Head, gone []string) string {
+	switch {
+	case slices.Contains(gone, on.Branch):
+		return "branch gone"
+	case on.Branch != "":
+		return "on " + on.Branch
+	}
+	return "on " + shortCommit(on.Commit)
+}
+
 // originText names o in a column of the overview.
 func originText(o note.Origin) string {
 	if o.Kind == change.KindCommit {
-		id := o.Commit.String()
-		return id[:min(len(id), overviewCommitCols)]
+		return shortCommit(o.Commit)
 	}
 	return o.String()
+}
+
+// shortCommit names commit id in a column of the overview.
+func shortCommit(id change.ObjectID) string {
+	s := id.String()
+	return s[:min(len(s), overviewCommitCols)]
 }
 
 // layoutOverview lays the open overview out over the body: as wide as a

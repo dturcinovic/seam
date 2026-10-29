@@ -117,6 +117,20 @@ type Gen uint64
     Gen is a generation of reloading the changeset. The UI hands out strictly
     increasing ones and keeps only the update of the newest.
 
+type Head struct {
+	Branch string
+	Commit ObjectID
+}
+    Head is what HEAD stands on: a branch, by its name without refs/heads/,
+    or, detached, a commit. During a rebase it is the branch being rebased,
+    though HEAD is detached meanwhile. The zero value is not known.
+
+func (h Head) IsZero() bool
+    IsZero reports whether h names neither branch nor commit.
+
+func (h Head) String() string
+    String names h as the user would: the branch, or the commit.
+
 type LineCounts struct {
 	Added, Deleted int
 	Known          bool

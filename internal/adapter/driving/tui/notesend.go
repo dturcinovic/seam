@@ -44,9 +44,10 @@ func (m *model) sendNotes() {
 	}
 }
 
-// waiting reports that a note waits for an agent, open or sent.
+// waiting reports that a note of this branch waits for an agent, open or
+// sent.
 func (n *notesState) waiting() bool {
-	return slices.ContainsFunc(n.Heads, func(h note.Head) bool { return h.State.Waits() })
+	return slices.ContainsFunc(n.Heads, func(h note.Head) bool { return h.State.Waits() && !h.Away })
 }
 
 func (m *model) sendTo(target note.Session) {

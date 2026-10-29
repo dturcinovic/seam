@@ -188,8 +188,13 @@ answered it, one such line for each note there. A note in a fold stands below th
 mouse pass over these lines, and `C` hides them for the session. A
 note belongs to the commit, the index or the worktree it was set in, and
 shows wherever that is a side of the comparison: a note in the index only
-with `--staged`. When the file changes, seam looks for the lines again by
-their text and the three lines around them:
+with `--staged`. A note in the worktree or the index also belongs to the
+branch checked out when it was set, or with a detached HEAD to that commit:
+on another branch it shows nowhere and counts nowhere, though the lines read
+alike, and comes back with its branch. During a rebase the branch being
+rebased counts. Notes set before seam kept the branch show on every branch.
+When the file changes, seam looks for the lines again by their text and the
+three lines around them:
 
 - found once with all around them: the note stands there;
 - found once with at least half around them, or a copy of lines that
@@ -206,17 +211,18 @@ footer counts them and the answered ones.
 
 `N` lists every note of the worktree's book by file, resolved ones too,
 with its state, source and place: where it stands as above, `not placed
-yet` while its file is not loaded, or `not in this comparison` when no side
-shows its source and path. The list follows changes from other seam
-processes and keeps the note chosen. In it, `enter` goes to the note:
+yet` while its file is not loaded, `not in this comparison` when no side
+shows its source and path, `on <branch>` for a note of another branch, or
+`branch gone` once its branch is deleted. The list follows changes from
+other seam processes and keeps the note chosen. In it, `enter` goes to the note:
 
 - to its place, where a side of the comparison shows it (`ctrl+o` goes
   back); a file not loaded opens first;
 - for a worktree note of a file outside the changeset, to its place in that
   file, opened to read;
 - otherwise to a popup with the lines it was set at and its text: a note
-  without a place, a resolved one, and a commit or index note no side shows,
-  even where the worktree has a file of that path.
+  without a place, a resolved one, a note of another branch, and a commit or
+  index note no side shows, even where the worktree has a file of that path.
 
 `x` resolves the note chosen, `R` gives it back from the agent that took
 it, `D` deletes it, `E` edits it, `esc` or `N` closes the list.
@@ -270,6 +276,10 @@ three tools:
 | `seam_notes_view(ids?)` | Reads notes without taking them |
 | `seam_reply(id, claim, text)` | Answers a note taken |
 
+Without `ids` both leave out the notes of other branches than the one
+checked out where the agent runs (see [Notes](#notes)); named by id, a note
+is taken wherever it belongs.
+
 A note taken is no other session's: two agents in the same worktree never
 answer the same note. The popup says which agent took it and since when.
 When the agent's session ends, it gives back what it took and did not
@@ -286,9 +296,9 @@ code you do not trust is code the agent reads.
 ### Sending notes to Claude Code
 
 `S` hands the notes to a running Claude Code session without a word typed
-there. It sends the notes waiting at that moment, open ones and those sent
-before and not taken, in one batch to one session; a note set afterwards
-waits for the next `S`. With one agent session in the worktree the batch
+there. It sends the notes of the branch checked out waiting at that
+moment, open ones and those sent before and not taken, in one batch to one
+session; a note set afterwards waits for the next `S`. With one agent session in the worktree the batch
 goes to it, with several seam asks which, and with none the footer says
 `no agent session in this worktree`.
 

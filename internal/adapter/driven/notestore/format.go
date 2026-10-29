@@ -11,8 +11,10 @@ import (
 
 // version is the format written. The whole format stands from the start,
 // sessions and batches included, so no seam drops fields it has not used
-// yet.
-const version = 1
+// yet. Version 2 adds the head a note belongs to: a seam that knows only 1
+// refuses the file rather than writing it back without. A file of version
+// 1 is read as notes of no head, which show on every branch.
+const version = 2
 
 type fileJSON struct {
 	Version  int           `json:"version"`
@@ -32,6 +34,12 @@ type noteJSON struct {
 	Claim      *claimJSON  `json:"claim,omitempty"`
 	Batch      string      `json:"batch,omitempty"`
 	Replies    []replyJSON `json:"replies,omitempty"`
+	On         *headJSON   `json:"on,omitempty"`
+}
+
+type headJSON struct {
+	Branch string `json:"branch,omitempty"`
+	Commit string `json:"commit,omitempty"`
 }
 
 type anchorJSON struct {
@@ -108,6 +116,9 @@ func encodeNote(n note.Note) noteJSON {
 			Start: a.Start, End: a.End, Lines: a.Lines, Before: a.Before, After: a.After, Copies: a.Copies, Ordinal: a.Ordinal,
 		},
 	}
+	if !n.On.IsZero() {
+		j.On = &headJSON{Branch: n.On.Branch, Commit: n.On.Commit.String()}
+	}
 	if c := n.Claim; c != nil {
 		j.Claim = &claimJSON{ID: string(c.ID), Session: string(c.Session), At: c.At}
 	}
@@ -127,7 +138,7 @@ func decode(data []byte) (note.Book, error) {
 	if err := json.Unmarshal(data, &head); err != nil {
 		return note.Book{}, fmt.Errorf("%w: %w", note.ErrNotesDamaged, err)
 	}
-	if head.Version != version {
+	if head.Version < 1 || head.Version > version {
 		return note.Book{}, fmt.Errorf("%w: %d", note.ErrNotesVersion, head.Version)
 	}
 	var f fileJSON
@@ -166,8 +177,13 @@ func decodeNote(j noteJSON) (note.Note, error) {
 	if err != nil {
 		return note.Note{}, err
 	}
+	on, err := decodeHead(j.On)
+	if err != nil {
+		return note.Note{}, err
+	}
 	a := j.Anchor
 	n := note.Note{
+		On: on,
 		ID: note.ID(j.ID), Kind: kind, Comparison: j.Comparison, Text: j.Text, State: state, Created: j.Created, Batch: note.ID(j.Batch),
 		Anchor: note.Anchor{
 			Path: a.Path, Origin: note.Origin{Kind: origin, Commit: commit}, Blob: blob,
@@ -181,6 +197,17 @@ func decodeNote(j noteJSON) (note.Note, error) {
 		n.Replies = append(n.Replies, note.Reply{ID: note.ID(r.ID), Author: r.Author, Claim: note.ID(r.Claim), Text: r.Text, At: r.At})
 	}
 	return n, nil
+}
+
+func decodeHead(j *headJSON) (change.Head, error) {
+	if j == nil {
+		return change.Head{}, nil
+	}
+	commit, err := optionalID(j.Commit)
+	if err != nil {
+		return change.Head{}, err
+	}
+	return change.Head{Branch: j.Branch, Commit: commit}, nil
 }
 
 func optionalID(s string) (change.ObjectID, error) {

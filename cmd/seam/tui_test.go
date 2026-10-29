@@ -98,6 +98,8 @@ func startGraph(t *testing.T, f outFakes) (*fx.App, tui.Ports) {
 			func() out.NoteStore { return &outfakes.FakeNoteStore{} },
 			func() out.NoteWatcher { return &outfakes.FakeNoteWatcher{} },
 			func() out.ProcessProber { return &outfakes.FakeProcessProber{} },
+			func() out.HeadReader { return &outfakes.FakeHeadReader{} },
+			func() out.HeadWatcher { return &outfakes.FakeHeadWatcher{} },
 			func() supervise.PanicFunc { return nil },
 		),
 		// No notes: their file is that of a repository.

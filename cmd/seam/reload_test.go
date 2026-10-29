@@ -11,6 +11,7 @@ import (
 
 	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
 	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/app/usecase"
 	"github.com/dturcinovic/seam/internal/config"
 	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/diff"
@@ -58,7 +59,7 @@ func TestFreshReadsAChangeTheStampHides(t *testing.T) {
 		loader in.ChangesetLoader
 		files  in.FileDiffLoader
 	)
-	app := fx.New(append(options(cfg, logger, repo.Dir, "", configfile.File{Languages: lang.Defaults()}), fx.Populate(&loader, &files))...)
+	app := fx.New(append(options(cfg, logger, repo.Dir, usecase.NotesSettings{}, configfile.File{Languages: lang.Defaults()}), fx.Populate(&loader, &files))...)
 	require.NoError(t, app.Start(t.Context()))
 	defer func() { assert.NoError(t, stopGraph(app)) }()
 	c, err := change.NewComparison(change.Commit("HEAD"), change.Worktree())

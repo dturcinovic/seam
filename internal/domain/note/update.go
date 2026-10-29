@@ -31,10 +31,12 @@ const (
 	// sessions that took notes or may, Targets, those of them whose
 	// process runs, to send notes to, and Err, why the book cannot be read
 	// or is not watched, nil once it is again. Live is whether changes
-	// from elsewhere show.
+	// from elsewhere show. HeadErr is why HEAD cannot be read, while no
+	// note counts as away.
 	StoreStatus
 	// Overview sets Notes, every note of the book, resolved ones too, or
-	// Err, why there is none.
+	// Err, why there is none, and Gone, the branches of notes that no
+	// longer exist.
 	Overview
 )
 
@@ -45,12 +47,15 @@ type Spot struct {
 }
 
 // Head is a note in brief, as the file list and the footer count them.
+// Away is a note of another branch than HEAD stands on, which counts
+// nowhere.
 type Head struct {
 	ID     ID
 	Path   string
 	Origin Origin
 	Kind   Kind
 	State  State
+	Away   bool
 }
 
 // Update is news from the notes.
@@ -67,6 +72,8 @@ type Update struct {
 	Sessions []Session
 	Targets  []Session
 	Live     bool
+	HeadErr  error
 
 	Notes []Note
+	Gone  []string
 }

@@ -81,6 +81,7 @@ func aNote() note.Note {
 		},
 		Claim:   &note.Claim{ID: "c1", Session: "s1"},
 		Replies: []note.Reply{{Author: "user", Text: "earlier"}},
+		On:      change.Head{Branch: "feature/x"},
 	}
 }
 
@@ -116,10 +117,10 @@ func TestSeamNotesTakesForTheSession(t *testing.T) {
 	var got struct {
 		Claim string `json:"claim"`
 		Notes []struct {
-			ID, Kind, State, Path, Source, Comparison, Text string
-			Start, End                                      int
-			Lines, Before, After                            []string
-			Replies                                         []struct{ Author, Text string }
+			ID, Kind, State, Path, Source, On, Comparison, Text string
+			Start, End                                          int
+			Lines, Before, After                                []string
+			Replies                                             []struct{ Author, Text string }
 		} `json:"notes"`
 		Refused []struct{ ID, Reason string } `json:"refused"`
 		More    bool                          `json:"more"`
@@ -133,8 +134,8 @@ func TestSeamNotesTakesForTheSession(t *testing.T) {
 	assert.True(t, got.More)
 	require.Len(t, got.Notes, 1)
 	n := got.Notes[0]
-	assert.Equal(t, []string{"n1", "question", "taken", "a.go", "worktree", "HEAD..worktree", "why?"},
-		[]string{n.ID, n.Kind, n.State, n.Path, n.Source, n.Comparison, n.Text})
+	assert.Equal(t, []string{"n1", "question", "taken", "a.go", "worktree", "feature/x", "HEAD..worktree", "why?"},
+		[]string{n.ID, n.Kind, n.State, n.Path, n.Source, n.On, n.Comparison, n.Text})
 	assert.Equal(t, []string{"return nil"}, n.Lines)
 	assert.Equal(t, []string{}, n.After, "an array, not null")
 	assert.Equal(t, "earlier", n.Replies[0].Text)

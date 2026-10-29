@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/note"
 )
 
@@ -35,7 +36,7 @@ func TestTakingWithoutIDsTakesTheOpenNotes(t *testing.T) {
 	b := agentBook(t, "a", "b", "c")
 	require.NoError(t, b.Resolve("b"))
 
-	got, err := b.Take(nil, note.Claim{ID: "c1", Session: "s"})
+	got, err := b.Take(nil, note.Claim{ID: "c1", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 
 	assert.Equal(t, []note.ID{"a", "c"}, []note.ID{got.Notes[0].ID, got.Notes[1].ID})
@@ -44,20 +45,20 @@ func TestTakingWithoutIDsTakesTheOpenNotes(t *testing.T) {
 	assert.Equal(t, []note.State{note.Taken, note.Resolved, note.Taken}, states(b))
 	assert.Equal(t, note.ID("c1"), b.Notes[0].Claim.ID)
 
-	again, err := b.Take(nil, note.Claim{ID: "c2", Session: "s"})
+	again, err := b.Take(nil, note.Claim{ID: "c2", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	assert.Empty(t, again.Notes, "a second session finds nothing left to take")
 }
 
 func TestTakingIDsRefusesWhatIsNotOpen(t *testing.T) {
 	b := agentBook(t, "open", "taken", "answered", "resolved")
-	_, err := b.Take([]note.ID{"taken", "answered"}, note.Claim{ID: "c0", Session: "s"})
+	_, err := b.Take([]note.ID{"taken", "answered"}, note.Claim{ID: "c0", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	_, err = b.Reply("answered", note.Reply{ID: "r", Claim: "c0", Text: "because"})
 	require.NoError(t, err)
 	require.NoError(t, b.Resolve("resolved"))
 
-	got, err := b.Take([]note.ID{"open", "taken", "answered", "resolved", "gone", "open"}, note.Claim{ID: "c1", Session: "s"})
+	got, err := b.Take([]note.ID{"open", "taken", "answered", "resolved", "gone", "open"}, note.Claim{ID: "c1", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 
 	require.Len(t, got.Notes, 1)
@@ -75,12 +76,12 @@ func TestTakingStopsAtMaxTake(t *testing.T) {
 	}
 	b := agentBook(t, ids...)
 
-	got, err := b.Take(nil, note.Claim{ID: "c", Session: "s"})
+	got, err := b.Take(nil, note.Claim{ID: "c", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	assert.Len(t, got.Notes, note.MaxTake)
 	assert.True(t, got.More)
 
-	rest, err := b.Take(nil, note.Claim{ID: "d", Session: "s"})
+	rest, err := b.Take(nil, note.Claim{ID: "d", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	assert.Len(t, rest.Notes, 1)
 	assert.False(t, rest.More)
@@ -93,13 +94,13 @@ func TestTakingIDsCountsOnlyTheNotesTaken(t *testing.T) {
 	}
 	b := agentBook(t, ids...)
 
-	first, err := b.Take(ids, note.Claim{ID: "c", Session: "s"})
+	first, err := b.Take(ids, note.Claim{ID: "c", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	assert.Len(t, first.Notes, note.MaxTake)
 	assert.True(t, first.More)
 	assert.Empty(t, first.Refused, "the rest is left, not refused")
 
-	again, err := b.Take(ids, note.Claim{ID: "d", Session: "s"})
+	again, err := b.Take(ids, note.Claim{ID: "d", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	assert.Len(t, again.Notes, 5, "the same ids again reach the rest")
 	assert.Len(t, again.Refused, note.MaxTake)
@@ -108,7 +109,7 @@ func TestTakingIDsCountsOnlyTheNotesTaken(t *testing.T) {
 
 func TestTakingNeedsASession(t *testing.T) {
 	b := agentBook(t, "a")
-	_, err := b.Take(nil, note.Claim{ID: "c", Session: "other"})
+	_, err := b.Take(nil, note.Claim{ID: "c", Session: "other"}, change.Head{})
 	require.ErrorIs(t, err, note.ErrNoSession)
 	assert.Equal(t, note.Open, b.Notes[0].State)
 	require.ErrorIs(t, b.Join(note.Session{ID: "s"}), note.ErrDuplicateID)
@@ -116,7 +117,7 @@ func TestTakingNeedsASession(t *testing.T) {
 
 func TestAReplyAnswersTheNote(t *testing.T) {
 	b := agentBook(t, "a", "b")
-	_, err := b.Take(nil, note.Claim{ID: "c", Session: "s"})
+	_, err := b.Take(nil, note.Claim{ID: "c", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 
 	got, err := b.Reply("a", note.Reply{ID: "r1", Author: "claude-code", Claim: "c", Text: "because"})
@@ -137,10 +138,10 @@ func TestAReplyAnswersTheNote(t *testing.T) {
 
 func TestALateReplyLeavesTheNewerTakingStanding(t *testing.T) {
 	b := agentBook(t, "a")
-	_, err := b.Take(nil, note.Claim{ID: "old", Session: "s"})
+	_, err := b.Take(nil, note.Claim{ID: "old", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	require.NoError(t, b.Release("a"))
-	_, err = b.Take(nil, note.Claim{ID: "new", Session: "s"})
+	_, err = b.Take(nil, note.Claim{ID: "new", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 
 	got, err := b.Reply("a", note.Reply{ID: "r", Claim: "old", Text: "late"})
@@ -183,9 +184,9 @@ func TestARefusedReply(t *testing.T) {
 func TestReleaseAndLeaveGiveNotesBack(t *testing.T) {
 	b := agentBook(t, "a", "b", "c")
 	require.NoError(t, b.Join(note.Session{ID: "t", PID: 2}))
-	_, err := b.Take([]note.ID{"a", "b"}, note.Claim{ID: "c1", Session: "s"})
+	_, err := b.Take([]note.ID{"a", "b"}, note.Claim{ID: "c1", Session: "s"}, change.Head{})
 	require.NoError(t, err)
-	_, err = b.Take([]note.ID{"c"}, note.Claim{ID: "c2", Session: "t"})
+	_, err = b.Take([]note.ID{"c"}, note.Claim{ID: "c2", Session: "t"}, change.Head{})
 	require.NoError(t, err)
 
 	require.NoError(t, b.Release("a"))
@@ -204,7 +205,7 @@ func TestPruneKeepsSessionsAliveOrHoldingAClaim(t *testing.T) {
 	b := agentBook(t, "a")
 	require.NoError(t, b.Join(note.Session{ID: "dead", PID: 2}))
 	require.NoError(t, b.Join(note.Session{ID: "holds", PID: 3}))
-	_, err := b.Take(nil, note.Claim{ID: "c", Session: "holds"})
+	_, err := b.Take(nil, note.Claim{ID: "c", Session: "holds"}, change.Head{})
 	require.NoError(t, err)
 
 	b.Prune(func(pid int) bool { return pid == 1 })
@@ -218,7 +219,7 @@ func TestPruneKeepsSessionsAliveOrHoldingAClaim(t *testing.T) {
 
 func TestResolvingATakenNoteDropsItsClaim(t *testing.T) {
 	b := agentBook(t, "a")
-	_, err := b.Take(nil, note.Claim{ID: "c", Session: "s"})
+	_, err := b.Take(nil, note.Claim{ID: "c", Session: "s"}, change.Head{})
 	require.NoError(t, err)
 	require.NoError(t, b.Resolve("a"))
 	assert.Nil(t, b.Notes[0].Claim)

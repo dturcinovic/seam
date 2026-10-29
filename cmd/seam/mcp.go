@@ -54,15 +54,16 @@ func mcpSession(ctx context.Context, cfg config.Config, stdin io.Reader, stdout 
 		return err
 	}
 	defer func() { err = errors.Join(err, logger.Close()) }()
-	notes := notesFile(ctx, root, logger)
-	if notes == "" {
+	notes := notesFiles(ctx, root, logger)
+	if notes.File == "" {
 		return fmt.Errorf("no git directory for %s: no notes", root)
 	}
 
 	var ports mcp.Ports
 	app := fx.New(
-		fx.Supply(logger, notestore.Config{File: notes}, usecase.NotesSettings{File: notes}, usecase.AgentSettings{PID: os.Getpid()}),
+		fx.Supply(logger, notestore.Config{File: notes.File}, notes, usecase.AgentSettings{PID: os.Getpid()}, git.Config{Root: root}),
 		observability.Module,
+		git.Module,
 		notestore.Module,
 		process.Module,
 		fswatch.Module,

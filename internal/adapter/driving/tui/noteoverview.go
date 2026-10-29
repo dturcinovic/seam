@@ -16,12 +16,14 @@ import (
 // noteOverview is the list of every note of the book, N opens it over the
 // body. Notes are by path, then source and age, and Rows their lines with
 // a heading per path; Sel is the note chosen, kept by its ID as the book
-// changes. Known says the book came once, Err why it did not.
+// changes. Known says the book came once, Err why it did not. Gone came
+// with the book: the branches of its notes that no longer exist.
 type noteOverview struct {
 	Open  bool
 	Known bool
 	Err   error
 	Notes []note.Note
+	Gone  []string
 	Rows  []overviewRow
 	Sel   note.ID
 	// Sides are the sides of the changeset by source and path, see
@@ -74,7 +76,7 @@ func (s *state) takeOverview(u note.Update) {
 		return
 	}
 	at := max(o.selRow(), 0)
-	o.Known, o.Err = true, u.Err
+	o.Known, o.Err, o.Gone = true, u.Err, u.Gone
 	// The update is this model's alone, Drain handed it over.
 	o.Notes = u.Notes
 	slices.SortStableFunc(o.Notes, func(a, b note.Note) int {
@@ -179,7 +181,7 @@ func (s *state) enterNote(edit bool) (filediff.Request, bool) {
 	}
 	ref, onSide := s.sideFor(n)
 	sp, placed := s.spotOf(n.ID, ref)
-	visits := !onSide && n.Anchor.Origin.Kind == change.KindWorktree && s.canVisit()
+	visits := !onSide && n.Anchor.Origin.Kind == change.KindWorktree && !s.Notes.Away[n.ID] && s.canVisit()
 	if n.State == note.Resolved || onSide && placed && !sp.Place.Where.Shown() || !onSide && !visits {
 		if edit {
 			s.Note = noPlaceToEdit

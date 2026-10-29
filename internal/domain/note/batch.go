@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"time"
+
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // MaxBatches is the most batches a book keeps; the oldest go first, and
@@ -32,13 +34,13 @@ type Sending struct {
 	Notes []Note
 }
 
-// Send sends the waiting notes, open or sent and not taken, to session in
-// a new batch named id, set at at. The batch holds these notes alone: a
-// note set later waits for the next one. A note sent before moves to the
-// new batch, so a notice that got lost is made up for without a note
-// being taken twice. Session must be one of the book's Targets: a session
-// whose process died would never take the batch.
-func (b *Book) Send(id, session ID, at time.Time, alive func(pid int) bool) (Batch, error) {
+// Send sends the waiting notes, open or sent and not taken, and not Away
+// from cur, to session in a new batch named id, set at at. The batch holds
+// these notes alone: a note set later waits for the next one. A note sent
+// before moves to the new batch, so a notice that got lost is made up for
+// without a note being taken twice. Session must be one of the book's
+// Targets: a session whose process died would never take the batch.
+func (b *Book) Send(id, session ID, at time.Time, alive func(pid int) bool, cur change.Head) (Batch, error) {
 	if !slices.ContainsFunc(b.Targets(alive), func(s Session) bool { return s.ID == session }) {
 		return Batch{}, fmt.Errorf("%w: %s", ErrNoSession, session)
 	}
@@ -47,7 +49,7 @@ func (b *Book) Send(id, session ID, at time.Time, alive func(pid int) bool) (Bat
 	}
 	bt := Batch{ID: id, Session: session, At: at}
 	for i := range b.Notes {
-		if n := &b.Notes[i]; n.State.Waits() {
+		if n := &b.Notes[i]; n.State.Waits() && !Away(*n, cur) {
 			n.State, n.Batch = Sent, id
 			bt.Notes = append(bt.Notes, n.ID)
 		}

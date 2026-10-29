@@ -45,8 +45,10 @@ func TestABookReadsBackAsWritten(t *testing.T) {
 			Replies: []note.Reply{{ID: "r1", Author: "claude", Claim: "c1", Text: "because", At: at}},
 		}, {
 			ID: "n2", Kind: note.Question, Text: "q", State: note.Taken, Created: at, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}},
+			On: change.Head{Branch: "feature/x"},
 		}, {
 			ID: "n3", Kind: note.Question, Text: "q", State: note.Answered, Created: at, Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindIndex}},
+			On: change.Head{Commit: id(t, '3')},
 		}, {
 			ID: "n4", Kind: note.Question, Text: "q", State: note.Sent, Created: at, Batch: "b1", Anchor: note.Anchor{Origin: note.Origin{Kind: change.KindWorktree}},
 		}},
@@ -65,7 +67,7 @@ func TestABookReadsBackAsWritten(t *testing.T) {
 	assert.Equal(t, want, got)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.Contains(t, string(data), `"version": 1`)
+	assert.Contains(t, string(data), `"version": 2`)
 }
 
 func TestAnEmptyBookStillWritesTheWholeFormat(t *testing.T) {
@@ -73,7 +75,24 @@ func TestAnEmptyBookStillWritesTheWholeFormat(t *testing.T) {
 	require.NoError(t, s.Change(t.Context(), func(*note.Book) error { return nil }))
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"version": 1, "notes": [], "sessions": [], "batches": []}`, string(data))
+	assert.JSONEq(t, `{"version": 2, "notes": [], "sessions": [], "batches": []}`, string(data))
+}
+
+func TestABookOfVersion1ReadsAsNotesOfNoHead(t *testing.T) {
+	s, path := newStore(t)
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	v1 := `{"version": 1, "notes": [{"id": "n", "kind": "question", "text": "q", "state": "open", "anchor": {"origin": {"kind": "worktree"}}}], "sessions": [], "batches": []}`
+	require.NoError(t, os.WriteFile(path, []byte(v1), 0o600))
+
+	b, err := s.Load(t.Context())
+	require.NoError(t, err)
+	require.Len(t, b.Notes, 1)
+	assert.True(t, b.Notes[0].On.IsZero())
+
+	require.NoError(t, s.Change(t.Context(), func(b *note.Book) error { return b.Resolve("n") }))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"version": 2`, "a change writes the book anew in the format of now")
 }
 
 func TestAFileNotReadIsNeverWritten(t *testing.T) {
@@ -82,7 +101,7 @@ func TestAFileNotReadIsNeverWritten(t *testing.T) {
 		err     error
 	}{
 		"damaged":       {`{"version": 1, "notes": [`, note.ErrNotesDamaged},
-		"newer version": {`{"version": 2, "notes": []}`, note.ErrNotesVersion},
+		"newer version": {`{"version": 3, "notes": []}`, note.ErrNotesVersion},
 		"newer state":   {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "parked", "anchor": {"origin": {"kind": "worktree"}}}]}`, note.ErrNotesVersion},
 		"bad blob":      {`{"version": 1, "notes": [{"id": "n", "kind": "question", "state": "open", "anchor": {"blob": "xyz", "origin": {"kind": "worktree"}}}]}`, note.ErrNotesDamaged},
 	} {

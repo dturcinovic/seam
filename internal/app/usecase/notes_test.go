@@ -26,7 +26,10 @@ type noteFakes struct {
 	store    *outfakes.FakeNoteStore
 	watcher  *outfakes.FakeNoteWatcher
 	procs    *outfakes.FakeProcessProber
+	head     *outfakes.FakeHeadReader
 	listener chan out.NoteListener
+	// headListener hears of HEAD's file, when the settings name it.
+	headListener chan out.HeadListener
 
 	mu   sync.Mutex
 	book note.Book
@@ -35,7 +38,17 @@ type noteFakes struct {
 
 func newNotes(t *testing.T) (*usecase.Notes, *noteFakes) {
 	t.Helper()
-	f := &noteFakes{store: &outfakes.FakeNoteStore{}, watcher: &outfakes.FakeNoteWatcher{}, procs: &outfakes.FakeProcessProber{}, listener: make(chan out.NoteListener, 1)}
+	return newNotesWith(t, usecase.NotesSettings{File: "/repo/.git/seam/notes.json"})
+}
+
+func newNotesWith(t *testing.T, set usecase.NotesSettings) (*usecase.Notes, *noteFakes) {
+	t.Helper()
+	f := &noteFakes{
+		store: &outfakes.FakeNoteStore{}, watcher: &outfakes.FakeNoteWatcher{}, procs: &outfakes.FakeProcessProber{}, head: &outfakes.FakeHeadReader{},
+		listener: make(chan out.NoteListener, 1), headListener: make(chan out.HeadListener, 1),
+	}
+	f.head.ReadHeadReturns(change.Head{Branch: "main"}, nil)
+	f.head.ListBranchesReturns([]string{"main"}, nil)
 	// Even pids run, odd ones died.
 	f.procs.AliveCalls(func(pid int) bool { return pid%2 == 0 })
 	f.store.LoadCalls(func(context.Context) (note.Book, error) {
@@ -57,13 +70,21 @@ func newNotes(t *testing.T) (*usecase.Notes, *noteFakes) {
 		return nil
 	})
 	f.watcher.WatchNotesCalls(func(ctx context.Context, file string, l out.NoteListener) error {
-		assert.Equal(t, "/repo/.git/seam/notes.json", file)
+		assert.Equal(t, set.File, file)
 		f.listener <- l
 		l.Changed()
 		<-ctx.Done()
 		return nil
 	})
-	n := usecase.NewNotes(usecase.NotesSettings{File: "/repo/.git/seam/notes.json"}, f.store, f.watcher, f.procs, nil)
+	headWatcher := &outfakes.FakeHeadWatcher{}
+	headWatcher.WatchHeadCalls(func(ctx context.Context, file string, l out.HeadListener) error {
+		assert.Equal(t, set.Head, file)
+		f.headListener <- l
+		l.Changed()
+		<-ctx.Done()
+		return nil
+	})
+	n := usecase.NewNotes(set, f.store, f.watcher, headWatcher, f.procs, f.head, nil)
 	require.NoError(t, n.Start())
 	t.Cleanup(func() { assert.NoError(t, n.Stop(context.Background())) })
 	return n, f
@@ -257,7 +278,7 @@ func TestAWatcherThatStopsLeavesTheNotesNotLive(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := &noteFakes{store: &outfakes.FakeNoteStore{}, watcher: &outfakes.FakeNoteWatcher{}}
 		f.watcher.WatchNotesReturns(errors.New("too many watches"))
-		n := usecase.NewNotes(usecase.NotesSettings{File: "/n.json"}, f.store, f.watcher, &outfakes.FakeProcessProber{}, nil)
+		n := usecase.NewNotes(usecase.NotesSettings{File: "/n.json"}, f.store, f.watcher, &outfakes.FakeHeadWatcher{}, &outfakes.FakeProcessProber{}, &outfakes.FakeHeadReader{}, nil)
 		require.NoError(t, n.Start())
 		defer func() { assert.NoError(t, n.Stop(context.Background())) }()
 		synctest.Wait()
@@ -269,7 +290,7 @@ func TestAWatcherThatStopsLeavesTheNotesNotLive(t *testing.T) {
 }
 
 func TestNoNotesOutsideARepository(t *testing.T) {
-	n := usecase.NewNotes(usecase.NotesSettings{}, &outfakes.FakeNoteStore{}, &outfakes.FakeNoteWatcher{}, &outfakes.FakeProcessProber{}, nil)
+	n := usecase.NewNotes(usecase.NotesSettings{}, &outfakes.FakeNoteStore{}, &outfakes.FakeNoteWatcher{}, &outfakes.FakeHeadWatcher{}, &outfakes.FakeProcessProber{}, &outfakes.FakeHeadReader{}, nil)
 	require.NoError(t, n.Start())
 	op := n.Add(note.Draft{})
 	n.Place(worktreeKey(1), nil)
@@ -338,7 +359,7 @@ func TestANoteTakenElsewhereIsReleasedHere(t *testing.T) {
 		f.elsewhere(func(b *note.Book) {
 			require.NoError(t, b.Add(noteDraft(t, []string{"a"}, 1), "x", time.Time{}))
 			require.NoError(t, b.Join(agent))
-			_, err := b.Take(nil, note.Claim{ID: "c", Session: "s"})
+			_, err := b.Take(nil, note.Claim{ID: "c", Session: "s"}, change.Head{})
 			require.NoError(t, err)
 		})
 		l.Changed()

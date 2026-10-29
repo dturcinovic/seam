@@ -13,6 +13,7 @@ import (
 	"github.com/dturcinovic/seam/internal/app/port/out"
 	"github.com/dturcinovic/seam/internal/app/port/out/outfakes"
 	"github.com/dturcinovic/seam/internal/app/usecase"
+	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/note"
 )
 
@@ -67,7 +68,7 @@ func (s *bookStore) send(t *testing.T, id, session note.ID) {
 	t.Helper()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := s.book.Send(id, session, time.Time{}, func(int) bool { return true })
+	_, err := s.book.Send(id, session, time.Time{}, func(int) bool { return true }, change.Head{})
 	require.NoError(t, err)
 }
 

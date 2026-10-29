@@ -24,10 +24,14 @@ type notesState struct {
 	// note; Targets those of them whose process runs, to send notes to.
 	Sessions []note.Session
 	Targets  []note.Session
-	// Err is why the book cannot be read or changed; Live that changes
-	// from elsewhere show; Known that the book was read once.
-	Err         error
-	Live, Known bool
+	// Err is why the book cannot be read or changed, HeadErr why HEAD
+	// cannot; Live that changes from elsewhere show; Known that the book
+	// was read once.
+	Err, HeadErr error
+	Live, Known  bool
+	// Away are the notes of Heads of another branch, which count nowhere
+	// and show on no side.
+	Away map[note.ID]bool
 	// Spots are the notes of each side placed, by the side's text.
 	Spots map[note.SnapshotKey][]note.Spot
 	Draft noteDraft
@@ -221,11 +225,16 @@ type headKey struct {
 }
 
 // status takes the book's state, and counts its open notes once rather
-// than for every file in every frame.
+// than for every file in every frame; notes of another branch count
+// nowhere.
 func (n *notesState) status(u note.Update) {
-	n.Heads, n.Sessions, n.Targets, n.Err, n.Live, n.Known = u.Heads, u.Sessions, u.Targets, u.Err, u.Live, true
-	n.Open, n.Answered = make(map[headKey]int), make(map[headKey]int)
+	n.Heads, n.Sessions, n.Targets, n.Err, n.HeadErr, n.Live, n.Known = u.Heads, u.Sessions, u.Targets, u.Err, u.HeadErr, u.Live, true
+	n.Open, n.Answered, n.Away = make(map[headKey]int), make(map[headKey]int), make(map[note.ID]bool)
 	for _, h := range u.Heads {
+		if h.Away {
+			n.Away[h.ID] = true
+			continue
+		}
 		switch h.State {
 		case note.Open, note.Sent, note.Taken:
 			n.Open[headKey{h.Origin, h.Path}]++
@@ -338,8 +347,10 @@ func (s *state) notesText() string {
 		}
 	}
 	var parts []string
-	if s.Notes.Err != nil {
-		parts = append(parts, s.Notes.Err.Error())
+	for _, err := range []error{s.Notes.Err, s.Notes.HeadErr} {
+		if err != nil {
+			parts = append(parts, err.Error())
+		}
 	}
 	if open > 0 {
 		parts = append(parts, fmt.Sprintf("%d open", open))
