@@ -8,31 +8,35 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dturcinovic/seam/internal/domain/release"
 	"github.com/dturcinovic/seam/internal/testsupport"
 )
 
-func TestUpdateFor(t *testing.T) {
-	const pkg = "github.com/dturcinovic/seam/cmd/seam"
+func TestInstallOf(t *testing.T) {
 	goBins := []string{"/home/u/go/bin/", "", "/opt/gobin"}
-	homebrew := []string{"", "/opt/homebrew", "/home/linuxbrew/.linuxbrew"}
+	archiveDirs := []string{"/usr/local/bin", "/home/u/.local/bin", "/home/u/bin"}
 	tests := []struct {
 		binary string
-		want   string
+		want   release.Install
 	}{
-		{"/opt/homebrew/bin/seam", "brew upgrade seam"},
-		{"/usr/local/Cellar/seam/0.1.0/bin/seam", "brew upgrade seam"},
-		{"/home/linuxbrew/.linuxbrew/bin/seam", "brew upgrade seam"},
-		{"/opt/homebrewer/seam", "https://github.com/dturcinovic/seam/releases/latest"},
-		{"/home/u/go/bin/seam", "go install " + pkg + "@latest"},
-		{"/opt/gobin/seam", "go install " + pkg + "@latest"},
-		{"/usr/bin/seam", "https://github.com/dturcinovic/seam/releases/latest"},
-		{"", "https://github.com/dturcinovic/seam/releases/latest"},
+		{"/opt/homebrew/Caskroom/seam/0.1.0/seam", release.Homebrew},
+		{"/usr/local/Cellar/seam/0.1.0/bin/seam", release.Homebrew},
+		{"/usr/local/Caskroom/seam/0.1.0/seam", release.Homebrew},
+		{"/home/linuxbrew/.linuxbrew/Cellar/seam/0.1.0/bin/seam", release.Homebrew},
+		{"/usr/local/bin/seam", release.Archive},
+		{"/home/u/bin/seam", release.Archive},
+		{"/opt/homebrewer/seam", 0},
+		{"/home/u/.local/share/mise/installs/seam/0.1.0/seam", 0},
+		{"/home/u/src/seam/bin/seam", 0},
+		{"/home/u/go/bin/seam", release.GoInstall},
+		{"/opt/gobin/seam", release.GoInstall},
+		{"/usr/bin/seam", release.Package},
+		{"/home/u/.local/bin/seam", release.Archive},
+		{"", 0},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, updateFor(tt.binary, goBins, homebrew, pkg), tt.binary)
+		assert.Equal(t, tt.want, installOf(tt.binary, goBins, archiveDirs), tt.binary)
 	}
-	assert.Equal(t, "https://github.com/dturcinovic/seam/releases/latest", updateFor("/opt/gobin/seam", goBins, homebrew, ""),
-		"without its package path go install cannot be named")
 }
 
 func TestWhereGoInstallWrites(t *testing.T) {

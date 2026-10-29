@@ -309,6 +309,28 @@ linters:
             - github.com/dturcinovic/seam/internal/app/port/out
             - github.com/dturcinovic/seam/internal/adapter/driven/files
 
+        # Replaces seam's own binary, through os alone.
+        driven-selfbinary:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/selfbinary/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/adapter/driven/selfbinary
+
+        # Runs the command that upgrades seam, through os/exec alone.
+        driven-command:
+          list-mode: strict
+          files:
+            - "**/internal/adapter/driven/command/**"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/dturcinovic/seam/internal/app/port/out
+            - github.com/dturcinovic/seam/internal/adapter/driven/command
+
         driven-statefile:
           list-mode: strict
           files:
