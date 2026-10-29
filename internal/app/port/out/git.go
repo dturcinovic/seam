@@ -92,3 +92,32 @@ type IgnoreChecker interface {
 type ObjectFormatReader interface {
 	ObjectFormat(ctx context.Context) (change.ObjectFormat, error)
 }
+
+//counterfeiter:generate . HeadReader
+
+// HeadReader tells what HEAD of the worktree stands on, for the notes that
+// belong to a branch.
+type HeadReader interface {
+	// ReadHead returns the branch HEAD stands on, the branch being rebased
+	// during a rebase, or else the commit of a detached HEAD.
+	ReadHead(ctx context.Context) (change.Head, error)
+	// ListBranches returns the names of the local branches.
+	ListBranches(ctx context.Context) ([]string, error)
+}
+
+//counterfeiter:generate . HeadWatcher
+
+// HeadWatcher watches git's HEAD file of the worktree, which a checkout
+// replaces, for the notes that belong to a branch.
+type HeadWatcher interface {
+	// WatchHead watches the file named file until ctx ends and tells l,
+	// once also when the watcher is set up. It returns nil once ctx ends
+	// and an error if watching fails.
+	WatchHead(ctx context.Context, file string, l HeadListener) error
+}
+
+// HeadListener hears from a HeadWatcher, one call at a time.
+type HeadListener interface {
+	// Changed reports that HEAD may have moved. It must not block.
+	Changed()
+}

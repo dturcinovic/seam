@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+
+	"github.com/dturcinovic/seam/internal/domain/change"
 )
 
 // Limits of what agents take and answer.
@@ -137,15 +139,16 @@ func sessionIn(sessions []Session, id ID) (Session, bool) {
 }
 
 // Take takes notes under c, for its session: those of ids, or without ids
-// the waiting ones, open or sent, at most MaxTake either way, and More
-// says waiting ones are left. Only waiting notes are taken, whatever
-// session their batch was sent to; the others of ids come back refused.
-func (b *Book) Take(ids []ID, c Claim) (Taking, error) {
+// the waiting ones, open or sent, not Away from cur, at most MaxTake
+// either way, and More says waiting ones are left. Only waiting notes are
+// taken, whatever session their batch was sent to; the others of ids come
+// back refused. Notes named by id are taken wherever they belong.
+func (b *Book) Take(ids []ID, c Claim, cur change.Head) (Taking, error) {
 	if _, ok := b.Session(c.Session); !ok {
 		return Taking{}, fmt.Errorf("%w: %s", ErrNoSession, c.Session)
 	}
 	if len(ids) == 0 {
-		ids = b.waiting(MaxTake + 1)
+		ids = b.waiting(MaxTake+1, cur)
 	}
 	return b.takeEach(ids, c, func(*Note) (Reason, bool) { return "", false }), nil
 }
@@ -181,11 +184,12 @@ func (b *Book) takeEach(ids []ID, c Claim, refuse func(*Note) (Reason, bool)) Ta
 	return t
 }
 
-// waiting are the first n notes of the book open or sent.
-func (b *Book) waiting(n int) []ID {
+// waiting are the first n notes of the book open or sent, not Away from
+// cur.
+func (b *Book) waiting(n int, cur change.Head) []ID {
 	var ids []ID
 	for i := 0; i < len(b.Notes) && len(ids) < n; i++ {
-		if b.Notes[i].State.Waits() {
+		if b.Notes[i].State.Waits() && !Away(b.Notes[i], cur) {
 			ids = append(ids, b.Notes[i].ID)
 		}
 	}

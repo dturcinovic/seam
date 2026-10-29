@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/note"
 )
 
@@ -20,16 +21,32 @@ type AgentSettings struct {
 // NoteAgents implements in.NoteSessions, in.NoteAnswerer and
 // in.BatchTaker for an agent session. It has no worker: each call is one
 // change of the book, made under the store's lock, so two sessions never
-// take the same note.
+// take the same note. Taking and viewing without ids leave the notes away
+// from HEAD as it is at the call; when HEAD cannot be read they fail
+// rather than hand the agent the notes of every branch unasked.
 type NoteAgents struct {
 	store out.NoteStore
 	procs out.ProcessProber
+	head  out.HeadReader
 	pid   int
 }
 
 // NewNoteAgents returns the use case over its ports.
-func NewNoteAgents(set AgentSettings, s out.NoteStore, p out.ProcessProber) *NoteAgents {
-	return &NoteAgents{store: s, procs: p, pid: set.PID}
+func NewNoteAgents(set AgentSettings, s out.NoteStore, p out.ProcessProber, h out.HeadReader) *NoteAgents {
+	return &NoteAgents{store: s, procs: p, head: h, pid: set.PID}
+}
+
+// headFor is what HEAD stands on for a call without ids; with ids no note
+// is away, and HEAD is not read.
+func (a *NoteAgents) headFor(ctx context.Context, ids []note.ID) (change.Head, error) {
+	if len(ids) > 0 {
+		return change.Head{}, nil
+	}
+	h, err := a.head.ReadHead(ctx)
+	if err != nil {
+		return change.Head{}, fmt.Errorf("read HEAD: %w", err)
+	}
+	return h, nil
 }
 
 // Join implements in.NoteSessions. It first drops the sessions whose
@@ -61,9 +78,13 @@ func (a *NoteAgents) Leave(ctx context.Context, id note.ID) error {
 // Take implements in.NoteAnswerer.
 func (a *NoteAgents) Take(ctx context.Context, session note.ID, ids []note.ID) (note.Taking, error) {
 	c := note.Claim{ID: newID(), Session: session, At: time.Now()}
+	cur, err := a.headFor(ctx, ids)
+	if err != nil {
+		return note.Taking{}, fmt.Errorf("take notes: %w", err)
+	}
 	var t note.Taking
-	err := a.store.Change(ctx, func(b *note.Book) (err error) {
-		t, err = b.Take(ids, c)
+	err = a.store.Change(ctx, func(b *note.Book) (err error) {
+		t, err = b.Take(ids, c, cur)
 		return err
 	})
 	if err != nil {
@@ -113,11 +134,15 @@ func (a *NoteAgents) View(ctx context.Context, ids []note.ID) (note.Book, error)
 	for _, id := range ids {
 		asked[id] = true
 	}
+	cur, err := a.headFor(ctx, ids)
+	if err != nil {
+		return note.Book{}, fmt.Errorf("read notes: %w", err)
+	}
 	b.Notes = slices.DeleteFunc(b.Notes, func(n note.Note) bool {
 		if len(ids) > 0 {
 			return !asked[n.ID]
 		}
-		return n.State == note.Resolved
+		return n.State == note.Resolved || note.Away(n, cur)
 	})
 	return note.Book{Notes: b.Notes, Sessions: b.Sessions}, nil
 }

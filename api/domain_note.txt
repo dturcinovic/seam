@@ -80,6 +80,17 @@ var (
     Errors of the book and of its storage.
 
 
+FUNCTIONS
+
+func Away(n Note, cur change.Head) bool
+    Away reports that n belongs to another branch, or another detached commit,
+    than cur, which HEAD stands on. The worktree and the index are shared by
+    every branch checked out in them, so a note set there would else show on all
+    of them at lines that only read alike. A note without On, set on a commit or
+    before seam kept On, is away nowhere, and so is every note while cur is not
+    known.
+
+
 TYPES
 
 type Anchor struct {
@@ -165,13 +176,13 @@ func (b *Book) Reply(id ID, r Reply) (Answer, error)
 func (b *Book) Resolve(id ID) error
     Resolve marks note id done; a note resolved already stays so.
 
-func (b *Book) Send(id, session ID, at time.Time, alive func(pid int) bool) (Batch, error)
-    Send sends the waiting notes, open or sent and not taken, to session in a
-    new batch named id, set at at. The batch holds these notes alone: a note set
-    later waits for the next one. A note sent before moves to the new batch,
-    so a notice that got lost is made up for without a note being taken twice.
-    Session must be one of the book's Targets: a session whose process died
-    would never take the batch.
+func (b *Book) Send(id, session ID, at time.Time, alive func(pid int) bool, cur change.Head) (Batch, error)
+    Send sends the waiting notes, open or sent and not taken, and not Away from
+    cur, to session in a new batch named id, set at at. The batch holds these
+    notes alone: a note set later waits for the next one. A note sent before
+    moves to the new batch, so a notice that got lost is made up for without a
+    note being taken twice. Session must be one of the book's Targets: a session
+    whose process died would never take the batch.
 
 func (b *Book) Sendings(session ID) []Sending
     Sendings are the batches sent to session that still have notes sent and not
@@ -180,11 +191,12 @@ func (b *Book) Sendings(session ID) []Sending
 func (b *Book) Session(id ID) (Session, bool)
     Session is the session named id.
 
-func (b *Book) Take(ids []ID, c Claim) (Taking, error)
-    Take takes notes under c, for its session: those of ids, or without ids
-    the waiting ones, open or sent, at most MaxTake either way, and More says
-    waiting ones are left. Only waiting notes are taken, whatever session their
-    batch was sent to; the others of ids come back refused.
+func (b *Book) Take(ids []ID, c Claim, cur change.Head) (Taking, error)
+    Take takes notes under c, for its session: those of ids, or without ids the
+    waiting ones, open or sent, not Away from cur, at most MaxTake either way,
+    and More says waiting ones are left. Only waiting notes are taken, whatever
+    session their batch was sent to; the others of ids come back refused.
+    Notes named by id are taken wherever they belong.
 
 func (b *Book) TakeBatch(id ID, c Claim) (Taking, error)
     TakeBatch takes under c the notes of batch id still sent in it, at most
@@ -208,8 +220,10 @@ type Draft struct {
 	Anchor     Anchor
 	Comparison string
 	Text       string
+	On         change.Head
 }
-    Draft is a note as the user writes it, before the book takes it.
+    Draft is a note as the user writes it, before the book takes it. On is what
+    HEAD stands on, which the book keeps only for the worktree or the index.
 
 type Head struct {
 	ID     ID
@@ -217,8 +231,10 @@ type Head struct {
 	Origin Origin
 	Kind   Kind
 	State  State
+	Away   bool
 }
     Head is a note in brief, as the file list and the footer count them.
+    Away is a note of another branch than HEAD stands on, which counts nowhere.
 
 type ID string
     ID names a note, a reply, a claim, a batch or a session.
@@ -243,6 +259,7 @@ type Note struct {
 	Text       string
 	State      State
 	Created    time.Time
+	On         change.Head
 	// Claim is the taking of a note Taken; Batch belongs to sending it,
 	// which the book keeps as it is.
 	Claim   *Claim
@@ -251,7 +268,8 @@ type Note struct {
 }
     Note is a question or finding at an anchor. Comparison describes the
     comparison it was set in, for people and agents only: the note belongs to
-    the anchor's origin.
+    the anchor's origin and, for the worktree or the index, to what HEAD stood
+    on then (see Away).
 
 type Op uint64
     Op names a change to the book asked for; its outcome comes as Done.
@@ -398,8 +416,10 @@ type Update struct {
 	Sessions []Session
 	Targets  []Session
 	Live     bool
+	HeadErr  error
 
 	Notes []Note
+	Gone  []string
 }
     Update is news from the notes.
 
@@ -417,10 +437,12 @@ const (
 	// sessions that took notes or may, Targets, those of them whose
 	// process runs, to send notes to, and Err, why the book cannot be read
 	// or is not watched, nil once it is again. Live is whether changes
-	// from elsewhere show.
+	// from elsewhere show. HeadErr is why HEAD cannot be read, while no
+	// note counts as away.
 	StoreStatus
 	// Overview sets Notes, every note of the book, resolved ones too, or
-	// Err, why there is none.
+	// Err, why there is none, and Gone, the branches of notes that no
+	// longer exist.
 	Overview
 )
     The kinds of update. The zero value is no valid kind.

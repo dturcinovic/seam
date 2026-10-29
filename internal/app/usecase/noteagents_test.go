@@ -59,9 +59,16 @@ func cloneBook(b note.Book) note.Book {
 }
 
 func newAgents(s *bookStore, alive ...int) *usecase.NoteAgents {
+	return newAgentsOn(s, change.Head{Branch: "main"}, alive...)
+}
+
+// newAgentsOn is newAgents in a worktree whose HEAD stands on head.
+func newAgentsOn(s *bookStore, head change.Head, alive ...int) *usecase.NoteAgents {
 	p := &outfakes.FakeProcessProber{}
 	p.AliveCalls(func(pid int) bool { return slices.Contains(alive, pid) })
-	return usecase.NewNoteAgents(usecase.AgentSettings{PID: 7}, s, p)
+	h := &outfakes.FakeHeadReader{}
+	h.ReadHeadReturns(head, nil)
+	return usecase.NewNoteAgents(usecase.AgentSettings{PID: 7}, s, p, h)
 }
 
 func TestASessionJoinsAndDropsTheDead(t *testing.T) {
@@ -187,4 +194,48 @@ func TestASessionTakesTheBatchSentToIt(t *testing.T) {
 
 	_, err = a.TakeBatch(t.Context(), me.ID, "gone")
 	require.ErrorIs(t, err, note.ErrNoBatch)
+}
+
+func TestAnAgentLeavesTheNotesOfOtherBranchesUnlessNamed(t *testing.T) {
+	s := newBookStore()
+	for id, branch := range map[note.ID]string{"here": "main", "there": "feature"} {
+		d := note.Draft{Kind: note.Question, Text: "why", Anchor: worktreeAnchor(), On: change.Head{Branch: branch}}
+		require.NoError(t, s.book.Add(d, id, time.Time{}))
+	}
+	a := newAgentsOn(s, change.Head{Branch: "main"}, 7)
+	_, err := a.Join(t.Context(), "claude-code")
+	require.NoError(t, err)
+	session := s.book.Sessions[0].ID
+
+	viewed, err := a.View(t.Context(), nil)
+	require.NoError(t, err)
+	require.Len(t, viewed.Notes, 1)
+	assert.Equal(t, note.ID("here"), viewed.Notes[0].ID)
+
+	taken, err := a.Take(t.Context(), session, nil)
+	require.NoError(t, err)
+	require.Len(t, taken.Notes, 1)
+	assert.Equal(t, note.ID("here"), taken.Notes[0].ID)
+
+	named, err := a.Take(t.Context(), session, []note.ID{"there"})
+	require.NoError(t, err)
+	require.Len(t, named.Notes, 1, "a note named by id is taken wherever it belongs")
+}
+
+func TestAnAgentIsToldWhenHEADCannotBeRead(t *testing.T) {
+	s := newBookStore("a")
+	h := &outfakes.FakeHeadReader{}
+	h.ReadHeadReturns(change.Head{}, errors.New("exit 128"))
+	a := usecase.NewNoteAgents(usecase.AgentSettings{PID: 7}, s, &outfakes.FakeProcessProber{}, h)
+	_, err := a.Join(t.Context(), "claude-code")
+	require.NoError(t, err)
+
+	_, err = a.Take(t.Context(), s.book.Sessions[0].ID, nil)
+	require.ErrorContains(t, err, "read HEAD: exit 128")
+	_, err = a.View(t.Context(), nil)
+	require.ErrorContains(t, err, "read HEAD: exit 128")
+
+	named, err := a.Take(t.Context(), s.book.Sessions[0].ID, []note.ID{"a"})
+	require.NoError(t, err, "named by id, HEAD does not matter")
+	assert.Len(t, named.Notes, 1)
 }

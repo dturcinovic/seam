@@ -11,10 +11,11 @@ import (
 	"github.com/dturcinovic/seam/internal/supervise"
 )
 
-// Module provides the repository and its checkouts as the ports they
-// fulfil. The repository's stop hook is the last to run, as everything
-// that reads blobs is built on it; the checkouts' runs just before, once
-// the servers working in them have stopped.
+// Module provides the repository, its checkouts and the reader of HEAD as
+// the ports they fulfil; fx builds only what is asked for, so HEAD alone
+// opens no repository. The repository's stop hook is the last to run, as
+// everything that reads blobs is built on it; the checkouts' runs just
+// before, once the servers working in them have stopped.
 var Module = fx.Module("git",
 	fx.Provide(fx.Annotate(newRepo,
 		fx.As(new(out.RevisionResolver)),
@@ -29,6 +30,7 @@ var Module = fx.Module("git",
 		fx.As(new(out.ObjectFormatReader)),
 	)),
 	fx.Provide(fx.Annotate(newCheckouts, fx.As(new(out.CommitCheckouts)))),
+	fx.Provide(fx.Annotate(func(cfg Config) *Head { return NewHead(cfg.Root) }, fx.As(new(out.HeadReader)))),
 )
 
 // repoStopReserve is what the checkouts leave of the stop deadline to the

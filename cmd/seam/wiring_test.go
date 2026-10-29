@@ -8,6 +8,7 @@ import (
 
 	"github.com/dturcinovic/seam/internal/adapter/driven/configfile"
 	"github.com/dturcinovic/seam/internal/app/port/in"
+	"github.com/dturcinovic/seam/internal/app/usecase"
 	"github.com/dturcinovic/seam/internal/config"
 	"github.com/dturcinovic/seam/internal/domain/lang"
 )
@@ -25,7 +26,7 @@ func TestTheGraphProvidesEveryIncomingPort(t *testing.T) {
 		updates  in.LSPUpdates
 	)
 	dir := t.TempDir()
-	opts := append(options(config.Config{}, nil, dir, "", configfile.File{Languages: lang.Defaults()}),
+	opts := append(options(config.Config{}, nil, dir, usecase.NotesSettings{}, configfile.File{Languages: lang.Defaults()}),
 		fx.Populate(&loader, &reloader, &files, &hoverer, &docs, &updates))
 
 	require.NoError(t, fx.ValidateApp(opts...))

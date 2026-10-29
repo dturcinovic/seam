@@ -90,8 +90,8 @@ func newReleaseChecks(lc fx.Lifecycle, settings ReleaseSettings, f out.ReleaseFe
 	return r
 }
 
-func newNotes(lc fx.Lifecycle, set NotesSettings, s out.NoteStore, w out.NoteWatcher, p out.ProcessProber, panics supervise.PanicFunc) *Notes {
-	n := NewNotes(set, s, w, p, panics)
+func newNotes(lc fx.Lifecycle, set NotesSettings, s out.NoteStore, w out.NoteWatcher, hw out.HeadWatcher, p out.ProcessProber, h out.HeadReader, panics supervise.PanicFunc) *Notes {
+	n := NewNotes(set, s, w, hw, p, h, panics)
 	runWorker(lc, n)
 	return n
 }

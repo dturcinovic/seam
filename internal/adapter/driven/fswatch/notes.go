@@ -13,7 +13,7 @@ import (
 	"github.com/dturcinovic/seam/internal/app/port/out"
 )
 
-// NoteWatcher implements out.NoteWatcher.
+// NoteWatcher implements out.NoteWatcher and out.HeadWatcher.
 type NoteWatcher struct {
 	log *zap.Logger
 }
@@ -30,6 +30,16 @@ func (w *NoteWatcher) WatchNotes(ctx context.Context, file string, l out.NoteLis
 	err := watchNotes(ctx, file, l)
 	if err != nil {
 		w.log.Warn("notes watcher stopped", zap.Error(err))
+	}
+	return err
+}
+
+// WatchHead implements out.HeadWatcher. git replaces HEAD by renaming as
+// seam does the book, so it is watched the same way.
+func (w *NoteWatcher) WatchHead(ctx context.Context, file string, l out.HeadListener) error {
+	err := watchNotes(ctx, file, l)
+	if err != nil {
+		w.log.Warn("HEAD watcher stopped", zap.Error(err))
 	}
 	return err
 }

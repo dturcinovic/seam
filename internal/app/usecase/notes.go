@@ -8,53 +8,71 @@ import (
 	"time"
 
 	"github.com/dturcinovic/seam/internal/app/port/out"
+	"github.com/dturcinovic/seam/internal/domain/change"
 	"github.com/dturcinovic/seam/internal/domain/note"
 	"github.com/dturcinovic/seam/internal/supervise"
 )
 
-// NotesSettings names the book's file; empty outside a repository, where
-// there are no notes.
+// NotesSettings names the book's file, empty outside a repository, where
+// there are no notes, and git's HEAD file of the worktree, to see a
+// checkout; without it HEAD is read each time the worker wakes.
 type NotesSettings struct {
 	File string
+	Head string
 }
 
 // Notes implements in.NoteWriter, in.NoteReader, in.NoteOverview,
 // in.NoteReleaser, in.NoteDeleter, in.NoteEditor, in.NoteSender and
 // in.NoteUpdates. One goroutine reads, places and changes the book, in the
 // order asked; a change from another process, which the watcher reports,
-// reloads it before the next job.
+// reloads it before the next job. What HEAD stands on decides which notes
+// belong here; see noteshead.go.
 type Notes struct {
-	group   *supervise.Group
-	store   out.NoteStore
-	watcher out.NoteWatcher
-	procs   out.ProcessProber
-	file    string
+	group       *supervise.Group
+	store       out.NoteStore
+	watcher     out.NoteWatcher
+	headWatcher out.HeadWatcher
+	procs       out.ProcessProber
+	head        out.HeadReader
+	file        string
+	headFile    string
 
 	wake   chan struct{}
 	signal chan struct{}
 
-	mu      sync.Mutex
-	jobs    []noteJob
-	stale   bool
-	live    bool
-	lastOp  note.Op
-	failed  error
-	updates []note.Update
+	mu    sync.Mutex
+	jobs  []noteJob
+	stale bool
+	live  bool
+	// headStale asks for HEAD to be read before the next job; headLive
+	// says the watcher on HEAD runs, else every job reads it.
+	headStale bool
+	headLive  bool
+	lastOp    note.Op
+	failed    error
+	updates   []note.Update
 
-	// The book as last read or written, the worker's alone.
+	// The book as last read or written, and HEAD as last read, the
+	// worker's alone. While HEAD cannot be read, cur is zero and no note
+	// is away: rather all notes shown than some hidden for no reason.
 	book    note.Book
 	bookErr error
+	cur     change.Head
+	headErr error
 }
 
 // NewNotes returns the use case over its ports. Its worker and watcher run
 // between Start and Stop.
-func NewNotes(set NotesSettings, s out.NoteStore, w out.NoteWatcher, p out.ProcessProber, panics supervise.PanicFunc) *Notes {
-	n := &Notes{store: s, watcher: w, procs: p, file: set.File, wake: make(chan struct{}, 1), signal: make(chan struct{}, 1), stale: true}
+func NewNotes(set NotesSettings, s out.NoteStore, w out.NoteWatcher, hw out.HeadWatcher, p out.ProcessProber, h out.HeadReader, panics supervise.PanicFunc) *Notes {
+	n := &Notes{
+		store: s, watcher: w, headWatcher: hw, procs: p, head: h, file: set.File, headFile: set.Head,
+		wake: make(chan struct{}, 1), signal: make(chan struct{}, 1), stale: true, headStale: true,
+	}
 	n.group = supervise.NewGroup("notes", panics, n.fail)
 	return n
 }
 
-// Start starts the worker and the watcher; outside a repository neither.
+// Start starts the worker and the watchers; outside a repository none.
 func (n *Notes) Start() error {
 	if n.file == "" {
 		return nil
@@ -62,7 +80,13 @@ func (n *Notes) Start() error {
 	if err := n.group.Go("worker", n.loop); err != nil {
 		return err
 	}
-	return n.group.Go("watch", n.watch)
+	if err := n.group.Go("watch", n.watch); err != nil {
+		return err
+	}
+	if n.headFile == "" {
+		return nil
+	}
+	return n.group.Go("watch HEAD", n.watchHead)
 }
 
 // Stop ends both and waits for them until ctx ends.
@@ -82,9 +106,13 @@ func (n *Notes) Drain() []note.Update {
 	return u
 }
 
-// Add implements in.NoteWriter.
+// Add implements in.NoteWriter; the note belongs to what HEAD stands on.
 func (n *Notes) Add(d note.Draft) note.Op {
-	return n.change(func(b *note.Book) error {
+	return n.changeAtHead(func(b *note.Book) error {
+		if err := n.headErr; err != nil && d.Anchor.Origin.Kind != change.KindCommit {
+			return err
+		}
+		d.On = n.cur
 		return b.Add(d, newID(), time.Now())
 	})
 }
@@ -109,10 +137,14 @@ func (n *Notes) Edit(id note.ID, k note.Kind, text string) note.Op {
 	return n.change(func(b *note.Book) error { return b.Edit(id, k, text) })
 }
 
-// Send implements in.NoteSender.
+// Send implements in.NoteSender; it sends only the notes of what HEAD
+// stands on.
 func (n *Notes) Send(session note.ID) note.Op {
-	return n.change(func(b *note.Book) error {
-		_, err := b.Send(newID(), session, time.Now(), n.procs.Alive)
+	return n.changeAtHead(func(b *note.Book) error {
+		if n.headErr != nil {
+			return n.headErr
+		}
+		_, err := b.Send(newID(), session, time.Now(), n.procs.Alive, n.cur)
 		return err
 	})
 }
@@ -132,6 +164,8 @@ func (n *Notes) Overview() {
 type noteJob struct {
 	op     note.Op
 	change func(*note.Book) error
+	// atHead reads HEAD before the change, which keeps it.
+	atHead bool
 
 	overview bool
 
@@ -152,12 +186,16 @@ func (j noteJob) answer(err error) note.Update {
 }
 
 func (n *Notes) change(do func(*note.Book) error) note.Op {
+	return n.submitChange(noteJob{change: do})
+}
+
+func (n *Notes) submitChange(j noteJob) note.Op {
 	n.mu.Lock()
 	n.lastOp++
-	op := n.lastOp
+	j.op = n.lastOp
 	n.mu.Unlock()
-	n.submit(noteJob{op: op, change: do})
-	return op
+	n.submit(j)
+	return j.op
 }
 
 // submit queues a job; once the worker failed, or outside a repository,
@@ -178,12 +216,15 @@ func (n *Notes) submit(j noteJob) {
 
 func (n *Notes) run(ctx context.Context, j noteJob) {
 	if j.overview {
-		n.publish(note.Update{Kind: note.Overview, Notes: slices.Clone(n.book.Notes), Err: n.bookErr})
+		n.publish(note.Update{Kind: note.Overview, Notes: slices.Clone(n.book.Notes), Err: n.bookErr, Gone: n.gone(ctx)})
 		return
 	}
 	if j.change == nil {
 		n.publish(note.Update{Kind: note.Placed, Key: j.key, Spots: n.spots(j.key, j.lines)})
 		return
+	}
+	if j.atHead {
+		n.readHead(ctx, true)
 	}
 	var after note.Book
 	err := n.store.Change(ctx, func(b *note.Book) error {
@@ -203,13 +244,13 @@ func (n *Notes) run(ctx context.Context, j noteJob) {
 	n.publishStatus()
 }
 
-// spots are the notes of side k not resolved, with where they stand in
-// lines.
+// spots are the notes of side k not resolved and not away, with where they
+// stand in lines.
 func (n *Notes) spots(k note.SnapshotKey, lines []string) []note.Spot {
 	var spots []note.Spot
 	for _, nt := range n.book.Notes {
 		a := nt.Anchor
-		if nt.State == note.Resolved || a.Path != k.Path || a.Origin != k.Origin {
+		if nt.State == note.Resolved || a.Path != k.Path || a.Origin != k.Origin || note.Away(nt, n.cur) {
 			continue
 		}
 		spots = append(spots, note.Spot{Note: nt, Place: note.Locate(a, k.Blob, lines)})
@@ -229,9 +270,11 @@ func (n *Notes) loop(ctx context.Context) {
 	}
 }
 
-// runNext reloads the book if it is stale, then runs the next job, if
-// any.
+// runNext reads HEAD and reloads the book if either may have changed, then
+// runs the next job, if any. HEAD is checked for each job, so that one
+// seen to move while jobs wait reaches those after it.
 func (n *Notes) runNext(ctx context.Context) bool {
+	n.readHead(ctx, false)
 	n.mu.Lock()
 	stale := n.stale
 	n.stale = false
@@ -290,14 +333,16 @@ func (n *Notes) markStale() {
 func (n *Notes) publishStatus() {
 	heads := make([]note.Head, 0, len(n.book.Notes))
 	for _, nt := range n.book.Notes {
-		heads = append(heads, note.Head{ID: nt.ID, Path: nt.Anchor.Path, Origin: nt.Anchor.Origin, Kind: nt.Kind, State: nt.State})
+		heads = append(heads, note.Head{
+			ID: nt.ID, Path: nt.Anchor.Path, Origin: nt.Anchor.Origin, Kind: nt.Kind, State: nt.State, Away: note.Away(nt, n.cur),
+		})
 	}
 	n.mu.Lock()
 	live := n.live
 	n.mu.Unlock()
 	n.publish(note.Update{
 		Kind: note.StoreStatus, Heads: heads, Sessions: slices.Clone(n.book.Sessions), Targets: n.book.Targets(n.procs.Alive),
-		Err: n.bookErr, Live: live,
+		Err: n.bookErr, HeadErr: n.headErr, Live: live,
 	})
 }
 

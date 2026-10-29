@@ -165,7 +165,8 @@ func (s State) String() string {
 
 // Note is a question or finding at an anchor. Comparison describes the
 // comparison it was set in, for people and agents only: the note belongs
-// to the anchor's origin.
+// to the anchor's origin and, for the worktree or the index, to what HEAD
+// stood on then (see Away).
 type Note struct {
 	ID         ID
 	Kind       Kind
@@ -174,6 +175,7 @@ type Note struct {
 	Text       string
 	State      State
 	Created    time.Time
+	On         change.Head
 	// Claim is the taking of a note Taken; Batch belongs to sending it,
 	// which the book keeps as it is.
 	Claim   *Claim
@@ -213,12 +215,15 @@ type Session struct {
 	Started time.Time
 }
 
-// Draft is a note as the user writes it, before the book takes it.
+// Draft is a note as the user writes it, before the book takes it. On is
+// what HEAD stands on, which the book keeps only for the worktree or the
+// index.
 type Draft struct {
 	Kind       Kind
 	Anchor     Anchor
 	Comparison string
 	Text       string
+	On         change.Head
 }
 
 // Book holds all notes of a worktree, with the sessions and batches of the
@@ -243,10 +248,22 @@ func (b *Book) Add(d Draft, id ID, at time.Time) error {
 	if _, ok := b.find(id); ok {
 		return fmt.Errorf("%w: %s", ErrDuplicateID, id)
 	}
-	b.Notes = append(b.Notes, Note{
-		ID: id, Kind: d.Kind, Anchor: d.Anchor, Comparison: d.Comparison, Text: d.Text, State: Open, Created: at,
-	})
+	n := Note{ID: id, Kind: d.Kind, Anchor: d.Anchor, Comparison: d.Comparison, Text: d.Text, State: Open, Created: at}
+	if d.Anchor.Origin.Kind != change.KindCommit {
+		n.On = d.On
+	}
+	b.Notes = append(b.Notes, n)
 	return nil
+}
+
+// Away reports that n belongs to another branch, or another detached
+// commit, than cur, which HEAD stands on. The worktree and the index are
+// shared by every branch checked out in them, so a note set there would
+// else show on all of them at lines that only read alike. A note without
+// On, set on a commit or before seam kept On, is away nowhere, and so is
+// every note while cur is not known.
+func Away(n Note, cur change.Head) bool {
+	return !n.On.IsZero() && !cur.IsZero() && n.On != cur
 }
 
 func checkText(k Kind, text string) error {
