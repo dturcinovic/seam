@@ -18,12 +18,29 @@ import (
 	"github.com/dturcinovic/seam/internal/domain/note"
 )
 
-// served is a server over fakes with a client connected to it.
-type served struct {
+// fakes are the ports a server calls; the session joins as s1.
+type fakes struct {
 	sessions *infakes.FakeNoteSessions
 	answerer *infakes.FakeNoteAnswerer
 	taker    *infakes.FakeBatchTaker
 	batches  *infakes.FakeBatchFeed
+}
+
+func newFakes() fakes {
+	f := fakes{sessions: &infakes.FakeNoteSessions{}, answerer: &infakes.FakeNoteAnswerer{}, taker: &infakes.FakeBatchTaker{}, batches: &infakes.FakeBatchFeed{}}
+	f.sessions.JoinCalls(func(_ context.Context, client string) (note.Session, error) {
+		return note.Session{ID: "s1", Client: client}, nil
+	})
+	return f
+}
+
+func (f fakes) ports() mcp.Ports {
+	return mcp.Ports{Sessions: f.sessions, Answerer: f.answerer, Taker: f.taker, Batches: f.batches}
+}
+
+// served is a server over fakes with a client connected to it.
+type served struct {
+	fakes
 	// notices are the channel's notices the client read.
 	notices chan *jsonrpc.Request
 	client  *sdk.ClientSession
@@ -33,19 +50,12 @@ type served struct {
 
 func serve(t *testing.T) *served {
 	t.Helper()
-	s := &served{
-		sessions: &infakes.FakeNoteSessions{}, answerer: &infakes.FakeNoteAnswerer{}, taker: &infakes.FakeBatchTaker{}, batches: &infakes.FakeBatchFeed{},
-		notices: make(chan *jsonrpc.Request, 8), done: make(chan error, 1),
-	}
-	s.sessions.JoinCalls(func(_ context.Context, client string) (note.Session, error) {
-		return note.Session{ID: "s1", Client: client}, nil
-	})
+	s := &served{fakes: newFakes(), notices: make(chan *jsonrpc.Request, 8), done: make(chan error, 1)}
 	serverT, clientT := sdk.NewInMemoryTransports()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go func() {
-		ports := mcp.Ports{Sessions: s.sessions, Answerer: s.answerer, Taker: s.taker, Batches: s.batches}
-		s.done <- mcp.Serve(ctx, ports, serverT, "v1.2.3", zap.NewNop())
+		s.done <- mcp.Serve(ctx, s.ports(), serverT, "v1.2.3", zap.NewNop())
 	}()
 	c := sdk.NewClient(&sdk.Implementation{Name: "claude-code", Version: "2"}, nil)
 	cs, err := c.Connect(t.Context(), &noticeTransport{Transport: clientT, notices: s.notices}, nil)
