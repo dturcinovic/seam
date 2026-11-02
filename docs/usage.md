@@ -297,6 +297,11 @@ code you do not trust is code the agent reads.
 
 ### Sending notes to Claude Code
 
+![A note sent with S, answered, and opened with its answer](agent.gif)
+
+In the recording `docs/agent.sh` answers in place of an agent, through the
+same tools.
+
 `S` hands the notes to a running Claude Code session without a word typed
 there. It sends the notes of the branch checked out waiting at that
 moment, open ones and those sent before and not taken, in one batch to one
