@@ -1,7 +1,8 @@
 # Records docs/notes.gif with vhs (https://github.com/charmbracelet/vhs):
-# task build, then vhs docs/notes.tape from the root of a throwaway clone,
-# since the notes it sets land in that clone's .git/seam. It needs the
-# history up to commit 31d2332.
+# task build, then vhs docs/notes.tape from the root of a fresh throwaway
+# clone: the notes it sets land in its .git/seam, and notes left there
+# from an earlier take would show too. It needs the history up to commit
+# 31d2332.
 #
 # The caret keys count rows of that commit's diff in the split view, which
 # wants the file list and 120 columns beside it: keep the width.
