@@ -1,6 +1,6 @@
 # Records docs/demo.gif with vhs (https://github.com/charmbracelet/vhs):
 # task build, then vhs docs/demo.tape from the repository root. It needs
-# gopls on the PATH and the history up to commit 323dece.
+# gopls on the PATH and the history up to commit 31d2332.
 #
 # The caret keys count rows and words of that commit's diff in the split
 # view, which wants the file list and 120 columns beside it: keep the width.
@@ -15,11 +15,11 @@ Set Padding 12
 Set TypingSpeed 60ms
 
 Hide
-Type "export PATH=$PWD/bin:$PATH PS1='$ ' && clear"
+Type "export PATH=$PWD/bin:$PATH PS1='$ ' XDG_CONFIG_HOME=$(mktemp -d) SEAM_NO_UPDATE_CHECK=1 && clear"
 Enter
 Show
 
-Type "seam 323dece~1 323dece"
+Type "seam 31d2332~1 31d2332"
 Sleep 500ms
 Enter
 Sleep 4s

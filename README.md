@@ -24,13 +24,15 @@ file, and lets you move through them.
 - Review notes: questions and findings at lines of the diff, set with a key
   or a click in the gutter, which follow their lines through edits and
   belong to the branch they were set on
-- `seam mcp`, so that an agent such as Claude Code reads your notes and
-  answers them at the line, and `S` sends the waiting notes to a running
-  session
+- `seam mcp`, so that an agent such as Claude Code or OpenCode reads your
+  notes and answers them at the line, and `S` sends the waiting notes to a
+  running Claude Code session (see [Agents](docs/usage.md#agents))
 - Files or directories on disk compared with `--files`, also as
   `git difftool`
 - A file list grouped by folder, and reload on change with `--watch`
 - Keys, colours and servers configurable in one TOML file
+
+![seam setting a question and a finding, then listing the notes](docs/notes.gif)
 
 ## Requirements
 

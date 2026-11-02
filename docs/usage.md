@@ -149,6 +149,8 @@ to them or to hand them to an agent (see [Agents](#agents)). They are kept per w
 git's directory (`.git/seam/notes.json`), so `git status` stays clean, and
 seam processes of the same worktree see each other's notes at once.
 
+![A question and a finding set with the caret, then the list of notes](notes.gif)
+
 | Key | Does |
 |---|---|
 | `c` | A note at the caret's line, at the lines marked with `v`, or without the caret at the first change on screen |
