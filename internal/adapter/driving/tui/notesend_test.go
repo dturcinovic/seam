@@ -98,3 +98,82 @@ func TestASentNoteIsNeverSaidToHaveArrived(t *testing.T) {
 
 	assert.Contains(t, strings.Join(texts(m.s.Hover.Popup), "\n"), "question · sent, not taken")
 }
+
+// sentAs is waitingHead with id and state.
+func sentAs(id note.ID, state note.State) note.Head {
+	h := waitingHead()
+	h.ID, h.State = id, state
+	return h
+}
+
+// statusOf is a status with heads, the agent session's process running.
+func statusOf(heads ...note.Head) note.Update {
+	return note.Update{Kind: note.StoreStatus, Heads: heads, Targets: []note.Session{agentSession()}, Live: true}
+}
+
+// sentTwo sends notes a and b, with c a sent note of another branch, and
+// lets the send's outcome and its own status come.
+func sentTwo(t *testing.T) (model, noteFakes) {
+	t.Helper()
+	away := sentAs("c", note.Sent)
+	away.Away = true
+	m, f := noteModel(t, headToWorktree(t))
+	m = notesCome(m, f, statusOf(sentAs("a", note.Open), sentAs("b", note.Sent), away))
+	f.sender.SendReturns(7)
+	m, _ = typed(m, "S")
+	m = notesCome(m, f, note.Update{Kind: note.Done, Op: 7}, statusOf(sentAs("a", note.Sent), sentAs("b", note.Sent), away))
+	require.Equal(t, sentHint, m.s.Note)
+	return m, f
+}
+
+const sentHint = "notes sent to claude-code, not taken yet"
+
+func TestTheSentHintGoesOnceNoNoteIsSent(t *testing.T) {
+	back := sentAs("b", note.Sent)
+	back.Away = true
+	opencode := note.Session{ID: "o", Client: "opencode"}
+	for _, tc := range []struct {
+		name   string
+		status note.Update
+	}{
+		{"taken", statusOf(sentAs("a", note.Taken), sentAs("b", note.Taken))},
+		{"answered and resolved", statusOf(sentAs("a", note.Answered), sentAs("b", note.Resolved))},
+		{"one deleted, one edited", statusOf(sentAs("a", note.Open))},
+		{"the other one on another branch now", statusOf(sentAs("a", note.Answered), back)},
+		{"the session gone, another live", note.Update{Kind: note.StoreStatus, Heads: []note.Head{sentAs("a", note.Sent)}, Targets: []note.Session{opencode}, Live: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, f := sentTwo(t)
+
+			m = notesCome(m, f, tc.status)
+
+			assert.Empty(t, m.s.Note)
+		})
+	}
+}
+
+func TestTheSentHintStaysWhileANoteIsSent(t *testing.T) {
+	m, f := sentTwo(t)
+
+	m = notesCome(m, f, statusOf(sentAs("a", note.Answered), sentAs("b", note.Sent), sentAs("d", note.Open)))
+
+	assert.Equal(t, sentHint, m.s.Note)
+}
+
+func TestTheSentHintMakesWayForTheBooksError(t *testing.T) {
+	m, f := sentTwo(t)
+
+	m = notesCome(m, f, note.Update{Kind: note.StoreStatus, Err: errors.New("damaged"), Targets: []note.Session{agentSession()}})
+
+	assert.Empty(t, m.s.Note)
+	assert.Contains(t, m.View().Content, "damaged")
+}
+
+func TestAnotherHintIsLeftAsItIs(t *testing.T) {
+	m, f := sentTwo(t)
+	m.s.Note = "note saved before esc came"
+
+	m = notesCome(m, f, statusOf(sentAs("a", note.Taken), sentAs("b", note.Taken)))
+
+	assert.Equal(t, "note saved before esc came", m.s.Note)
+}

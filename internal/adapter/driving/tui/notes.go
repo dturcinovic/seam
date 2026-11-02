@@ -57,9 +57,10 @@ type notesState struct {
 	Overview noteOverview
 	Find     noteFind
 	// Choice is the choice of the session to send to; Sending the send
-	// whose outcome the footer tells.
+	// whose outcome the footer tells; Sent the send it then tells of.
 	Choice  noteChoice
 	Sending sending
+	Sent    sentWatch
 	Delete  noteDeletion
 }
 
@@ -206,6 +207,7 @@ func (m *model) onNotes() {
 			}
 		case note.StoreStatus:
 			m.s.Notes.status(u)
+			m.s.settleSent()
 			m.s.dropGoneDeletion()
 			m.placeNotes(true)
 			if m.s.Notes.Overview.Open {
