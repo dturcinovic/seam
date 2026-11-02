@@ -32,7 +32,8 @@ type Ports struct {
 // not answer. Either end is an orderly one and no error. Meanwhile it
 // tells the client of each batch sent to its session.
 func Serve(ctx context.Context, p Ports, t sdk.Transport, version string, log *zap.Logger) error {
-	s := &server{ports: p, log: log, channel: &channelTransport{Transport: t}}
+	drain := newDrainState(ctx.Done(), log)
+	s := &server{ports: p, log: log, channel: &channelTransport{Transport: drainTransport{Transport: t, drainState: drain}}}
 	srv := sdk.NewServer(&sdk.Implementation{Name: "seam", Version: version}, &sdk.ServerOptions{
 		Instructions: instructions,
 		Capabilities: &sdk.ServerCapabilities{
@@ -50,7 +51,7 @@ func Serve(ctx context.Context, p Ports, t sdk.Transport, version string, log *z
 	p.Batches.Follow(nil)
 	s.channel.close()
 	leave := s.leave(context.WithoutCancel(ctx))
-	if ctx.Err() != nil || errors.Is(err, io.EOF) {
+	if ctx.Err() != nil || errors.Is(err, io.EOF) || drain.leftACall() {
 		err = nil
 	}
 	return errors.Join(err, leave)
