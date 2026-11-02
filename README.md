@@ -1,9 +1,9 @@
 # seam
 
-A side-by-side diff viewer for the terminal that knows your code. One key
-switches between the changed hunks and the whole file, and resting the
-mouse on a symbol shows its type and documentation from the language
-server, on either side of the diff.
+A side-by-side diff viewer for the terminal that knows your code: hover a
+symbol in the diff for its type and docs from the language server, and
+leave review notes at lines for an agent such as Claude Code to answer.
+One key switches between the changed hunks and the whole file.
 
 ![seam showing a diff, the whole file and a hover](docs/demo.gif)
 

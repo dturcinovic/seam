@@ -1,0 +1,52 @@
+name: Bug report
+description: seam shows something wrong, crashes or hangs
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: seam version
+      description: The output of `seam --version`
+      placeholder: seam version v0.1.1 (d6701e3, 2026-11-02)
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 26.04, macOS 26.1 on arm64, …
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal
+      description: The terminal emulator and its version, and tmux or screen if seam runs inside one
+      placeholder: Ghostty 1.2, iTerm2 3.6 in tmux 3.5, …
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: The command you ran and the keys you pressed
+      placeholder: |
+        1. seam main
+        2. i, the caret to a symbol, K
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and observed
+      description: What you expected, and what seam did instead. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >-
+        The lines of `~/.local/state/seam/seam.log` (or `$XDG_STATE_HOME/seam/seam.log`)
+        from that run, best with `--verbose`
+      render: text
