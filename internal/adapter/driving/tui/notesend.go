@@ -19,10 +19,11 @@ type noteChoice struct {
 	box
 }
 
-// sending is a send asked for, Op, to the session of Client.
+// sending is a send asked for, Op, to Session of Client.
 type sending struct {
-	Op     note.Op
-	Client string
+	Op      note.Op
+	Session note.ID
+	Client  string
 }
 
 // sendNotes sends the waiting notes to the one agent session there is, or
@@ -52,7 +53,7 @@ func (n *notesState) waiting() bool {
 
 func (m *model) sendTo(target note.Session) {
 	m.s.Notes.Choice = noteChoice{}
-	m.s.Notes.Sending = sending{Op: m.p.NoteSender.Send(target.ID), Client: target.Client}
+	m.s.Notes.Sending = sending{Op: m.p.NoteSender.Send(target.ID), Session: target.ID, Client: target.Client}
 }
 
 // sentDone tells the outcome of the send asked for, if u is it. It says
@@ -72,7 +73,35 @@ func (s *state) sentDone(u note.Update) bool {
 		return true
 	}
 	s.Note = "notes sent to " + sd.Client + ", not taken yet"
+	s.Notes.Sent = sentWatch{Note: s.Note, Session: sd.Session}
 	return true
+}
+
+// sentWatch is the hint of a send, Note, and the session it went to.
+type sentWatch struct {
+	Note    string
+	Session note.ID
+}
+
+// settleSent takes the hint of a send back once no note of this branch is
+// sent any more, which a book that fails shows too, or the session is gone.
+// A send batches every waiting note of the branch, sent ones too, so the
+// sent notes are the send's; and every status after its outcome reads the
+// book with the send in it.
+func (s *state) settleSent() {
+	w := &s.Notes.Sent
+	if w.Note == "" {
+		return
+	}
+	sent := func(h note.Head) bool { return h.State == note.Sent && !h.Away }
+	live := func(t note.Session) bool { return t.ID == w.Session }
+	if s.Note == w.Note && slices.ContainsFunc(s.Notes.Heads, sent) && slices.ContainsFunc(s.Notes.Targets, live) {
+		return
+	}
+	if s.Note == w.Note {
+		s.Note = ""
+	}
+	*w = sentWatch{}
 }
 
 // choiceKey takes a key while the choice is open: a session's number, or
