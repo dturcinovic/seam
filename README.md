@@ -21,6 +21,14 @@ file, and lets you move through them.
 - Syntax colours for Go, Rust, JavaScript, TypeScript, JSX, TSX, HTML, PHP
   and Python, and any other language chroma knows, by configuration
 - Changed words marked within a line
+- Review notes: questions and findings at lines of the diff, set with a key
+  or a click in the gutter, which follow their lines through edits and
+  belong to the branch they were set on
+- `seam mcp`, so that an agent such as Claude Code reads your notes and
+  answers them at the line, and `S` sends the waiting notes to a running
+  session
+- Files or directories on disk compared with `--files`, also as
+  `git difftool`
 - A file list grouped by folder, and reload on change with `--watch`
 - Keys, colours and servers configurable in one TOML file
 
@@ -77,6 +85,7 @@ seam                # HEAD against the worktree
 seam main           # main against the worktree
 seam HEAD~1 HEAD    # the last commit
 seam --staged       # what is staged
+seam --files a b    # two files or directories on disk
 ```
 
 | Key | Does |
@@ -90,12 +99,14 @@ seam --staged       # what is staged
 | mouse at rest | Hover |
 | `ctrl` + click | Go to the definition, `ctrl+o` back |
 | `i` | Caret: `K` hovers, `d` goes to the definition |
+| `c` | A note at the caret's line, or click `[+]` in the gutter |
+| `N` | All notes |
 | `q` | Quit |
 
 ## Documentation
 
 - [Usage](docs/usage.md): what seam compares, the views, the keys and the
-  mouse
+  mouse, notes and agents
 - [Language servers](docs/language-servers.md): which ones, how to install
   them, and their workspaces
 - [Configuration](docs/configuration.md): `config.toml` with every key
