@@ -1,5 +1,5 @@
 #!/bin/sh
-# The gate from AGENTS.md. It checks the working tree, so the working tree
+# Runs `task check` on the working tree, so the working tree
 # must be what gets committed: no unstaged changes, no untracked Go files.
 if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard -- '*.go')" ]; then
   echo "pre-commit: unstaged changes or untracked Go files; stage them or stash them (git stash -k -u)" >&2
