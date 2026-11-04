@@ -117,6 +117,41 @@ func TestTheServerTellsWhoItIsAndJoinsAsTheClient(t *testing.T) {
 	assert.ElementsMatch(t, []string{"seam_notes", "seam_notes_view", "seam_reply"}, names)
 }
 
+func TestEachToolSaysWhatItChangesAndWhenToUseAnother(t *testing.T) {
+	tools, err := serve(t).client.ListTools(t.Context(), nil)
+	require.NoError(t, err)
+	byName := map[string]*sdk.Tool{}
+	for _, tl := range tools.Tools {
+		byName[tl.Name] = tl
+	}
+	tests := []struct {
+		name               string
+		readOnly, repeated bool
+		points             []string
+	}{
+		{name: "seam_notes", points: []string{"seam_notes_view", "seam_reply", "reserves"}},
+		{name: "seam_notes_view", readOnly: true, points: []string{"seam_notes", "seam_reply"}},
+		{name: "seam_reply", repeated: true, points: []string{"seam_notes", "fails"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tl := byName[tt.name]
+			require.NotNil(t, tl)
+			a := tl.Annotations
+			require.NotNil(t, a)
+			assert.Equal(t, tt.readOnly, a.ReadOnlyHint, "read only")
+			assert.Equal(t, tt.repeated, a.IdempotentHint, "idempotent")
+			if !tt.readOnly {
+				assert.Equal(t, new(false), a.DestructiveHint, "removes nothing")
+			}
+			assert.Equal(t, new(false), a.OpenWorldHint, "the notes of this repository alone")
+			for _, p := range tt.points {
+				assert.Contains(t, tl.Description, p)
+			}
+		})
+	}
+}
+
 func TestSeamNotesTakesForTheSession(t *testing.T) {
 	s := serve(t)
 	s.answerer.TakeReturns(note.Taking{
