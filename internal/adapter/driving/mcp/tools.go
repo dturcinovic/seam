@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -88,19 +89,37 @@ type answerOut struct {
 	Late  bool   `json:"late" jsonschema:"the note was taken again since; the answer is kept but leaves it taken"`
 }
 
+// The descriptions stand on their own: some clients show the model a
+// tool's description and not the server's instructions.
+const (
+	notesDesc = "Take review notes the user left in seam, a terminal diff viewer, in order to answer them: without arguments the open and sent notes, leaving out notes of other branches than the checked-out one; with ids those notes; with batch the notes the user sent to this session. Giving both ids and batch fails, and so does a batch that does not exist. " +
+		"Taking reserves the notes for this session so that no other agent session answers them; they stay reserved until this session exits or the user gives them back, and after a crash only the user can, so take only what you will answer. " +
+		"Each note comes with its file, its lines and the lines around them, the user's text and earlier answers; the call returns one claim to give seam_reply with each answer. " +
+		"Notes it cannot take come back under refused with the reason: unknown, taken (by any session, this one too), answered, resolved, other_session (the batch went to another session) or rebatched (sent again or edited since; leave those). " +
+		"It takes at most %d notes per call; when more is true, call again for the rest. To read notes without reserving them, use seam_notes_view."
+	viewDesc = "Read the user's review notes without taking them: those of ids, or without ids every note that is not resolved, leaving out notes of other branches than the checked-out one, and including notes another session has taken. " +
+		"It reserves and changes nothing, and leaves out ids it does not know; use it to look before taking or to see what was answered. " +
+		"To answer notes, take them with seam_notes first and reply with seam_reply."
+	replyDesc = "Answer a review note, giving the claim seam_notes returned with it; the answer, in Markdown, shows at the note's lines in seam right away and the note is marked answered. " +
+		"Sending the same text under the same claim again adds nothing and returns the earlier reply, so a lost answer can be sent again. " +
+		"An answer under an older claim, after the user gave the note back and it was taken again, is kept but leaves the note to the newer taker, and late is true. " +
+		"It fails on an unknown or resolved note, an empty answer, or one over %d KiB."
+)
+
+// The tools act on the notes of this repository alone, and none removes a
+// note or an answer.
 func (s *server) addTools(srv *sdk.Server) {
 	sdk.AddTool(srv, &sdk.Tool{
-		Name:        "seam_notes",
-		Description: "Take the user's waiting review notes, those of ids, or those of a batch seam sent, to answer them with seam_reply.",
+		Name: "seam_notes", Description: fmt.Sprintf(notesDesc, note.MaxTake),
+		Annotations: &sdk.ToolAnnotations{DestructiveHint: new(false), OpenWorldHint: new(false)},
 	}, s.take)
 	sdk.AddTool(srv, &sdk.Tool{
-		Name:        "seam_notes_view",
-		Description: "Read review notes without taking them.",
-		Annotations: &sdk.ToolAnnotations{ReadOnlyHint: true},
+		Name: "seam_notes_view", Description: viewDesc,
+		Annotations: &sdk.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)},
 	}, s.view)
 	sdk.AddTool(srv, &sdk.Tool{
-		Name:        "seam_reply",
-		Description: "Answer a review note taken with seam_notes. The same answer again adds nothing.",
+		Name: "seam_reply", Description: fmt.Sprintf(replyDesc, note.MaxReply>>10),
+		Annotations: &sdk.ToolAnnotations{IdempotentHint: true, DestructiveHint: new(false), OpenWorldHint: new(false)},
 	}, s.reply)
 }
 
